@@ -28,8 +28,8 @@ export const Hobby: React.FC = () => {
         </div>
         <p className="text-sm font-mono text-stone-500 dark:text-zinc-400 max-w-md">
           {language === 'en'
-            ? 'van-theory.vercel.app · Built in 2024 as a personal hobby project for self-study, solving music theory, chord visualization, and real-time audio synthesis challenges.'
-            : 'van-theory.vercel.app · Dibuat di tahun 2024 murni sebagai hobi untuk diri sendiri, memecahkan kesulitan pembelajaran teori musik dan visualisasi harmoni dengan Web Audio API.'}
+            ? 'music.vanviolet.my.id · Built in 2024 as a personal hobby project for self-study, solving music theory, chord visualization, and real-time audio synthesis challenges.'
+            : 'music.vanviolet.my.id · Dibuat di tahun 2024 murni sebagai hobi untuk diri sendiri, memecahkan kesulitan pembelajaran teori musik dan visualisasi harmoni dengan Web Audio API.'}
         </p>
       </div>
 

@@ -13,13 +13,11 @@ export const profileData: ProfileInfo = {
   aboutEditorial: {
     en: [
       'I am a Fullstack Software Engineer based in Indonesia with practical experience delivering resilient, production-grade applications. Since 2022, I have served as a core Fullstack Developer at a prominent university, while simultaneously working as a remote engineer for external enterprise companies since 2023 and accepting bespoke client contracts as a freelancer.',
-      'My engineering work spans the entire application lifecycle—from architecting biometric facial verification and enterprise inventory platforms to university-wide academic systems (LMS, Curriculum, and Graduation) serving thousands of concurrent users across Kubernetes clusters.',
-      'I treat software development as an engineering discipline where simplicity, runtime performance, and maintainability supersede fleeting hype. Whether orchestrating containerized microservices on Kubernetes and PostgreSQL or crafting fluid interfaces in React and TypeScript, I prioritize clarity and measurable impact.',
+      
     ],
     id: [
       'Saya adalah seorang Fullstack Software Engineer yang berbasis di Indonesia dengan pengalaman nyata membangun aplikasi berskala produksi yang tangguh. Sejak tahun 2022, saya aktif sebagai Fullstack Developer di sebuah Universitas ternama, sekaligus merangkap kerja remote untuk perusahaan eksternal sejak 2023 dan aktif menerima proyek perorangan sebagai freelancer.',
-      'Karya rekayasa saya mencakup spektrum luas—dari merancang sistem presensi biometrik untuk perusahaan mitra dan pelacakan inventaris, hingga sistem akademik universitas (LMS, Kurikulum Terintegrasi, dan Manajemen Wisuda) yang melayani belasan ribu pengguna aktif di atas klaster Kubernetes.',
-      'Bagi saya, rekayasa perangkat lunak adalah sebuah disiplin di mana kesederhanaan, performa runtime, dan kemudahan perawatan kode menjadi prioritas utama. Baik saat mengorkestrasi microservices pada Kubernetes dan PostgreSQL, maupun membangun antarmuka web modern dengan React dan TypeScript.',
+    
     ],
   },
   location: 'Indonesia',
@@ -52,58 +50,7 @@ export const profileData: ProfileInfo = {
 };
 
 export const projectsData: Project[] = [
-  {
-    id: 'notelogic',
-    title: 'NoteLogic',
-    subtitle: {
-      en: 'Personal Hobby Project (2024) Solving Music Learning Challenges',
-      id: 'Proyek Hobi Pribadi (2024) Pemecahan Masalah Pembelajaran Musik',
-    },
-    description: {
-      en: 'Created as a personal hobby project for self-learning in 2024, NoteLogic solves music theory and ear training hurdles with 954+ chord visualizations, interactive Web Audio synthesis, fretboard mapping, and a real-time digital Tab Studio score editor.',
-      id: 'Dibuat murni sebagai proyek hobi untuk diri sendiri pada tahun 2024, NoteLogic memecahkan masalah pembelajaran musik dengan 954+ chord interaktif, sintesis Web Audio API real-time, visualisasi fretboard gitar & piano, serta studio tablatur digital.',
-    },
-    longDescription: {
-      en: 'NoteLogic originated in 2024 as an independent hobby project built purely for self-exploration and passion for music. It solves the friction of learning music theory by transforming abstract mathematical intervals into tangible, interactive software. Featuring comprehensive Chord Explorers across 954+ chord formulas, dual guitar fretboard and piano keyboard mappings, zero-sample Web Audio tone generation, and a complete Tab Studio sequencer.',
-      id: 'NoteLogic lahir pada tahun 2024 sebagai proyek hobi pribadi yang dikembangkan untuk diri sendiri atas dasar kecintaan pada musik. Aplikasi ini memecahkan kesulitan belajar teori musik dengan mengubah interval matematis yang rumit menjadi perangkat lunak interaktif yang menyenangkan. Dilengkapi Chord Explorer untuk 954+ chord, peta fretboard gitar dan tuts piano, sintesis suara murni dengan Web Audio API, serta sequencer Tab Studio.',
-    },
-    category: 'edtech',
-    year: '2024',
-    isHobby: true,
-    statusBadge: {
-      en: 'Hobby Project: Solving Music Learning',
-      id: 'Karya Berdasarkan Hobi: Solusi Belajar Musik',
-    },
-    technologies: ['React', 'TypeScript', 'Tailwind CSS', 'Web Audio API', 'Vite', 'Fretboard Math Engine'],
-    highlights: {
-      en: [
-        'Built in 2024 as a personal hobby project designed to solve music theory and guitar fretboard learning hurdles.',
-        'Interactive Chord Explorer covering 954+ chords with root notes, voicing formulas, and dual guitar/piano sound synthesis.',
-        'Tab Studio Draft: In-browser guitar tablature sequencer with measure grids, tempo controls, and live staff notation.',
-        'Zero-sample audio engine powered by Web Audio API synthesizers, generating pure harmonic frequencies on demand.',
-      ],
-      id: [
-        'Dibuat pada tahun 2024 sebagai proyek hobi pribadi untuk diri sendiri dalam memecahkan hambatan belajar teori musik dan gitar.',
-        'Chord Explorer interaktif mencakup 954+ chord dengan formula interval, voicing, serta audio playback gitar & piano.',
-        'Tab Studio: Sequencer tablatur gitar in-browser dengan grid birama, kontrol tempo, dan rendering not balok.',
-        'Mesin suara Web Audio API ringan yang menghasilkan frekuensi nada murni tanpa beban download sample berat.',
-      ],
-    },
-    image: '/images/notelogic-landing.jpg',
-    gallery: [
-      '/images/notelogic-landing.jpg',
-      '/images/notelogic-chords.jpg',
-      '/images/notelogic-tab.jpg',
-    ],
-    liveUrl: 'https://van-theory.vercel.app/',
-    githubUrl: 'https://github.com/vanviolet',
-    featured: true,
-    stats: [
-      { label: { en: 'Musical Chords', id: 'Chord Musik' }, value: '954+' },
-      { label: { en: 'Interactive Modules', id: 'Modul Interaktif' }, value: '8' },
-      { label: { en: 'Audio Latency', id: 'Latensi Audio' }, value: '< 15ms' },
-    ],
-  },
+ 
   {
     id: 'university-lms',
     title: 'Next-Gen University LMS',
@@ -190,6 +137,58 @@ export const projectsData: Project[] = [
       { label: { en: 'Active Employees', id: 'Pegawai Aktif' }, value: '3,500+' },
       { label: { en: 'Daily Clock-Ins', id: 'Absensi / Hari' }, value: '7,000+' },
       { label: { en: 'Fraud Reduction', id: 'Reduksi Fraud' }, value: '100%' },
+    ],
+  },
+   {
+    id: 'notelogic',
+    title: 'NoteLogic',
+    subtitle: {
+      en: 'Personal Hobby Project (2024) Solving Music Learning Challenges',
+      id: 'Proyek Hobi Pribadi (2024) Pemecahan Masalah Pembelajaran Musik',
+    },
+    description: {
+      en: 'Created as a personal hobby project for self-learning in 2024, NoteLogic solves music theory and ear training hurdles with 954+ chord visualizations, interactive Web Audio synthesis, fretboard mapping, and a real-time digital Tab Studio score editor.',
+      id: 'Dibuat murni sebagai proyek hobi untuk diri sendiri pada tahun 2024, NoteLogic memecahkan masalah pembelajaran musik dengan 954+ chord interaktif, sintesis Web Audio API real-time, visualisasi fretboard gitar & piano, serta studio tablatur digital.',
+    },
+    longDescription: {
+      en: 'NoteLogic originated in 2024 as an independent hobby project built purely for self-exploration and passion for music. It solves the friction of learning music theory by transforming abstract mathematical intervals into tangible, interactive software. Featuring comprehensive Chord Explorers across 954+ chord formulas, dual guitar fretboard and piano keyboard mappings, zero-sample Web Audio tone generation, and a complete Tab Studio sequencer.',
+      id: 'NoteLogic lahir pada tahun 2024 sebagai proyek hobi pribadi yang dikembangkan untuk diri sendiri atas dasar kecintaan pada musik. Aplikasi ini memecahkan kesulitan belajar teori musik dengan mengubah interval matematis yang rumit menjadi perangkat lunak interaktif yang menyenangkan. Dilengkapi Chord Explorer untuk 954+ chord, peta fretboard gitar dan tuts piano, sintesis suara murni dengan Web Audio API, serta sequencer Tab Studio.',
+    },
+    category: 'edtech',
+    year: '2024',
+    isHobby: true,
+    statusBadge: {
+      en: 'Hobby Project: Solving Music Learning',
+      id: 'Karya Berdasarkan Hobi: Solusi Belajar Musik',
+    },
+    technologies: ['React', 'TypeScript', 'Tailwind CSS', 'Web Audio API', 'Vite', 'Fretboard Math Engine'],
+    highlights: {
+      en: [
+        'Built in 2024 as a personal hobby project designed to solve music theory and guitar fretboard learning hurdles.',
+        'Interactive Chord Explorer covering 954+ chords with root notes, voicing formulas, and dual guitar/piano sound synthesis.',
+        'Tab Studio Draft: In-browser guitar tablature sequencer with measure grids, tempo controls, and live staff notation.',
+        'Zero-sample audio engine powered by Web Audio API synthesizers, generating pure harmonic frequencies on demand.',
+      ],
+      id: [
+        'Dibuat pada tahun 2024 sebagai proyek hobi pribadi untuk diri sendiri dalam memecahkan hambatan belajar teori musik dan gitar.',
+        'Chord Explorer interaktif mencakup 954+ chord dengan formula interval, voicing, serta audio playback gitar & piano.',
+        'Tab Studio: Sequencer tablatur gitar in-browser dengan grid birama, kontrol tempo, dan rendering not balok.',
+        'Mesin suara Web Audio API ringan yang menghasilkan frekuensi nada murni tanpa beban download sample berat.',
+      ],
+    },
+    image: '/images/notelogic-landing.jpg',
+    gallery: [
+      '/images/notelogic-landing.jpg',
+      '/images/notelogic-chords.jpg',
+      '/images/notelogic-tab.jpg',
+    ],
+    liveUrl: 'https://music.vanviolet.my.id/',
+    githubUrl: 'https://github.com/vanviolet',
+    featured: true,
+    stats: [
+      { label: { en: 'Musical Chords', id: 'Chord Musik' }, value: '954+' },
+      { label: { en: 'Interactive Modules', id: 'Modul Interaktif' }, value: '8' },
+      { label: { en: 'Audio Latency', id: 'Latensi Audio' }, value: '< 15ms' },
     ],
   },
   {
@@ -502,7 +501,7 @@ export const experienceData: Experience[] = [
     },
     description: {
       en: 'Directing the architecture and development of critical campus enterprise platforms since 2022, modernizing infrastructure into scalable, containerized Kubernetes microservices.',
-      id: 'Memimpin arsitektur dan pengembangan sistem teknologi informasi kampus sejak 2022, memodernisasi infrastruktur menjadi microservice berbasis kontainer Kubernetes yang tangguh.',
+      id: 'Arsitektur dan pengembangan sistem teknologi informasi kampus sejak 2022, memodernisasi infrastruktur menjadi microservice berbasis kontainer Kubernetes yang tangguh.',
     },
     achievements: {
       en: [
@@ -512,7 +511,7 @@ export const experienceData: Experience[] = [
         'Developed the University Graduation Management System coordinating ceremonies and stage queues for thousands of graduates.',
       ],
       id: [
-        'Memimpin pengembangan dan implementasi LMS universitas mandiri pada tahun 2024 (aplikasi kampus paling banyak digunakan) yang melayani 15.000+ mahasiswa dan dosen dengan uptime 99.9% di atas klaster Kubernetes.',
+        'Pengembangan dan implementasi LMS universitas mandiri pada tahun 2024 (aplikasi kampus paling banyak digunakan) yang melayani 15.000+ mahasiswa dan dosen dengan uptime 99.9% di atas klaster Kubernetes.',
         'Membangun Sistem Kurikulum Terintegrasi (rilis 2026) untuk mengkoordinasikan silabus dan akreditasi kurikulum OBE di 30+ program studi universitas.',
         'Merancang Sistem Beasiswa S3 dengan integrasi langsung dua arah ke aplikasi HRMS kepegawaian kampus.',
         'Mengembangkan Sistem Manajemen Wisuda Universitas yang mengkoordinasikan upacara dan telemetri antrean panggung ribuan wisudawan.',
@@ -881,7 +880,7 @@ Kini 3.500+ pegawai melakukan absensi harian dengan rata-rata waktu verifikasi 1
     content: {
       en: `### Why Build NoteLogic?
 
-Music theory is deeply logical and mathematical, yet most educational software feels either clunky, text-heavy, or gated behind paywalls. I wanted to build **NoteLogic** (live at [van-theory.vercel.app](https://van-theory.vercel.app/)) as an intuitive, fast, and visually stunning digital instrument for guitarists and composers.
+Music theory is deeply logical and mathematical, yet most educational software feels either clunky, text-heavy, or gated behind paywalls. I wanted to build **NoteLogic** (live at [music.vanviolet.my.id](https://music.vanviolet.my.id/)) as an intuitive, fast, and visually stunning digital instrument for guitarists and composers.
 
 ### Technical Pillars
 
@@ -906,7 +905,7 @@ The Tab Studio allows users to compose guitar tablature on a responsive grid, sy
 NoteLogic demonstrates that web browsers are fully capable of hosting responsive, studio-grade creative tools when built with clean algorithmic foundations.`,
       id: `### Mengapa Membangun NoteLogic?
 
-Teori musik pada dasarnya sangat matematis dan logis. Namun, banyak software edukasi musik yang lambat, penuh teks membosankan, atau terpasang paywall. Saya menciptakan **NoteLogic** ([van-theory.vercel.app](https://van-theory.vercel.app/)) sebagai studio musik interaktif yang ringan, indah, dan mendidik bagi musisi dan gitaris.
+Teori musik pada dasarnya sangat matematis dan logis. Namun, banyak software edukasi musik yang lambat, penuh teks membosankan, atau terpasang paywall. Saya menciptakan **NoteLogic** ([music.vanviolet.my.id](https://music.vanviolet.my.id/)) sebagai studio musik interaktif yang ringan, indah, dan mendidik bagi musisi dan gitaris.
 
 ### Fondasi Teknis Utama
 

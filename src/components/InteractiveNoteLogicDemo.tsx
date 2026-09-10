@@ -57,14 +57,14 @@ export const InteractiveNoteLogicDemo: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono mt-0.5">
-                van-theory.vercel.app · {language === 'en' ? 'Self-study audio synthesis & chord visualizer' : 'Dibuat untuk diri sendiri memecahkan teori musik'}
+                music.vanviolet.my.id · {language === 'en' ? 'Self-study audio synthesis & chord visualizer' : 'Dibuat untuk diri sendiri memecahkan teori musik'}
               </p>
             </div>
           </div>
 
           <a
             id="notelogic-open-external"
-            href="https://van-theory.vercel.app/"
+            href="https://music.vanviolet.my.id/"
             target="_blank"
             rel="noopener noreferrer"
             className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-mono font-medium transition-colors shadow-xs shrink-0"
