@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { Project } from '../types';
 import { usePortfolio } from '../context/PortfolioContext';
-import { X, ExternalLink, Github, CheckCircle2, Layers, Calendar, BarChart3 } from 'lucide-react';
+import { X, ExternalLink, Github, CheckCircle2, Calendar, Sparkles } from 'lucide-react';
+import { getAiTagStyle } from './Projects';
 
 interface ProjectModalProps {
   project: Project | null;
@@ -44,7 +45,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose }) 
       >
         {/* Header & Close */}
         <div className="flex items-start justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-5">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-mono uppercase tracking-wider text-rose-500 font-semibold">
                 {project.category}
@@ -61,19 +62,35 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose }) 
                 </span>
               )}
 
-              {project.isNewest && (
-                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  🚀 {language === 'en' ? 'Latest Release (2024)' : 'Aplikasi Terbaru (2024)'}
-                </span>
-              )}
-
               {project.isHobby && (
                 <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
                   🎸 {language === 'en' ? 'Hobby Project: Solving Music Learning' : 'Karya Hobi: Solusi Belajar Musik'}
                 </span>
               )}
             </div>
-            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">
+
+            {/* AI Model Badges in Header */}
+            {project.aiModels && project.aiModels.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                {project.aiModels.map(model => (
+                  <span
+                    key={model}
+                    className={`text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${getAiTagStyle(model)}`}
+                  >
+                    {model === 'Tanpa AI' ? (
+                      <span>{language === 'en' ? 'Handcrafted (Built Without AI)' : 'Rekayasa Mandiri (Tanpa AI)'}</span>
+                    ) : (
+                      <>
+                        <Sparkles size={11} className="shrink-0" />
+                        <span>{model}</span>
+                      </>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <h3 className="text-2xl sm:text-3xl font-bold tracking-tight pt-1">
               {project.title}
             </h3>
             <p className="text-sm text-stone-600 dark:text-zinc-400 font-medium">
@@ -84,7 +101,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose }) 
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="w-9 h-9 rounded-lg border border-stone-200 dark:border-zinc-800 flex items-center justify-center text-stone-500 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+            className="w-9 h-9 rounded-lg border border-stone-200 dark:border-zinc-800 flex items-center justify-center text-stone-500 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
           >
             <X size={18} />
           </button>
@@ -126,6 +143,33 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose }) 
                   <CheckCircle2 size={16} className="text-rose-500 shrink-0 mt-0.5" />
                   <span>{h}</span>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* AI Assisted Development Details */}
+        {project.aiModels && project.aiModels.length > 0 && (
+          <div className="p-4 rounded-xl bg-stone-100/70 dark:bg-zinc-800/50 border border-stone-200 dark:border-zinc-700/80 space-y-2">
+            <h4 className="text-xs font-mono uppercase tracking-wider text-stone-500 dark:text-zinc-400 font-semibold flex items-center gap-1.5">
+              <Sparkles size={13} className="text-rose-500" />
+              <span>{language === 'en' ? 'AI Assistance in Development' : 'Model AI Pendukung Pembuatan Aplikasi'}</span>
+            </h4>
+            <div className="flex flex-wrap gap-2 pt-0.5">
+              {project.aiModels.map(model => (
+                <span
+                  key={model}
+                  className={`text-xs font-mono font-medium px-3 py-1 rounded-full border flex items-center gap-1.5 ${getAiTagStyle(model)}`}
+                >
+                  {model === 'Tanpa AI' ? (
+                    <span>{language === 'en' ? 'Built Without AI (Handcrafted Engineering)' : 'Murni Rekayasa Mandiri (Tanpa AI)'}</span>
+                  ) : (
+                    <>
+                      <Sparkles size={12} className="shrink-0" />
+                      <span>{model}</span>
+                    </>
+                  )}
+                </span>
               ))}
             </div>
           </div>

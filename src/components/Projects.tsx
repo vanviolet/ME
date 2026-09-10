@@ -1,9 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { projectsData } from '../data/portfolioData';
 import { Project } from '../types';
 import { ProjectModal } from './ProjectModal';
-import { ArrowUpRight, ExternalLink, Github, Filter, Sparkles, ChevronRight } from 'lucide-react';
+import { ArrowUpRight, Filter, Sparkles, ChevronRight, Cpu } from 'lucide-react';
+
+export const getAiTagStyle = (model: string) => {
+  if (model.includes('GPT 5.3')) {
+    return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+  }
+  if (model.includes('Claude Opus')) {
+    return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30';
+  }
+  if (model.includes('Deepseek')) {
+    return 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30';
+  }
+  if (model.includes('Mimo')) {
+    return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30';
+  }
+  // Tanpa AI (Handcrafted)
+  return 'bg-stone-100 dark:bg-zinc-800 text-stone-500 dark:text-zinc-400 border-stone-200 dark:border-zinc-700/60';
+};
+
+const getCategoryStyle = (category: string) => {
+  switch (category) {
+    case 'enterprise':
+      return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+    case 'academic':
+      return 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20';
+    case 'edtech':
+      return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
+    case 'management':
+      return 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20';
+    default:
+      return 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border-stone-200 dark:border-zinc-700';
+  }
+};
 
 export const Projects: React.FC = () => {
   const { language, t } = usePortfolio();
@@ -11,16 +43,25 @@ export const Projects: React.FC = () => {
   const [activeProjectModal, setActiveProjectModal] = useState<Project | null>(null);
 
   const categories = [
-    { id: 'all', label: language === 'en' ? 'All Systems (10)' : 'Semua Sistem (10)' },
-    { id: 'edtech', label: language === 'en' ? 'EdTech & Creative' : 'EdTech & Kreatif' },
-    { id: 'academic', label: language === 'en' ? 'University & Academic' : 'Sistem Kampus' },
+    { id: 'all', label: language === 'en' ? `All Systems (${projectsData.length})` : `Semua Sistem (${projectsData.length})` },
     { id: 'enterprise', label: language === 'en' ? 'Enterprise Operations' : 'Operasional Enterprise' },
+    { id: 'academic', label: language === 'en' ? 'University & Academic' : 'Sistem Kampus' },
+    { id: 'edtech', label: language === 'en' ? 'EdTech & Creative' : 'EdTech & Kreatif' },
     { id: 'management', label: language === 'en' ? 'Business & Rentals' : 'Manajemen Bisnis' },
   ];
 
+  // Strictly sort projects by year descending
+  const sortedProjects = useMemo(() => {
+    return [...projectsData].sort((a, b) => {
+      const yearA = parseInt(a.year.substring(0, 4), 10) || 0;
+      const yearB = parseInt(b.year.substring(0, 4), 10) || 0;
+      return yearB - yearA;
+    });
+  }, []);
+
   const filteredProjects = selectedCategory === 'all'
-    ? projectsData
-    : projectsData.filter(p => p.category === selectedCategory);
+    ? sortedProjects
+    : sortedProjects.filter(p => p.category === selectedCategory);
 
   return (
     <section
@@ -39,8 +80,8 @@ export const Projects: React.FC = () => {
         </div>
         <p className="text-sm font-mono text-stone-500 dark:text-zinc-400 max-w-md">
           {language === 'en'
-            ? 'High-throughput university platforms, remote enterprise microservices for corporate clients (PT Luar), and freelance client solutions.'
-            : 'Platform universitas bervolume tinggi, microservices enterprise remote untuk perusahaan klien (PT Luar), dan solusi klien freelance.'}
+            ? 'High-throughput university platforms, remote enterprise microservices for external corporate clients, and bespoke software solutions.'
+            : 'Platform universitas bervolume tinggi, microservices enterprise remote untuk perusahaan swasta eksternal, dan solusi software kustom.'}
         </p>
       </div>
 
@@ -77,8 +118,6 @@ export const Projects: React.FC = () => {
               className={`group cursor-pointer relative p-6 rounded-2xl border bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/90 transition-all duration-300 shadow-xs flex flex-col justify-between ${
                 project.isMostUsed
                   ? 'border-amber-500/40 dark:border-amber-500/30'
-                  : project.isNewest
-                  ? 'border-emerald-500/40 dark:border-emerald-500/30'
                   : project.isHobby
                   ? 'border-rose-500/40 dark:border-rose-500/30'
                   : 'border-stone-200 dark:border-zinc-800 hover:border-stone-400 dark:hover:border-zinc-700'
@@ -91,11 +130,11 @@ export const Projects: React.FC = () => {
                     <span className="text-xs font-mono font-bold text-stone-400 dark:text-zinc-500">
                       {numberStr}
                     </span>
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400">
+                    <span className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${getCategoryStyle(project.category)}`}>
                       {project.category}
                     </span>
 
-                    {/* Prominent Status Badges for User Intent */}
+                    {/* Status Badges */}
                     {project.isMostUsed && (
                       <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center gap-1">
                         <span>⭐</span>
@@ -103,25 +142,39 @@ export const Projects: React.FC = () => {
                       </span>
                     )}
 
-                    {project.isNewest && (
-                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                        <span>🚀</span>
-                        <span>{language === 'en' ? 'Latest Release (2024)' : 'Aplikasi Terbaru (2024)'}</span>
-                      </span>
-                    )}
-
                     {project.isHobby && (
                       <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center gap-1">
                         <span>🎸</span>
-                        <span>{language === 'en' ? 'Hobby Project' : 'Karya Berdasarkan Hobi'}</span>
+                        <span>{language === 'en' ? 'Hobby Project' : 'Karya Hobi'}</span>
                       </span>
                     )}
                   </div>
 
-                  <span className="text-xs font-mono text-stone-400 dark:text-zinc-500">
+                  <span className="text-xs font-mono font-medium text-stone-500 dark:text-zinc-400 bg-stone-100/80 dark:bg-zinc-800/80 px-2 py-0.5 rounded">
                     {project.year}
                   </span>
                 </div>
+
+                {/* AI Models Used Tags */}
+                {project.aiModels && project.aiModels.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    {project.aiModels.map(model => (
+                      <span
+                        key={model}
+                        className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-full border flex items-center gap-1 ${getAiTagStyle(model)}`}
+                      >
+                        {model === 'Tanpa AI' ? (
+                          <span>{language === 'en' ? 'Built Without AI' : 'Tanpa AI'}</span>
+                        ) : (
+                          <>
+                            <Sparkles size={10} className="shrink-0" />
+                            <span>{model}</span>
+                          </>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Title & Subtitle */}
                 <div>

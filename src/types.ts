@@ -20,6 +20,7 @@ export interface Project {
   category: 'edtech' | 'enterprise' | 'academic' | 'management';
   year: string;
   technologies: string[];
+  aiModels?: string[];
   highlights: LocalizedStringArray;
   image: string;
   gallery?: string[];

@@ -50,7 +50,127 @@ export const profileData: ProfileInfo = {
 };
 
 export const projectsData: Project[] = [
- 
+  {
+    id: 'biometric-attendance',
+    title: 'Biometric Attendance System',
+    subtitle: {
+      en: 'Remote Project • External Enterprise (2026): Facial & Geofence Verification',
+      id: 'Aplikasi Remote • Perusahaan Swasta Eksternal (2026): Presensi Biometrik Wajah & Geofence',
+    },
+    description: {
+      en: 'Remote enterprise application engineered for an external private client company in 2026, featuring anti-spoofing facial recognition, high-precision GPS polygon verification, and shift scheduling across Kubernetes microservices.',
+      id: 'Aplikasi enterprise remote yang dibangun untuk perusahaan swasta eksternal di tahun 2026, menghadirkan verifikasi wajah anti-spoofing, validasi poligon GPS presisi tinggi, dan penjadwalan shift kerja di atas klaster Kubernetes.',
+    },
+    longDescription: {
+      en: 'Engineered in 2026 as a remote enterprise workforce platform for an external corporate client. Features computer vision liveness detection algorithms to eliminate photo/screen spoofing, dynamic 2D polygon geofencing, multi-shift calculations, and automated monthly payroll deductions.',
+      id: 'Diluncurkan pada tahun 2026 sebagai platform presensi enterprise untuk perusahaan klien eksternal secara remote. Dilengkapi algoritma liveness detection berbasis computer vision guna mencegah kecurangan foto/video, validasi geofence poligon akurat, dan integrasi rekapitulasi gaji otomatis.',
+    },
+    category: 'enterprise',
+    year: '2026',
+    aiModels: ['Deepseek v4 Flash', 'Mimo 2.5'],
+    statusBadge: {
+      en: 'Remote Project • External Client (2026)',
+      id: 'Proyek Remote • Perusahaan Eksternal (2026)',
+    },
+    technologies: ['TypeScript', 'NestJS', 'PostgreSQL', 'Redis', 'Kubernetes', 'Docker', 'Computer Vision API'],
+    highlights: {
+      en: [
+        'Built for an external enterprise client in 2026, completely eliminating fraudulent clock-in incidents with biometric liveness validation.',
+        'Deployed on Kubernetes with health probes and automatic failover, handling 3,500+ daily clock-ins during peak 15-minute morning rushes.',
+        'Sub-second query response times for historical monthly attendance records via Redis caching and PostgreSQL indexes.',
+      ],
+      id: [
+        'Aplikasi untuk perusahaan swasta eksternal tahun 2026 yang berhasil menekan kecurangan absensi hingga 0% berkat validasi biometrik real-time.',
+        'Dideploy pada klaster Kubernetes dengan health probe dan failover otomatis, melayani 3.500+ absensi pada jam sibuk pagi hari.',
+        'Waktu respon kueri sub-detik untuk rekap bulanan berkat optimasi indeks Redis dan PostgreSQL.',
+      ],
+    },
+    image: '/images/notelogic-landing.jpg',
+    featured: true,
+    stats: [
+      { label: { en: 'Active Employees', id: 'Pegawai Aktif' }, value: '3,500+' },
+      { label: { en: 'Daily Clock-Ins', id: 'Absensi / Hari' }, value: '7,000+' },
+      { label: { en: 'Fraud Reduction', id: 'Reduksi Fraud' }, value: '100%' },
+    ],
+  },
+  {
+    id: 'inventory-asset-tracking',
+    title: 'Inventory & Asset Tracking System',
+    subtitle: {
+      en: 'Enterprise Asset & Consumable Lifecycle Tracking (2026)',
+      id: 'Sistem Manajemen Inventaris & Aset Perusahaan (2026)',
+    },
+    description: {
+      en: 'Comprehensive inventory solution built in 2026 handling multi-warehouse procurement, barcode/QR asset labeling, maintenance schedules, depreciation valuation, and audit tracking.',
+      id: 'Solusi pelacakan aset dan stok gudang terpadu yang dibangun pada tahun 2026 dengan label barcode/QR, pengadaan barang, depresiasi nilai buku, mutasi antar ruangan, dan log audit investigasi.',
+    },
+    longDescription: {
+      en: 'Built in 2026 to manage tens of thousands of physical assets across facilities and offices. Differentiates between consumable supplies and capitalized machinery with real-time stock alert thresholds.',
+      id: 'Mendukung pemantauan puluhan ribu aset fisik institusi pada fasilitas dan kantor (rilis 2026). Membedakan barang habis pakai dengan aset tetap berwujud dengan perhitungan depresiasi berkala.',
+    },
+    category: 'enterprise',
+    year: '2026',
+    aiModels: ['GPT 5.3 Codex', 'Claude Opus 4.6'],
+    statusBadge: {
+      en: 'Enterprise System (2026)',
+      id: 'Sistem Enterprise (2026)',
+    },
+    technologies: ['TypeScript', 'NestJS', 'React', 'PostgreSQL', 'Barcode Scanner Engine', 'Docker'],
+    highlights: {
+      en: [
+        'Multi-facility tracking across 12 campus buildings with visual floor plan asset placement.',
+        'Real-time automated low-stock warnings preventing procurement delays.',
+        'Complete ledger audit logs tracking every check-out, transfer, and maintenance ticket.',
+      ],
+      id: [
+        'Pelacakan multi-lokasi di 12 gedung kampus dengan penempatan aset pada denah visual.',
+        'Peringatan otomatis saat stok barang consumable menipis di bawah ambang batas aman.',
+        'Riwayat audit lengkap mencatat setiap mutasi, peminjaman, dan servis pemeliharaan barang.',
+      ],
+    },
+    image: '/images/notelogic-landing.jpg',
+    featured: false,
+  },
+  {
+    id: 'integrated-curriculum',
+    title: 'Integrated Curriculum System',
+    subtitle: {
+      en: 'University Academic Platform (2026): Outcome-Based Education (OBE) Syllabus Engine',
+      id: 'Sistem Universitas (2026): Kurikulum Terintegrasi & Akreditasi OBE',
+    },
+    description: {
+      en: 'Core university academic system (built in 2026), connecting faculty course outcomes (OBE/KKNI), department syllabi, prerequisite dependency graphs, and automated accreditation metrics.',
+      id: 'Sistem akademik inti universitas (dibuat tahun 2026) yang menghubungkan Capaian Pembelajaran Lulusan (CPL/CPMK), pohon dependensi prasyarat mata kuliah, dan pelaporan akreditasi otomatis.',
+    },
+    longDescription: {
+      en: 'Engineered and launched in 2026 as the university’s academic planning platform. Solves complex inter-departmental curriculum overlaps and Outcome-Based Education (OBE) compliance using directed acyclic graph (DAG) models, automated syllabus revision histories, and direct student study card (KRS) syncing.',
+      id: 'Dibangun dan diluncurkan pada tahun 2026 sebagai sistem akademik universitas. Mengatasi kerumitan pemetaan kurikulum OBE dengan model graf berarah (DAG), penyusunan RPS interaktif dosen, dan sinkronisasi langsung ke sistem KRS mahasiswa.',
+    },
+    category: 'academic',
+    year: '2026',
+    aiModels: ['GPT 5.3 Codex', 'Deepseek v4 Flash'],
+    statusBadge: {
+      en: 'University System (2026)',
+      id: 'Sistem Universitas (2026)',
+    },
+    technologies: ['TypeScript', 'Vue.js', 'NestJS / Node.js', 'PostgreSQL', 'Kubernetes', 'Docker', 'Tailwind CSS'],
+    highlights: {
+      en: [
+        'University academic platform (2026) coordinating syllabus matrices across 30+ faculties and hundreds of lecturers.',
+        'Interactive prerequisite dependency DAG graph preventing graduation roadblock anomalies for students.',
+        'Automated generation of national and international accreditation dossiers (BAN-PT / LAM-INFOKOM compliant).',
+        'Deployed with containerized microservices on Kubernetes for high reliability.',
+      ],
+      id: [
+        'Sistem kurikulum universitas (2026) yang mengkoordinasikan matriks silabus dan RPS di 30+ program studi universitas.',
+        'Graf dependensi prasyarat mata kuliah interaktif (DAG) untuk mencegah kebuntuan jalur kelulusan mahasiswa.',
+        'Otomasi pembuatan dokumen borang akreditasi kurikulum standar BAN-PT dan LAM-INFOKOM.',
+        'Berjalan di atas kontainer Kubernetes untuk menjamin ketersediaan dan keandalan sistem.',
+      ],
+    },
+    image: '/images/notelogic-landing.jpg',
+    featured: true,
+  },
   {
     id: 'university-lms',
     title: 'Next-Gen University LMS',
@@ -68,6 +188,7 @@ export const projectsData: Project[] = [
     },
     category: 'academic',
     year: '2024',
+    aiModels: ['Tanpa AI'],
     isMostUsed: true,
     statusBadge: {
       en: 'Most Widely Used Platform (2024)',
@@ -97,49 +218,44 @@ export const projectsData: Project[] = [
     ],
   },
   {
-    id: 'biometric-attendance',
-    title: 'Biometric Attendance System',
+    id: 'graduation-management',
+    title: 'Graduation Management System',
     subtitle: {
-      en: 'Remote Project • External Enterprise / PT Luar (2026): Facial & Geofence Verification',
-      id: 'Aplikasi Remote • PT Luar (2026): Presensi Biometrik Wajah & Geofence',
+      en: 'University Convocation & Seating Telemetry Engine (2024)',
+      id: 'Sistem Universitas: Manajemen Wisuda & Antrian Panggung (2024)',
     },
     description: {
-      en: 'Remote enterprise application engineered for an external client company (PT Luar) in 2026, featuring anti-spoofing facial recognition, high-precision GPS polygon verification, and shift scheduling across Kubernetes microservices.',
-      id: 'Aplikasi enterprise remote yang dibangun untuk perusahaan eksternal / PT luar di tahun 2026, menghadirkan verifikasi wajah anti-spoofing, validasi poligon GPS presisi tinggi, dan penjadwalan shift kerja di atas klaster Kubernetes.',
+      en: 'End-to-end university convocation logistics platform managing seat layouts, student administrative clearance, regalia distribution, live stage RFID/barcode queues, and parents broadcast.',
+      id: 'Platform operasional wisuda universitas yang mengelola validasi yudisium, distribusi toga, alokasi kursi pintar, antrian panggung berbasis barcode, dan integrasi layar siaran langsung.',
     },
     longDescription: {
-      en: 'Engineered in 2026 as a remote enterprise workforce platform for an external corporate client (PT Luar). Features computer vision liveness detection algorithms to eliminate photo/screen spoofing, dynamic 2D polygon geofencing, multi-shift calculations, and automated monthly payroll deductions.',
-      id: 'Diluncurkan pada tahun 2026 sebagai platform presensi enterprise untuk perusahaan klien eksternal (PT Luar). Dilengkapi algoritma liveness detection berbasis computer vision guna mencegah kecurangan foto/video, validasi geofence poligon akurat, dan integrasi rekapitulasi gaji otomatis.',
+      en: 'Designed to eliminate graduation day chaos for the university. Provides real-time stage pacing dashboards for marshals, automated photo tagging, graduate cueing upon stage approach, and digital certificate distribution.',
+      id: 'Mencegah kekacauan antrean pada upacara wisuda ribuan sarjana universitas. Menyediakan dashboard pemanggilan wisudawan secara presisi saat naik panggung, penomoran kursi terstruktur, dan pembagian ijazah digital.',
     },
-    category: 'enterprise',
-    year: '2026',
-    isNewest: true,
+    category: 'academic',
+    year: '2024',
+    aiModels: ['Tanpa AI'],
     statusBadge: {
-      en: 'Remote Project • External Client (2026)',
-      id: 'Proyek Remote • PT Luar (2026)',
+      en: 'University System (2024)',
+      id: 'Sistem Universitas (2024)',
     },
-    technologies: ['TypeScript', 'NestJS', 'PostgreSQL', 'Redis', 'Kubernetes', 'Docker', 'Computer Vision API'],
+    technologies: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Tailwind CSS', 'WebSockets'],
     highlights: {
       en: [
-        'Built for an external enterprise client (PT Luar) in 2026, completely eliminating fraudulent clock-in incidents with biometric liveness validation.',
-        'Deployed on Kubernetes with health probes and automatic failover, handling 3,500+ daily clock-ins during peak 15-minute morning rushes.',
-        'Sub-second query response times for historical monthly attendance records via Redis caching and PostgreSQL indexes.',
+        'Successfully coordinated university ceremonies for 2,000+ graduates and 4,000+ attendees per session.',
+        'Sub-second stage telemetry ensuring live displays matched each walking graduate accurately.',
+        'Zero registration bottlenecks with automated barcode-based check-in gates.',
       ],
       id: [
-        'Aplikasi untuk perusahaan mitra eksternal (PT Luar) tahun 2026 yang berhasil menekan kecurangan absensi hingga 0% berkat validasi biometrik real-time.',
-        'Dideploy pada klaster Kubernetes dengan health probe dan failover otomatis, melayani 3.500+ absensi pada jam sibuk pagi hari.',
-        'Waktu respon kueri sub-detik untuk rekap bulanan berkat optimasi indeks Redis dan PostgreSQL.',
+        'Mengkoordinasikan upacara wisuda universitas untuk 2.000+ wisudawan dan 4.000+ tamu secara tertib per sesi.',
+        'Telemetri panggung real-time memastikan nama dan gelar di layar proyektor tampil tepat waktu.',
+        'Check-in cepat di gerbang aula dengan scanner barcode tanpa antrean menumpuk.',
       ],
     },
     image: '/images/notelogic-landing.jpg',
-    featured: true,
-    stats: [
-      { label: { en: 'Active Employees', id: 'Pegawai Aktif' }, value: '3,500+' },
-      { label: { en: 'Daily Clock-Ins', id: 'Absensi / Hari' }, value: '7,000+' },
-      { label: { en: 'Fraud Reduction', id: 'Reduksi Fraud' }, value: '100%' },
-    ],
+    featured: false,
   },
-   {
+  {
     id: 'notelogic',
     title: 'NoteLogic',
     subtitle: {
@@ -156,6 +272,7 @@ export const projectsData: Project[] = [
     },
     category: 'edtech',
     year: '2024',
+    aiModels: ['Claude Opus 4.6'],
     isHobby: true,
     statusBadge: {
       en: 'Hobby Project: Solving Music Learning',
@@ -192,46 +309,6 @@ export const projectsData: Project[] = [
     ],
   },
   {
-    id: 'integrated-curriculum',
-    title: 'Integrated Curriculum System',
-    subtitle: {
-      en: 'University Academic Platform (2026): Outcome-Based Education (OBE) Syllabus Engine',
-      id: 'Sistem Universitas (2026): Kurikulum Terintegrasi & Akreditasi OBE',
-    },
-    description: {
-      en: 'Core university academic system (built in 2026), connecting faculty course outcomes (OBE/KKNI), department syllabi, prerequisite dependency graphs, and automated accreditation metrics.',
-      id: 'Sistem akademik inti universitas (dibuat tahun 2026) yang menghubungkan Capaian Pembelajaran Lulusan (CPL/CPMK), pohon dependensi prasyarat mata kuliah, dan pelaporan akreditasi otomatis.',
-    },
-    longDescription: {
-      en: 'Engineered and launched in 2026 as the university’s academic planning platform. Solves complex inter-departmental curriculum overlaps and Outcome-Based Education (OBE) compliance using directed acyclic graph (DAG) models, automated syllabus revision histories, and direct student study card (KRS) syncing.',
-      id: 'Dibangun dan diluncurkan pada tahun 2026 sebagai sistem akademik universitas. Mengatasi kerumitan pemetaan kurikulum OBE dengan model graf berarah (DAG), penyusunan RPS interaktif dosen, dan sinkronisasi langsung ke sistem KRS mahasiswa.',
-    },
-    category: 'academic',
-    year: '2026',
-    isNewest: true,
-    statusBadge: {
-      en: 'University System (2026)',
-      id: 'Sistem Universitas (2026)',
-    },
-    technologies: ['TypeScript', 'Vue.js', 'NestJS / Node.js', 'PostgreSQL', 'Kubernetes', 'Docker', 'Tailwind CSS'],
-    highlights: {
-      en: [
-        'University academic platform (2026) coordinating syllabus matrices across 30+ faculties and hundreds of lecturers.',
-        'Interactive prerequisite dependency DAG graph preventing graduation roadblock anomalies for students.',
-        'Automated generation of national and international accreditation dossiers (BAN-PT / LAM-INFOKOM compliant).',
-        'Deployed with containerized microservices on Kubernetes for high reliability.',
-      ],
-      id: [
-        'Sistem kurikulum universitas (2026) yang mengkoordinasikan matriks silabus dan RPS di 30+ program studi universitas.',
-        'Graf dependensi prasyarat mata kuliah interaktif (DAG) untuk mencegah kebuntuan jalur kelulusan mahasiswa.',
-        'Otomasi pembuatan dokumen borang akreditasi kurikulum standar BAN-PT dan LAM-INFOKOM.',
-        'Berjalan di atas kontainer Kubernetes untuk menjamin ketersediaan dan keandalan sistem.',
-      ],
-    },
-    image: '/images/notelogic-landing.jpg',
-    featured: true,
-  },
-  {
     id: 'doctoral-scholarship-hrms',
     title: 'Doctoral Scholarship & HRMS Integration',
     subtitle: {
@@ -248,6 +325,7 @@ export const projectsData: Project[] = [
     },
     category: 'academic',
     year: '2023 — 2024',
+    aiModels: ['Tanpa AI'],
     statusBadge: {
       en: 'University System',
       id: 'Sistem Universitas',
@@ -274,114 +352,6 @@ export const projectsData: Project[] = [
     ],
   },
   {
-    id: 'e-letter-correspondence',
-    title: 'E-Letter Digital Correspondence',
-    subtitle: {
-      en: 'Enterprise & Administrative Document Workflow: Digital Letter & Archival Platform',
-      id: 'Sistem Administrasi Dokumen Enterprise: Persuratan & Disposisi Digital',
-    },
-    description: {
-      en: 'Secure digital correspondence system providing hierarchical letter tracking, automated official numbering, cryptographic QR code verification, and multi-tier approval chains.',
-      id: 'Aplikasi e-office persuratan resmi dengan penomoran otomatis, pelacakan disposisi berjenjang, verifikasi keaslian QR code kriptografis, dan alur tanda tangan digital.',
-    },
-    longDescription: {
-      en: 'Replaced slow physical dispatch with real-time digital routing. Features custom PDF generation, draft annotations, cryptographic tamper-evident barcodes, and automated WhatsApp/email notifications for pending approvals.',
-      id: 'Menggantikan alur disposisi berkas fisik yang lambat. Dilengkapi fitur generator PDF resmi, catatan revisi draft, barcode anti-manipulasi yang dapat diverifikasi publik, dan notifikasi persetujuan real-time.',
-    },
-    category: 'enterprise',
-    year: '2022 — 2023',
-    technologies: ['Node.js', 'React', 'Express', 'PostgreSQL', 'Redis', 'PDFKit', 'Tailwind CSS'],
-    highlights: {
-      en: [
-        'Cut document turnaround time from 7 business days to under 4 hours.',
-        'Processed over 50,000 verified official letters without a single document loss.',
-        'Instant verification portal via mobile-friendly QR scans.',
-      ],
-      id: [
-        'Memangkas siklus persetujuan dokumen dari 7 hari kerja menjadi kurang dari 4 jam.',
-        'Telah memproses lebih dari 50.000 surat resmi tanpa risiko kehilangan arsip.',
-        'Portal verifikasi keabsahan surat instan dengan pemindaian barcode smartphone.',
-      ],
-    },
-    image: '/images/notelogic-landing.jpg',
-    featured: false,
-  },
-  {
-    id: 'graduation-management',
-    title: 'Graduation Management System',
-    subtitle: {
-      en: 'University Convocation & Seating Telemetry Engine (2024)',
-      id: 'Sistem Universitas: Manajemen Wisuda & Antrian Panggung (2024)',
-    },
-    description: {
-      en: 'End-to-end university convocation logistics platform managing seat layouts, student administrative clearance, regalia distribution, live stage RFID/barcode queues, and parents broadcast.',
-      id: 'Platform operasional wisuda universitas yang mengelola validasi yudisium, distribusi toga, alokasi kursi pintar, antrian panggung berbasis barcode, dan integrasi layar siaran langsung.',
-    },
-    longDescription: {
-      en: 'Designed to eliminate graduation day chaos for the university. Provides real-time stage pacing dashboards for marshals, automated photo tagging, graduate cueing upon stage approach, and digital certificate distribution.',
-      id: 'Mencegah kekacauan antrean pada upacara wisuda ribuan sarjana universitas. Menyediakan dashboard pemanggilan wisudawan secara presisi saat naik panggung, penomoran kursi terstruktur, dan pembagian ijazah digital.',
-    },
-    category: 'academic',
-    year: '2024',
-    statusBadge: {
-      en: 'University System (2024)',
-      id: 'Sistem Universitas (2024)',
-    },
-    technologies: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Tailwind CSS', 'WebSockets'],
-    highlights: {
-      en: [
-        'Successfully coordinated university ceremonies for 2,000+ graduates and 4,000+ attendees per session.',
-        'Sub-second stage telemetry ensuring live displays matched each walking graduate accurately.',
-        'Zero registration bottlenecks with automated barcode-based check-in gates.',
-      ],
-      id: [
-        'Mengkoordinasikan upacara wisuda universitas untuk 2.000+ wisudawan dan 4.000+ tamu secara tertib per sesi.',
-        'Telemetri panggung real-time memastikan nama dan gelar di layar proyektor tampil tepat waktu.',
-        'Check-in cepat di gerbang aula dengan scanner barcode tanpa antrean menumpuk.',
-      ],
-    },
-    image: '/images/notelogic-landing.jpg',
-    featured: false,
-  },
-  {
-    id: 'inventory-asset-tracking',
-    title: 'Inventory & Asset Tracking System',
-    subtitle: {
-      en: 'Enterprise Asset & Consumable Lifecycle Tracking (2026)',
-      id: 'Sistem Manajemen Inventaris & Aset Perusahaan (2026)',
-    },
-    description: {
-      en: 'Comprehensive inventory solution built in 2026 handling multi-warehouse procurement, barcode/QR asset labeling, maintenance schedules, depreciation valuation, and audit tracking.',
-      id: 'Solusi pelacakan aset dan stok gudang terpadu yang dibangun pada tahun 2026 dengan label barcode/QR, pengadaan barang, depresiasi nilai buku, mutasi antar ruangan, dan log audit investigasi.',
-    },
-    longDescription: {
-      en: 'Built in 2026 to manage tens of thousands of physical assets across facilities and offices. Differentiates between consumable supplies and capitalized machinery with real-time stock alert thresholds.',
-      id: 'Mendukung pemantauan puluhan ribu aset fisik institusi pada fasilitas dan kantor (rilis 2026). Membedakan barang habis pakai dengan aset tetap berwujud dengan perhitungan depresiasi berkala.',
-    },
-    category: 'enterprise',
-    year: '2026',
-    isNewest: true,
-    statusBadge: {
-      en: 'Enterprise System (2026)',
-      id: 'Sistem Enterprise (2026)',
-    },
-    technologies: ['TypeScript', 'NestJS', 'React', 'PostgreSQL', 'Barcode Scanner Engine', 'Docker'],
-    highlights: {
-      en: [
-        'Multi-facility tracking across 12 campus buildings with visual floor plan asset placement.',
-        'Real-time automated low-stock warnings preventing procurement delays.',
-        'Complete ledger audit logs tracking every check-out, transfer, and maintenance ticket.',
-      ],
-      id: [
-        'Pelacakan multi-lokasi di 12 gedung kampus dengan penempatan aset pada denah visual.',
-        'Peringatan otomatis saat stok barang consumable menipis di bawah ambang batas aman.',
-        'Riwayat audit lengkap mencatat setiap mutasi, peminjaman, dan servis pemeliharaan barang.',
-      ],
-    },
-    image: '/images/notelogic-landing.jpg',
-    featured: false,
-  },
-  {
     id: 'voting-management',
     title: 'Corporate Position Voting System',
     subtitle: {
@@ -398,6 +368,7 @@ export const projectsData: Project[] = [
     },
     category: 'management',
     year: '2023',
+    aiModels: ['Tanpa AI'],
     statusBadge: {
       en: 'Corporate System',
       id: 'Sistem Perusahaan',
@@ -413,6 +384,40 @@ export const projectsData: Project[] = [
         'Alur pemilihan khusus untuk pemilihan jabatan dan pimpinan struktural di internal perusahaan.',
         'Token voting unik sekali pakai berenkripsi yang menjamin kerahasiaan suara serta mencegah manipulasi.',
         'Pemantauan partisipasi hak suara secara real-time dan penerbitan berita acara pemilihan otomatis.',
+      ],
+    },
+    image: '/images/notelogic-landing.jpg',
+    featured: false,
+  },
+  {
+    id: 'e-letter-correspondence',
+    title: 'E-Letter Digital Correspondence',
+    subtitle: {
+      en: 'Enterprise & Administrative Document Workflow: Digital Letter & Archival Platform',
+      id: 'Sistem Administrasi Dokumen Enterprise: Persuratan & Disposisi Digital',
+    },
+    description: {
+      en: 'Secure digital correspondence system providing hierarchical letter tracking, automated official numbering, cryptographic QR code verification, and multi-tier approval chains.',
+      id: 'Aplikasi e-office persuratan resmi dengan penomoran otomatis, pelacakan disposisi berjenjang, verifikasi keaslian QR code kriptografis, dan alur tanda tangan digital.',
+    },
+    longDescription: {
+      en: 'Replaced slow physical dispatch with real-time digital routing. Features custom PDF generation, draft annotations, cryptographic tamper-evident barcodes, and automated WhatsApp/email notifications for pending approvals.',
+      id: 'Menggantikan alur disposisi berkas fisik yang lambat. Dilengkapi fitur generator PDF resmi, catatan revisi draft, barcode anti-manipulasi yang dapat diverifikasi publik, dan notifikasi persetujuan real-time.',
+    },
+    category: 'enterprise',
+    year: '2022 — 2023',
+    aiModels: ['Tanpa AI'],
+    technologies: ['Node.js', 'React', 'Express', 'PostgreSQL', 'Redis', 'PDFKit', 'Tailwind CSS'],
+    highlights: {
+      en: [
+        'Cut document turnaround time from 7 business days to under 4 hours.',
+        'Processed over 50,000 verified official letters without a single document loss.',
+        'Instant verification portal via mobile-friendly QR scans.',
+      ],
+      id: [
+        'Memangkas siklus persetujuan dokumen dari 7 hari kerja menjadi kurang dari 4 jam.',
+        'Telah memproses lebih dari 50.000 surat resmi tanpa risiko kehilangan arsip.',
+        'Portal verifikasi keabsahan surat instan dengan pemindaian barcode smartphone.',
       ],
     },
     image: '/images/notelogic-landing.jpg',
@@ -435,6 +440,7 @@ export const projectsData: Project[] = [
     },
     category: 'management',
     year: '2022',
+    aiModels: ['Tanpa AI'],
     technologies: ['React', 'TypeScript', 'Node.js', 'MongoDB', 'Express', 'Tailwind CSS'],
     highlights: {
       en: [
@@ -466,6 +472,7 @@ export const projectsData: Project[] = [
     },
     category: 'management',
     year: '2022',
+    aiModels: ['Tanpa AI'],
     technologies: ['Vue.js', 'PHP / Laravel', 'MySQL', 'Tailwind CSS'],
     highlights: {
       en: [
@@ -521,10 +528,10 @@ export const experienceData: Experience[] = [
   },
   {
     id: 'exp-remote',
-    company: 'Distributed Tech Companies & Remote Enterprise Client (PT Luar)',
+    company: 'External Enterprise Company (Remote)',
     companyType: {
-      en: 'Remote Software Consultancy & Product Teams',
-      id: 'Tim Produk & Konsultansi Remote Perusahaan Luar',
+      en: 'Private Enterprise / External Non-University Company',
+      id: 'Perusahaan Swasta Eksternal (di Luar Universitas)',
     },
     role: {
       en: 'Senior Fullstack Software Engineer (Remote)',
@@ -537,17 +544,17 @@ export const experienceData: Experience[] = [
     },
     description: {
       en: 'Collaborating asynchronously with remote engineering teams since 2023 to build resilient SaaS products, distributed backend services, and high-load enterprise microservices.',
-      id: 'Bekerja secara remote dalam tim rekayasa software terdistribusi sejak 2023 untuk merancang produk SaaS, backend microservices, dan sistem enterprise perusahaan eksternal.',
+      id: 'Bekerja secara remote untuk perusahaan swasta eksternal sejak 2023 dalam merancang produk SaaS, backend microservices, dan sistem enterprise berkinerja tinggi.',
     },
     achievements: {
       en: [
-        'Engineered the Biometric Employee Attendance System (2026 release) for an external client company (PT Luar) featuring computer vision liveness verification, geofencing, and zero-fraud validation.',
+        'Engineered the Biometric Employee Attendance System (2026 release) for an external corporate client featuring computer vision liveness verification, geofencing, and zero-fraud validation.',
         'Built enterprise inventory and asset tracking platforms (2026 release) with real-time barcode telemetry, automated audit trails, and sub-second querying.',
         'Optimized complex PostgreSQL relational schemas and query plans, improving throughput by up to 400% on high-traffic endpoints.',
         'Maintained containerized microservices and automated CI/CD deployment pipelines on Kubernetes.',
       ],
       id: [
-        'Merancang Sistem Absensi Biometrik Pegawai (rilis 2026) untuk perusahaan mitra eksternal (PT Luar) dengan verifikasi wajah anti-spoofing dan validasi poligon GPS radius kantor.',
+        'Merancang Sistem Absensi Biometrik Pegawai (rilis 2026) untuk perusahaan swasta eksternal dengan verifikasi wajah anti-spoofing dan validasi poligon GPS radius kantor.',
         'Membangun platform manajemen inventaris dan aset enterprise (rilis 2026) dengan integrasi barcode scanner dan audit ledger lengkap.',
         'Mengoptimasi kueri PostgreSQL dan arsitektur database relasional, meningkatkan throughput hingga 400% pada endpoint bertrafik tinggi.',
         'Menjaga standar kualitas kode yang ketat, pipeline pengujian otomatis, dan workflow deployment microservices di Kubernetes.',
