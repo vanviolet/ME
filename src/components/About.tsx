@@ -1,0 +1,151 @@
+import React from 'react';
+import { usePortfolio } from '../context/PortfolioContext';
+import { profileData } from '../data/portfolioData';
+import { CheckCircle2, Terminal, Layers, Cpu, Code2 } from 'lucide-react';
+
+export const About: React.FC = () => {
+  const { language, t, tArr } = usePortfolio();
+  const paragraphs = tArr(profileData.aboutEditorial);
+
+  const pillars = [
+    {
+      icon: <Terminal size={18} className="text-rose-500" />,
+      title: language === 'en' ? 'Fullstack & Systems' : 'Fullstack & Sistem',
+      desc: language === 'en' ? 'End-to-end fluency from database schemas to client state machines.' : 'Kemampuan penuh dari skema database hingga manajemen state aplikasi.',
+    },
+    {
+      icon: <Cpu size={18} className="text-rose-500" />,
+      title: language === 'en' ? 'High Concurrency' : 'Konkurensi Tinggi',
+      desc: language === 'en' ? 'Architected platforms handling thousands of synchronous academic users.' : 'Merancang platform yang melayani ribuan pengguna akademik serentak.',
+    },
+    {
+      icon: <Layers size={18} className="text-rose-500" />,
+      title: language === 'en' ? 'Clean Architecture' : 'Arsitektur Bersih',
+      desc: language === 'en' ? 'Modular separation, strict contracts, and future-proof code.' : 'Pemisahan modul, kontrak tipe ketat, dan kode yang mudah diperluas.',
+    },
+    {
+      icon: <Code2 size={18} className="text-rose-500" />,
+      title: language === 'en' ? 'Interactive Tooling' : 'Aplikasi Interaktif',
+      desc: language === 'en' ? 'Pioneered Web Audio and real-time canvas tools like NoteLogic.' : 'Membangun aplikasi kreatif dengan Web Audio API dan visualisasi real-time.',
+    },
+  ];
+
+  return (
+    <section
+      id="about"
+      className="py-24 px-6 sm:px-8 max-w-6xl mx-auto border-t border-stone-200 dark:border-zinc-800/80"
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
+        {/* Left Column: Heading & Quick Metadata Strip */}
+        <div className="lg:col-span-4 space-y-8">
+          <div>
+            <span className="text-xs font-mono uppercase tracking-widest text-rose-500 font-semibold">
+              {language === 'en' ? '01 / Background' : '01 / Latar Belakang'}
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100 mt-2">
+              {language === 'en' ? 'A little about me.' : 'Seputar profil saya.'}
+            </h2>
+          </div>
+
+          {/* Editorial Metadata Block */}
+          <div className="p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/60 space-y-4 text-xs">
+            <div>
+              <div className="font-mono text-stone-400 dark:text-zinc-500 uppercase tracking-wider text-[10px]">
+                {language === 'en' ? 'Location' : 'Lokasi'}
+              </div>
+              <div className="font-medium text-stone-800 dark:text-zinc-200 text-sm mt-0.5">
+                Indonesia (GMT+7)
+              </div>
+            </div>
+
+            <div className="h-px bg-stone-100 dark:bg-zinc-800" />
+
+            <div>
+              <div className="font-mono text-stone-400 dark:text-zinc-500 uppercase tracking-wider text-[10px]">
+                {language === 'en' ? 'Experience' : 'Pengalaman'}
+              </div>
+              <div className="font-medium text-stone-800 dark:text-zinc-200 text-sm mt-0.5">
+                5+ {language === 'en' ? 'Years in Production' : 'Tahun di Skala Produksi'}
+              </div>
+            </div>
+
+            <div className="h-px bg-stone-100 dark:bg-zinc-800" />
+
+            <div>
+              <div className="font-mono text-stone-400 dark:text-zinc-500 uppercase tracking-wider text-[10px]">
+                {language === 'en' ? 'Primary Focus' : 'Fokus Utama'}
+              </div>
+              <div className="font-medium text-stone-800 dark:text-zinc-200 text-sm mt-0.5">
+                {language === 'en' ? 'Scalable Web Apps & Enterprise ERP' : 'Aplikasi Web Skalabel & ERP Kampus'}
+              </div>
+            </div>
+
+            <div className="h-px bg-stone-100 dark:bg-zinc-800" />
+
+            <div>
+              <div className="font-mono text-stone-400 dark:text-zinc-500 uppercase tracking-wider text-[10px]">
+                {language === 'en' ? 'Core Stack' : 'Stack Inti'}
+              </div>
+              <div className="font-mono text-stone-800 dark:text-zinc-200 text-xs mt-0.5">
+                TypeScript · React · NestJS · PostgreSQL · Redis · Docker
+              </div>
+            </div>
+
+            <div className="h-px bg-stone-100 dark:bg-zinc-800" />
+
+            <div>
+              <div className="font-mono text-stone-400 dark:text-zinc-500 uppercase tracking-wider text-[10px]">
+                {language === 'en' ? 'Current Roles' : 'Peran Saat Ini'}
+              </div>
+              <div className="font-medium text-stone-800 dark:text-zinc-200 text-xs mt-0.5 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                  <span>University Fullstack Engineer</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                  <span>Remote Software Contractor</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                  <span>Independent Tech Creator</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Editorial Text Narrative & Engineering Pillars */}
+        <div className="lg:col-span-8 space-y-8">
+          <div className="space-y-5 text-stone-700 dark:text-zinc-300 text-base sm:text-lg leading-relaxed font-normal">
+            {paragraphs.map((p, idx) => (
+              <p key={idx} className="leading-relaxed">
+                {p}
+              </p>
+            ))}
+          </div>
+
+          {/* 4 Architectural Pillars */}
+          <div className="pt-6 border-t border-stone-200 dark:border-zinc-800 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {pillars.map((item, idx) => (
+              <div
+                key={idx}
+                className="p-4 rounded-xl border border-stone-200/80 dark:border-zinc-800/80 bg-stone-100/40 dark:bg-zinc-900/30"
+              >
+                <div className="flex items-center gap-2.5">
+                  {item.icon}
+                  <h4 className="text-sm font-semibold text-stone-900 dark:text-zinc-100">
+                    {item.title}
+                  </h4>
+                </div>
+                <p className="text-xs text-stone-600 dark:text-zinc-400 mt-2 leading-relaxed">
+                  {item.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
