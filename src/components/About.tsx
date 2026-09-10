@@ -84,10 +84,10 @@ export const About: React.FC = () => {
 
             <div>
               <div className="font-mono text-stone-400 dark:text-zinc-500 uppercase tracking-wider text-[10px]">
-                {language === 'en' ? 'Core Stack' : 'Stack Inti'}
+                {language === 'en' ? 'Core Stack & Infrastructure' : 'Stack Inti & Infrastruktur'}
               </div>
-              <div className="font-mono text-stone-800 dark:text-zinc-200 text-xs mt-0.5">
-                TypeScript · React · NestJS · PostgreSQL · Redis · Docker
+              <div className="font-mono text-stone-800 dark:text-zinc-200 text-xs mt-0.5 leading-relaxed">
+                TypeScript · React · NestJS · PostgreSQL · Redis · Docker · Kubernetes
               </div>
             </div>
 
@@ -95,20 +95,35 @@ export const About: React.FC = () => {
 
             <div>
               <div className="font-mono text-stone-400 dark:text-zinc-500 uppercase tracking-wider text-[10px]">
-                {language === 'en' ? 'Current Roles' : 'Peran Saat Ini'}
+                {language === 'en' ? 'Roles & Timeline' : 'Peran & Linimasa'}
               </div>
-              <div className="font-medium text-stone-800 dark:text-zinc-200 text-xs mt-0.5 space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
-                  <span>University Fullstack Engineer</span>
+              <div className="font-medium text-stone-800 dark:text-zinc-200 text-xs mt-0.5 space-y-1.5">
+                <div className="flex items-start gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold">University Fullstack Developer</span>
+                    <div className="text-[10px] font-mono text-rose-600 dark:text-rose-400">
+                      2022 — {language === 'en' ? 'Present' : 'Sekarang'}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
-                  <span>Remote Software Contractor</span>
+                <div className="flex items-start gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold">Remote Software Engineer</span>
+                    <div className="text-[10px] font-mono text-rose-600 dark:text-rose-400">
+                      2023 — {language === 'en' ? 'Present' : 'Sekarang'}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
-                  <span>Independent Tech Creator</span>
+                <div className="flex items-start gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-500 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold">Personal Hobby & Music Software</span>
+                    <div className="text-[10px] font-mono text-stone-500 dark:text-zinc-400">
+                      NoteLogic · 2024
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

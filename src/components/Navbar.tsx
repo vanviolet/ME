@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Sun, Moon, Globe, Menu, X, ArrowUpRight } from 'lucide-react';
+import { Menu, X, ArrowUpRight } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { theme, toggleTheme, language, toggleLanguage, setLanguage } = usePortfolio();
+  const { language, toggleLanguage, setLanguage } = usePortfolio();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
@@ -125,16 +125,6 @@ export const Navbar: React.FC = () => {
               ID
             </button>
           </div>
-
-          {/* Theme Toggle */}
-          <button
-            id="theme-toggle-btn"
-            onClick={toggleTheme}
-            aria-label={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-900 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
-          >
-            {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
-          </button>
 
           {/* Let's Talk CTA */}
           <button

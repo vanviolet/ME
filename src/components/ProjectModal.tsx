@@ -45,7 +45,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose }) 
         {/* Header & Close */}
         <div className="flex items-start justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-5">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-mono uppercase tracking-wider text-rose-500 font-semibold">
                 {project.category}
               </span>
@@ -54,6 +54,24 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({ project, onClose }) 
                 <Calendar size={12} />
                 <span>{project.year}</span>
               </span>
+
+              {project.isMostUsed && (
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  ⭐ {language === 'en' ? 'Most Widely Used' : 'Paling Banyak Digunakan'}
+                </span>
+              )}
+
+              {project.isNewest && (
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  🚀 {language === 'en' ? 'Latest Release (2024)' : 'Aplikasi Terbaru (2024)'}
+                </span>
+              )}
+
+              {project.isHobby && (
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                  🎸 {language === 'en' ? 'Hobby Project: Solving Music Learning' : 'Karya Hobi: Solusi Belajar Musik'}
+                </span>
+              )}
             </div>
             <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">
               {project.title}

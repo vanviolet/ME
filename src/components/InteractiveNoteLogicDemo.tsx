@@ -49,11 +49,13 @@ export const InteractiveNoteLogicDemo: React.FC = () => {
                 NoteLogic
               </h3>
               <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold">
-                Featured Product
+                {language === 'en' ? 'Hobby Project (2024) • Music Learning' : 'Karya Hobi (2024) • Solusi Belajar Musik'}
               </span>
             </div>
             <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono mt-0.5">
-              van-theory.vercel.app · Web Audio API · 954+ Chords
+              {language === 'en'
+                ? 'van-theory.vercel.app · Built in 2024 for self-study to solve music learning & ear training'
+                : 'van-theory.vercel.app · Dibuat di 2024 sebagai hobi diri sendiri memecahkan masalah pembelajaran musik'}
             </p>
           </div>
         </div>

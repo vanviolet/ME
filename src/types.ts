@@ -26,6 +26,10 @@ export interface Project {
   liveUrl?: string;
   githubUrl?: string;
   featured?: boolean;
+  isHobby?: boolean;
+  isNewest?: boolean;
+  isMostUsed?: boolean;
+  statusBadge?: LocalizedString;
   stats?: { label: LocalizedString; value: string }[];
 }
 

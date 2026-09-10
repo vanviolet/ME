@@ -41,9 +41,17 @@ export const Experience: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
                 {/* Timeline Column (Company & Metadata) */}
                 <div className="lg:col-span-4 space-y-2">
-                  <div className="inline-flex items-center gap-2 text-xs font-mono text-rose-600 dark:text-rose-400 font-medium">
-                    <Calendar size={13} />
-                    <span>{exp.period}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="inline-flex items-center gap-1.5 text-xs font-mono text-rose-600 dark:text-rose-400 font-semibold px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20">
+                      <Calendar size={13} />
+                      <span>{language === 'id' ? exp.period.replace('Present', 'Sekarang') : exp.period}</span>
+                    </div>
+
+                    {exp.id === 'exp-hobby' && (
+                      <span className="text-[10px] font-mono uppercase tracking-wide px-2 py-0.5 rounded bg-zinc-800 text-rose-400 border border-rose-500/30">
+                        {language === 'en' ? 'Hobby Project' : 'Hobi Diri Sendiri'}
+                      </span>
+                    )}
                   </div>
 
                   <h3 className="text-xl font-semibold text-stone-900 dark:text-zinc-100">

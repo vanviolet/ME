@@ -40,6 +40,38 @@ export const Skills: React.FC = () => {
         </p>
       </div>
 
+      {/* Infrastructure Spotlight: Kubernetes */}
+      <div className="mb-12 p-6 sm:p-8 rounded-2xl border border-sky-500/30 dark:border-sky-500/20 bg-sky-500/5 dark:bg-sky-950/20 relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 text-xs font-mono font-semibold border border-sky-500/20">
+              <Cpu size={14} />
+              <span>{language === 'en' ? 'Infrastructure Spotlight: Kubernetes (K8s)' : 'Sorotan Infrastruktur: Kubernetes (K8s)'}</span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-semibold text-stone-900 dark:text-zinc-100">
+              {language === 'en' ? 'High-Availability Cluster Orchestration' : 'Orkestrasi Klaster Skala Produksi'}
+            </h3>
+            <p className="text-xs sm:text-sm text-stone-600 dark:text-zinc-300 leading-relaxed">
+              {language === 'en'
+                ? 'Production systems including the University LMS, Biometric Attendance, and Curriculum platforms are containerized and orchestrated on Kubernetes clusters. Configured with Horizontal Pod Autoscaling (HPA), Ingress controllers, automated health probes, and rolling zero-downtime updates—comfortably absorbing concurrency spikes of 12,000+ simultaneous students during peak exam periods.'
+                : 'Sistem produksi kampus seperti LMS universitas, Absensi Biometrik, dan Kurikulum dikontainerisasi dan diorkestrasi di atas klaster Kubernetes. Dilengkapi Horizontal Pod Autoscaling (HPA), Ingress controller, health probe otomatis, dan deployment zero-downtime—mampu menyerap lonjakan 12.000+ mahasiswa saat ujian serentak tanpa lag.'}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 shrink-0 font-mono text-xs">
+            <div className="p-3.5 rounded-xl bg-white/70 dark:bg-zinc-900/80 border border-sky-500/20 text-center">
+              <div className="text-[10px] text-stone-400 dark:text-zinc-500 uppercase tracking-wider">{language === 'en' ? 'Exam Peak' : 'Puncak Ujian'}</div>
+              <div className="text-lg font-bold text-sky-600 dark:text-sky-400 mt-0.5">12,000+</div>
+              <div className="text-[10px] text-stone-500 dark:text-zinc-400">{language === 'en' ? 'Concurrent Pods' : 'Mahasiswa Serentak'}</div>
+            </div>
+            <div className="p-3.5 rounded-xl bg-white/70 dark:bg-zinc-900/80 border border-sky-500/20 text-center">
+              <div className="text-[10px] text-stone-400 dark:text-zinc-500 uppercase tracking-wider">{language === 'en' ? 'Reliability' : 'Keandalan'}</div>
+              <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">99.9%</div>
+              <div className="text-[10px] text-stone-500 dark:text-zinc-400">{language === 'en' ? 'HPA Zero-Downtime' : 'Uptime Produksi'}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Categorized Clean Typography Lists */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {skillGroupsData.map((group, index) => {

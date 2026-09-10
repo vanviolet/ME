@@ -61,7 +61,7 @@ export const Hero: React.FC = () => {
               onClick={() => scrollTo('projects')}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-sm font-medium hover:bg-stone-800 dark:hover:bg-white transition-all shadow-xs active:scale-[0.98]"
             >
-              <span>{language === 'en' ? 'View Selected Work' : 'Lihat Karya Pilihan'}</span>
+              <span>{language === 'en' ? 'Explore Work & Systems' : 'Eksplorasi Proyek & Sistem'}</span>
               <ArrowDown size={15} />
             </button>
 
