@@ -22,7 +22,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         return 'light';
       }
     }
-    return 'dark';
+    return 'light';
   });
 
   const [language, setLanguageState] = useState<Language>(() => {
@@ -32,7 +32,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const navLang = navigator.language.toLowerCase();
       if (navLang.startsWith('id')) return 'id';
     }
-    return 'en';
+    return 'id';
   });
 
   useEffect(() => {

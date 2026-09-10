@@ -69,7 +69,7 @@ export default defineConfig(() => {
   return {
     plugins: [
       sitemapPlugin({
-        hostname: 'https://muchamadirvan.id/',
+        hostname: 'https://vanviolet.my.id/',
         dynamicRoutes: [
           '/articles',
           '/articles/moodle-migration',

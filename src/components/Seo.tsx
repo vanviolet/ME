@@ -20,7 +20,7 @@ interface SeoProps {
 export const Seo: React.FC<SeoProps> = ({
   title,
   description,
-  image = '/images/irvan_photo_portrait.jpg',
+  image = '/images/favicon.png',
   url,
   type = 'website',
   keywords = '',
@@ -72,7 +72,9 @@ export const Seo: React.FC<SeoProps> = ({
       {/* Open Graph */}
       <meta property="og:title" content={finalTitle} />
       <meta property="og:description" content={finalDescription} />
-      <meta property="og:image" content={image ? `${baseUrl}${image}` : `${baseUrl}/images/irvan_photo_portrait.jpg`} />
+      <meta property="og:image" content={image ? `${baseUrl}${image}` : `${baseUrl}/images/favicon.png`} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
       <meta property="og:url" content={finalUrl} />
       <meta property="og:type" content={type} />
       <meta property="og:site_name" content={siteName} />
@@ -82,7 +84,7 @@ export const Seo: React.FC<SeoProps> = ({
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={finalTitle} />
       <meta name="twitter:description" content={finalDescription} />
-      <meta name="twitter:image" content={image ? `${baseUrl}${image}` : `${baseUrl}/images/irvan_photo_portrait.jpg`} />
+      <meta name="twitter:image" content={image ? `${baseUrl}${image}` : `${baseUrl}/images/favicon.png`} />
 
       {/* JSON-LD Structured Data */}
       <script type="application/ld+json">{JSON.stringify(structuredData)}</script>
