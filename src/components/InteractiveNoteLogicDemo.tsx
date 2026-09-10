@@ -38,62 +38,71 @@ export const InteractiveNoteLogicDemo: React.FC = () => {
   return (
     <div className="rounded-2xl border border-stone-200 dark:border-zinc-800 bg-stone-50/70 dark:bg-zinc-900/60 overflow-hidden shadow-sm">
       {/* Header Bar */}
-      <div className="p-5 sm:p-6 border-b border-stone-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/60 dark:bg-zinc-900/90">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
-            <Music2 size={20} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold text-stone-900 dark:text-zinc-100">
-                NoteLogic
-              </h3>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold">
-                {language === 'en' ? 'Hobby Project (2024) • Music Learning' : 'Karya Hobi (2024) • Solusi Belajar Musik'}
-              </span>
+      <div className="p-4 sm:p-6 border-b border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/90 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold shrink-0 mt-0.5 sm:mt-0">
+              <Music2 size={20} />
             </div>
-            <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono mt-0.5">
-              {language === 'en'
-                ? 'van-theory.vercel.app · Built in 2024 for self-study to solve music learning & ear training'
-                : 'van-theory.vercel.app · Dibuat di 2024 sebagai hobi diri sendiri memecahkan masalah pembelajaran musik'}
-            </p>
-          </div>
-        </div>
-
-        {/* View Switcher & Live Link */}
-        <div className="flex items-center gap-2">
-          <div className="flex bg-stone-100 dark:bg-zinc-800 p-1 rounded-lg border border-stone-200 dark:border-zinc-700/60 text-xs font-mono">
-            <button
-              onClick={() => setActiveTab('demo')}
-              className={`px-3 py-1 rounded transition-colors ${
-                activeTab === 'demo'
-                  ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-semibold shadow-xs'
-                  : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
-              }`}
-            >
-              {language === 'en' ? 'Live Synthesizer' : 'Sintesis Audio'}
-            </button>
-            <button
-              onClick={() => setActiveTab('screens')}
-              className={`px-3 py-1 rounded transition-colors ${
-                activeTab === 'screens'
-                  ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-semibold shadow-xs'
-                  : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
-              }`}
-            >
-              {language === 'en' ? 'Screenshots' : 'Tangkapan Layar'}
-            </button>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-semibold text-stone-900 dark:text-zinc-100">
+                  NoteLogic
+                </h3>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold">
+                  {language === 'en' ? 'Hobby Project (2024)' : 'Karya Hobi (2024)'}
+                </span>
+                <span className="text-[10px] font-mono text-stone-500 dark:text-zinc-400 hidden sm:inline">
+                  • {language === 'en' ? 'Music Learning' : 'Pemecahan Masalah Belajar Musik'}
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono mt-0.5">
+                van-theory.vercel.app · {language === 'en' ? 'Self-study audio synthesis & chord visualizer' : 'Dibuat untuk diri sendiri memecahkan teori musik'}
+              </p>
+            </div>
           </div>
 
           <a
+            id="notelogic-open-external"
             href="https://van-theory.vercel.app/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium transition-colors shadow-xs"
+            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-mono font-medium transition-colors shadow-xs shrink-0"
           >
-            <span>{language === 'en' ? 'Open App' : 'Buka App'}</span>
+            <span>{language === 'en' ? 'Open App' : 'Buka Aplikasi'}</span>
             <ExternalLink size={13} />
           </a>
+        </div>
+
+        {/* Responsive Tab Switcher: Full-width stacked on mobile to prevent any text overflow, 2-column on desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1.5 bg-stone-200/80 dark:bg-zinc-800/90 rounded-xl border border-stone-300/80 dark:border-zinc-700/80 w-full shadow-inner">
+          <button
+            id="tab-sintesis-audio"
+            type="button"
+            onClick={() => setActiveTab('demo')}
+            className={`flex items-center justify-center gap-2.5 min-h-[44px] py-2.5 px-4 rounded-lg font-mono text-xs sm:text-sm font-semibold transition-all select-none ${
+              activeTab === 'demo'
+                ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-sm border border-stone-200 dark:border-zinc-700'
+                : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-200/50 dark:hover:bg-zinc-700/50'
+            }`}
+          >
+            <Volume2 size={16} className={`shrink-0 ${activeTab === 'demo' ? 'text-rose-600 dark:text-rose-400' : 'text-stone-500 dark:text-zinc-400'}`} />
+            <span className="truncate">{language === 'en' ? 'Tab Sintesis Audio' : 'Tab Sintesis Audio'}</span>
+          </button>
+
+          <button
+            id="tab-tangkapan-layar"
+            type="button"
+            onClick={() => setActiveTab('screens')}
+            className={`flex items-center justify-center gap-2.5 min-h-[44px] py-2.5 px-4 rounded-lg font-mono text-xs sm:text-sm font-semibold transition-all select-none ${
+              activeTab === 'screens'
+                ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-sm border border-stone-200 dark:border-zinc-700'
+                : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-200/50 dark:hover:bg-zinc-700/50'
+            }`}
+          >
+            <Eye size={16} className={`shrink-0 ${activeTab === 'screens' ? 'text-rose-600 dark:text-rose-400' : 'text-stone-500 dark:text-zinc-400'}`} />
+            <span className="truncate">{language === 'en' ? 'Tangkapan Layar' : 'Tangkapan Layar'}</span>
+          </button>
         </div>
       </div>
 

@@ -25,8 +25,8 @@ export const About: React.FC = () => {
     },
     {
       icon: <Code2 size={18} className="text-rose-500" />,
-      title: language === 'en' ? 'Interactive Tooling' : 'Aplikasi Interaktif',
-      desc: language === 'en' ? 'Pioneered Web Audio and real-time canvas tools like NoteLogic.' : 'Membangun aplikasi kreatif dengan Web Audio API dan visualisasi real-time.',
+      title: language === 'en' ? 'Container & Cloud' : 'Kontainer & Cloud',
+      desc: language === 'en' ? 'Orchestrating Kubernetes microservices, Docker pipelines, and Redis caching.' : 'Orkestrasi microservices Kubernetes, pipeline Docker, dan caching Redis.',
     },
   ];
 
@@ -119,9 +119,9 @@ export const About: React.FC = () => {
                 <div className="flex items-start gap-1.5">
                   <CheckCircle2 size={13} className="text-emerald-500 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-semibold">Personal Hobby & Music Software</span>
-                    <div className="text-[10px] font-mono text-stone-500 dark:text-zinc-400">
-                      NoteLogic · 2024
+                    <span className="font-semibold">{language === 'en' ? 'Freelance Software Engineer' : 'Freelance Software Engineer'}</span>
+                    <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">
+                      {language === 'en' ? 'Bespoke Client Projects · Active' : 'Proyek Perorangan & Klien · Aktif'}
                     </div>
                   </div>
                 </div>

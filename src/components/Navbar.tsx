@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Menu, X, ArrowUpRight } from 'lucide-react';
+import { Menu, X, ArrowUpRight, Sun, Moon } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { language, toggleLanguage, setLanguage } = usePortfolio();
+  const { language, toggleLanguage, setLanguage, theme, toggleTheme } = usePortfolio();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
@@ -12,7 +12,7 @@ export const Navbar: React.FC = () => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
 
-      const sections = ['hero', 'about', 'experience', 'projects', 'skills', 'philosophy', 'blog', 'contact'];
+      const sections = ['hero', 'about', 'experience', 'skills', 'projects', 'hobby', 'philosophy', 'blog', 'contact'];
       const scrollPosition = window.scrollY + 120;
 
       for (const section of sections) {
@@ -36,8 +36,9 @@ export const Navbar: React.FC = () => {
     { id: 'hero', label: language === 'en' ? 'Home' : 'Beranda' },
     { id: 'about', label: language === 'en' ? 'About' : 'Tentang' },
     { id: 'experience', label: language === 'en' ? 'Experience' : 'Pengalaman' },
-    { id: 'projects', label: language === 'en' ? 'Work' : 'Proyek' },
     { id: 'skills', label: language === 'en' ? 'Skills' : 'Keahlian' },
+    { id: 'projects', label: language === 'en' ? 'Systems' : 'Sistem' },
+    { id: 'hobby', label: language === 'en' ? 'Hobby' : 'Karya Hobi' },
     { id: 'philosophy', label: language === 'en' ? 'Approach' : 'Prinsip' },
     { id: 'blog', label: language === 'en' ? 'Blog' : 'Artikel' },
     { id: 'contact', label: language === 'en' ? 'Contact' : 'Kontak' },
@@ -126,6 +127,17 @@ export const Navbar: React.FC = () => {
             </button>
           </div>
 
+          {/* Theme Toggle Button (Light/Dark mode) */}
+          <button
+            id="theme-toggle-btn"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className="p-1.5 rounded-md border border-stone-200 dark:border-zinc-700/60 bg-stone-200/60 dark:bg-zinc-800/60 text-stone-700 dark:text-zinc-300 hover:text-stone-950 dark:hover:text-white transition-colors"
+          >
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+
           {/* Let's Talk CTA */}
           <button
             id="nav-cta-contact"
@@ -174,6 +186,18 @@ export const Navbar: React.FC = () => {
                 className="text-xs font-mono font-semibold px-2 py-1 rounded bg-stone-200 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200"
               >
                 {language.toUpperCase()}
+              </button>
+            </div>
+            <div className="pt-2 border-t border-stone-200 dark:border-zinc-800 flex items-center justify-between">
+              <span className="text-xs text-stone-500 dark:text-zinc-400">
+                {language === 'en' ? 'Appearance Mode' : 'Mode Tampilan'}
+              </span>
+              <button
+                onClick={toggleTheme}
+                className="inline-flex items-center gap-1.5 text-xs font-mono font-semibold px-2.5 py-1 rounded bg-stone-200 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200"
+              >
+                {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+                <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
               </button>
             </div>
           </div>

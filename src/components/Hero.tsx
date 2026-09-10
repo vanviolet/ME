@@ -129,7 +129,7 @@ export const Hero: React.FC = () => {
             <div className="relative rounded-2xl overflow-hidden border border-stone-200/90 dark:border-zinc-800 bg-stone-100 dark:bg-zinc-900 shadow-md">
               <img
                 id="hero-profile-photo"
-                src="/images/irvan-portrait.jpg"
+                src="/images/irvan_photo_portrait.jpg"
                 alt="Muchamad Irvan - Fullstack Software Engineer"
                 className="w-full aspect-[4/5] object-cover object-top transition-transform duration-500 group-hover:scale-105"
                 referrerPolicy="no-referrer"

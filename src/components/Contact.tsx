@@ -48,7 +48,7 @@ export const Contact: React.FC = () => {
         <div className="lg:col-span-6 space-y-8">
           <div>
             <span className="text-xs font-mono uppercase tracking-widest text-rose-500 font-semibold">
-              {language === 'en' ? '07 / Get in touch' : '07 / Hubungi Saya'}
+              {language === 'en' ? '08 / Get in touch' : '08 / Hubungi Saya'}
             </span>
             <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100 mt-2 leading-[1.15]">
               {language === 'en' ? 'Have a project in mind?' : 'Punya proyek menarik?'}

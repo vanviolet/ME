@@ -47,9 +47,9 @@ export const Experience: React.FC = () => {
                       <span>{language === 'id' ? exp.period.replace('Present', 'Sekarang') : exp.period}</span>
                     </div>
 
-                    {exp.id === 'exp-hobby' && (
-                      <span className="text-[10px] font-mono uppercase tracking-wide px-2 py-0.5 rounded bg-zinc-800 text-rose-400 border border-rose-500/30">
-                        {language === 'en' ? 'Hobby Project' : 'Hobi Diri Sendiri'}
+                    {exp.id === 'exp-freelance' && (
+                      <span className="text-[10px] font-mono uppercase tracking-wide px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        {language === 'en' ? 'Freelance Projects' : 'Proyek Perorangan'}
                       </span>
                     )}
                   </div>

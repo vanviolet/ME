@@ -14,7 +14,16 @@ interface PortfolioContextType {
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
 
 export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mi_portfolio_theme') as Theme;
+      if (saved === 'dark' || saved === 'light') return saved;
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
+      }
+    }
+    return 'dark';
+  });
 
   const [language, setLanguageState] = useState<Language>(() => {
     if (typeof window !== 'undefined') {
@@ -28,13 +37,18 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.add('dark');
-    root.classList.remove('light');
-    localStorage.setItem('mi_portfolio_theme', 'dark');
-  }, []);
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    }
+    localStorage.setItem('mi_portfolio_theme', theme);
+  }, [theme]);
 
   const toggleTheme = () => {
-    // Light mode is currently disabled / not available yet
+    setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
   const setLanguage = (lang: Language) => {

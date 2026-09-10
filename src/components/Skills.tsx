@@ -27,7 +27,7 @@ export const Skills: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-16 gap-4">
         <div>
           <span className="text-xs font-mono uppercase tracking-widest text-rose-500 font-semibold">
-            {language === 'en' ? '04 / Technical Depth' : '04 / Keahlian Teknis'}
+            {language === 'en' ? '03 / Technical Depth & Infrastructure' : '03 / Keahlian Teknis & Infrastruktur'}
           </span>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100 mt-2">
             {language === 'en' ? 'Skills & Technologies.' : 'Keahlian & Teknologi.'}

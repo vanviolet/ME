@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { projectsData } from '../data/portfolioData';
 import { Project } from '../types';
-import { InteractiveNoteLogicDemo } from './InteractiveNoteLogicDemo';
 import { ProjectModal } from './ProjectModal';
 import { ArrowUpRight, ExternalLink, Github, Filter, Sparkles, ChevronRight } from 'lucide-react';
 
@@ -32,35 +31,17 @@ export const Projects: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-12 gap-4">
         <div>
           <span className="text-xs font-mono uppercase tracking-widest text-rose-500 font-semibold">
-            {language === 'en' ? '03 / Hobby-Driven Work & Production Systems' : '03 / Karya Berdasarkan Hobi & Sistem Produksi'}
+            {language === 'en' ? '04 / Production Systems & Engineering' : '04 / Sistem Skala Produksi & Portofolio'}
           </span>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100 mt-2">
-            {language === 'en' ? 'Hobby-driven solutions & scalable systems.' : 'Karya Hobi Musik & Rekayasa Sistem.'}
+            {language === 'en' ? 'Production systems & engineering craft.' : 'Sistem Skala Produksi & Rekayasa Perangkat Lunak.'}
           </h2>
         </div>
         <p className="text-sm font-mono text-stone-500 dark:text-zinc-400 max-w-md">
           {language === 'en'
-            ? 'Solving music learning challenges through an independent hobby project, engineered alongside high-throughput university & enterprise systems.'
-            : 'Memecahkan masalah pembelajaran musik melalui proyek hobi pribadi, dibangun berdampingan dengan sistem kampus & enterprise skala produksi.'}
+            ? 'High-throughput university platforms, remote enterprise microservices for corporate clients (PT Luar), and freelance client solutions.'
+            : 'Platform universitas bervolume tinggi, microservices enterprise remote untuk perusahaan klien (PT Luar), dan solusi klien freelance.'}
         </p>
-      </div>
-
-      {/* Featured NoteLogic Interactive Showcase - Hobby Driven */}
-      <div className="mb-16">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 text-xs font-mono font-semibold rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20">
-              {language === 'en' ? 'Karya Berdasarkan Hobi (2024)' : 'Karya Berdasarkan Hobi (2024)'}
-            </span>
-            <span className="text-xs font-mono text-stone-500 dark:text-zinc-400">
-              {language === 'en' ? 'Solving Music Learning Challenges' : 'Pemecahan Masalah Pembelajaran Musik'}
-            </span>
-          </div>
-          <span className="text-[11px] font-mono text-stone-400 dark:text-zinc-500">
-            {language === 'en' ? 'Personal Hobby Project • NoteLogic' : 'Proyek Hobi Pribadi • NoteLogic'}
-          </span>
-        </div>
-        <InteractiveNoteLogicDemo />
       </div>
 
       {/* Category Filter Pills */}

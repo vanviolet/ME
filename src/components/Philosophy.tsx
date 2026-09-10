@@ -13,7 +13,7 @@ export const Philosophy: React.FC = () => {
       {/* Header */}
       <div className="mb-16">
         <span className="text-xs font-mono uppercase tracking-widest text-rose-500 font-semibold">
-          {language === 'en' ? '05 / Philosophy' : '05 / Nilai & Pendekatan'}
+          {language === 'en' ? '06 / Philosophy' : '06 / Nilai & Pendekatan'}
         </span>
         <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100 mt-2">
           {language === 'en' ? 'How I build.' : 'Prinsip Rekayasa.'}
