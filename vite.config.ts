@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
 import {defineConfig, Plugin} from 'vite';
+import sitemapPlugin from 'vite-plugin-sitemap';
 
 // LINT.IfChange(aistudio_media_plugin)
 function aistudioMediaPlugin(): Plugin {
@@ -66,7 +67,36 @@ function aistudioMediaPlugin(): Plugin {
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), aistudioMediaPlugin()],
+    plugins: [
+      sitemapPlugin({
+        hostname: 'https://muchamadirvan.id/',
+        dynamicRoutes: [
+          '/articles',
+          '/articles/moodle-migration',
+          '/articles/notelogic-audio',
+          '/articles/biometric-antispoofing',
+          '/vanpedia',
+          '/vanpedia/tritone',
+          '/vanpedia/semitone',
+          '/vanpedia/pitch-class',
+          '/vanpedia/minor-triad',
+          '/vanpedia/mysql-deadlock',
+          '/vanpedia/architectural-constraint',
+          '/vanpedia/redis-stream',
+          '/vanpedia/mock-location',
+          '/vanpedia/liveness-detection',
+          '/vanpedia/point-in-polygon',
+        ],
+        exclude: ['/admin', '/login'],
+        generateRobotsTxt: true,
+        robots: [{ userAgent: '*', allow: '/' }],
+        changefreq: 'monthly',
+        priority: 1.0,
+      }),
+      react(),
+      tailwindcss(),
+      aistudioMediaPlugin(),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

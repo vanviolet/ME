@@ -58,8 +58,9 @@ export interface SkillGroup {
   skills: SkillItem[];
 }
 
-export interface BlogPost {
+export interface Article {
   id: string;
+  slug: string;
   title: LocalizedString;
   summary: LocalizedString;
   content: LocalizedString;
@@ -67,6 +68,19 @@ export interface BlogPost {
   readTime: string;
   category: string;
   tags: string[];
+  vanpediaTerms?: string[]; // slugs referenced in content via [[slug]]
+}
+
+export interface VanpediaTerm {
+  id: string;
+  slug: string;
+  title: LocalizedString;
+  definition: LocalizedString;
+  category: string;
+  examples?: LocalizedStringArray;
+  relatedTerms?: string[]; // slugs of related vanpedia terms
+  articleIds?: string[]; // article IDs that reference this term
+  content?: LocalizedString; // full markdown content for term page
 }
 
 export interface PhilosophyItem {

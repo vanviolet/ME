@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { Menu, X, ArrowUpRight, Sun, Moon } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 
 export const Navbar: React.FC = () => {
   const { language, toggleLanguage, setLanguage, theme, toggleTheme } = usePortfolio();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
+  const location = useLocation();
 
+  // Track active section via scroll (only relevant on home page)
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
 
-      const sections = ['hero', 'about', 'experience', 'skills', 'projects', 'hobby', 'philosophy', 'blog', 'contact'];
+      const sections = ['hero', 'about', 'experience', 'skills', 'projects', 'philosophy', 'contact'];
       const scrollPosition = window.scrollY + 120;
 
       for (const section of sections) {
@@ -32,25 +35,32 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navItems = [
-    { id: 'hero', label: language === 'en' ? 'Home' : 'Beranda' },
-    { id: 'about', label: language === 'en' ? 'About' : 'Tentang' },
-    { id: 'experience', label: language === 'en' ? 'Experience' : 'Pengalaman' },
-    { id: 'skills', label: language === 'en' ? 'Skills' : 'Keahlian' },
-    { id: 'projects', label: language === 'en' ? 'Systems' : 'Sistem' },
-    { id: 'hobby', label: language === 'en' ? 'Hobby' : 'Karya Hobi' },
-    { id: 'philosophy', label: language === 'en' ? 'Approach' : 'Prinsip' },
-    { id: 'blog', label: language === 'en' ? 'Blog' : 'Artikel' },
-    { id: 'contact', label: language === 'en' ? 'Contact' : 'Kontak' },
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location]);
+
+  const mainNavItems = [
+    { id: 'hero', label: language === 'en' ? 'Home' : 'Beranda', path: '/' },
+    { id: 'about', label: language === 'en' ? 'About' : 'Tentang', path: '/#about' },
+    { id: 'experience', label: language === 'en' ? 'Experience' : 'Pengalaman', path: '/#experience' },
+    { id: 'skills', label: language === 'en' ? 'Skills' : 'Keahlian', path: '/#skills' },
+    { id: 'projects', label: language === 'en' ? 'Systems' : 'Sistem', path: '/#projects' },
+    { id: 'philosophy', label: language === 'en' ? 'Approach' : 'Prinsip', path: '/#philosophy' },
+    { id: 'contact', label: language === 'en' ? 'Contact' : 'Kontak', path: '/#contact' },
   ];
 
-  const scrollToSection = (id: string) => {
-    setMobileMenuOpen(false);
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+  const isHomePage = location.pathname === '/';
+
+  const isActiveSection = (id: string) => {
+    if (!isHomePage) {
+      // The Articles link is active when on /articles*
+      if (id === 'articles') return location.pathname === '/articles' || location.pathname.startsWith('/articles/');
+      return false;
     }
+    return activeSection === id;
   };
+
 
   return (
     <header
@@ -63,9 +73,9 @@ export const Navbar: React.FC = () => {
     >
       <div className="max-w-6xl mx-auto px-6 sm:px-8 flex items-center justify-between">
         {/* Brand / Monogram */}
-        <button
+        <Link
           id="nav-brand-logo"
-          onClick={() => scrollToSection('hero')}
+          to="/"
           className="group flex items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 rounded-md"
         >
           <span className="w-8 h-8 rounded-lg bg-stone-900 text-stone-100 dark:bg-zinc-100 dark:text-zinc-900 font-mono text-sm font-semibold flex items-center justify-center transition-transform group-hover:scale-105">
@@ -79,24 +89,39 @@ export const Navbar: React.FC = () => {
               Software Engineer
             </span>
           </span>
-        </button>
+        </Link>
 
         {/* Desktop Nav Links */}
         <nav id="desktop-nav" aria-label="Main Navigation" className="hidden md:flex items-center gap-1 bg-stone-100/80 dark:bg-zinc-900/80 p-1 rounded-full border border-stone-200/60 dark:border-zinc-800/60">
-          {navItems.map(item => (
-            <button
+          {mainNavItems.map(item => (
+            <Link
               key={item.id}
               id={`nav-link-${item.id}`}
-              onClick={() => scrollToSection(item.id)}
+              to={item.path}
               className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-200 ${
-                activeSection === item.id
+                isActiveSection(item.id)
                   ? 'bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 shadow-xs'
                   : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
               }`}
             >
               {item.label}
-            </button>
+            </Link>
           ))}
+        </nav>
+
+        {/* Articles — visually separated to the right (different routing root) */}
+        <nav id="desktop-nav-articles" aria-label="Articles" className="hidden md:ml-2 md:flex items-center">
+          <Link
+            id="nav-link-articles"
+            to="/articles"
+            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-200 ${
+              isActiveSection('articles')
+                ? 'bg-rose-600 dark:bg-rose-400 text-white shadow-xs'
+                : 'text-rose-600 dark:text-rose-400 hover:bg-rose-600/10'
+            }`}
+          >
+            {language === 'en' ? 'Articles' : 'Artikel'}
+          </Link>
         </nav>
 
         {/* Controls: Language, Theme, CTA */}
@@ -139,14 +164,14 @@ export const Navbar: React.FC = () => {
           </button>
 
           {/* Let's Talk CTA */}
-          <button
+          <Link
             id="nav-cta-contact"
-            onClick={() => scrollToSection('contact')}
+            to="/#contact"
             className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-full bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs"
           >
             <span>{language === 'en' ? "Let's Talk" : 'Hubungi'}</span>
             <ArrowUpRight size={13} />
-          </button>
+          </Link>
 
           {/* Mobile Menu Toggle */}
           <button
@@ -164,19 +189,27 @@ export const Navbar: React.FC = () => {
       {mobileMenuOpen && (
         <div id="mobile-nav-drawer" className="md:hidden border-b border-stone-200 dark:border-zinc-800 bg-stone-50/98 dark:bg-zinc-950/98 px-6 py-4 shadow-lg animate-in slide-in-from-top-4 duration-200">
           <div className="flex flex-col space-y-2">
-            {navItems.map(item => (
-              <button
+            {mainNavItems.map(item => (
+              <Link
                 key={item.id}
-                onClick={() => scrollToSection(item.id)}
+                to={item.path}
+                onClick={() => setMobileMenuOpen(false)}
                 className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeSection === item.id
+                  isActiveSection(item.id)
                     ? 'bg-stone-200/70 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 font-semibold'
                     : 'text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-900'
                 }`}
               >
                 {item.label}
-              </button>
+              </Link>
             ))}
+            <Link
+              to="/articles"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`text-left px-3 py-2 rounded-lg text-sm font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors`}
+            >
+              {language === 'en' ? 'Articles' : 'Artikel'}
+            </Link>
             <div className="pt-2 border-t border-stone-200 dark:border-zinc-800 flex items-center justify-between">
               <span className="text-xs text-stone-500 dark:text-zinc-400">
                 {language === 'en' ? 'Language / Bahasa' : 'Bahasa / Language'}
