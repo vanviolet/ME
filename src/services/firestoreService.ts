@@ -368,11 +368,10 @@ export async function fetchQuestionsFromFirestore(): Promise<CommunityIssue[]> {
       ...d.data(),
     })) as CommunityIssue[];
 
-    const questionMap = new Map<string, CommunityIssue>();
-    initialIssuesData.forEach(q => questionMap.set(q.id, q));
-    firestoreQuestions.forEach(q => questionMap.set(q.id, q));
-
-    return Array.from(questionMap.values());
+    // Sort by createdAt descending
+    return firestoreQuestions.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   } catch (error) {
     console.warn('Firestore fetchQuestions fallback to local:', error);
     return initialIssuesData;
@@ -401,6 +400,8 @@ export async function createQuestionInFirestore(
     uid = authorId || '';
   }
 
+  const initialVoter = uid || 'author';
+
   const newQuestion: Partial<CommunityIssue> = {
     title: questionData.title,
     description: questionData.description,
@@ -411,7 +412,8 @@ export async function createQuestionInFirestore(
     authorId: uid,
     authorEmail: userEmail,
     createdAt: new Date().toISOString(),
-    votes: questionData.votes || 1,
+    votes: 1,
+    votedBy: [initialVoter],
     answersCount: 0,
     status: 'open',
     answers: [],
@@ -420,7 +422,7 @@ export async function createQuestionInFirestore(
   const docRef = await addDoc(collection(db, QUESTIONS_COLLECTION), newQuestion);
   const created = { id: docRef.id, ...newQuestion } as CommunityIssue;
 
-  // Q&A requirement: "kaalau Q&A hanya notifikasi" (Only notification to vanviolet.js@gmail.com, immediately live)
+  // Q&A requirement: notify admin vanviolet.js@gmail.com
   notifyAdminNewQuestion({
     title: created.title,
     id: created.id,
@@ -434,19 +436,48 @@ export async function createQuestionInFirestore(
   return created;
 }
 
-export async function upvoteQuestionInFirestore(questionId: string, userId = 'anon'): Promise<number> {
+export async function toggleQuestionVoteInFirestore(
+  questionId: string,
+  userId = 'anon'
+): Promise<{ votes: number; hasVoted: boolean }> {
   try {
     const docRef = doc(db, QUESTIONS_COLLECTION, questionId);
-    await updateDoc(docRef, {
-      votes: increment(1),
-      upvotedBy: arrayUnion(userId),
-    });
-    return 1;
+    const snap = await getDoc(docRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      let votedBy: string[] = Array.isArray(data.votedBy)
+        ? [...data.votedBy]
+        : Array.isArray(data.upvotedBy)
+        ? [...data.upvotedBy]
+        : [];
+      let currentVotes: number = typeof data.votes === 'number' ? data.votes : votedBy.length;
+
+      const alreadyVoted = votedBy.includes(userId);
+
+      if (alreadyVoted) {
+        votedBy = votedBy.filter(id => id !== userId);
+        currentVotes = Math.max(0, currentVotes - 1);
+      } else {
+        votedBy.push(userId);
+        currentVotes += 1;
+      }
+
+      await updateDoc(docRef, {
+        votes: currentVotes,
+        votedBy,
+        upvotedBy: votedBy,
+      });
+
+      return { votes: currentVotes, hasVoted: !alreadyVoted };
+    }
   } catch (error) {
-    console.warn('Upvote error, handled locally:', error);
-    return 1;
+    console.warn('toggleQuestionVoteInFirestore error:', error);
   }
+  return { votes: 1, hasVoted: true };
 }
+
+export const upvoteQuestionInFirestore = toggleQuestionVoteInFirestore;
 
 export async function addAnswerInFirestore(
   questionId: string,
@@ -456,7 +487,10 @@ export async function addAnswerInFirestore(
   let newAnswer: IssueAnswer;
 
   if (typeof answerOrContent === 'object' && answerOrContent !== null) {
-    newAnswer = answerOrContent;
+    newAnswer = {
+      ...answerOrContent,
+      votedBy: answerOrContent.votedBy || [],
+    };
   } else {
     newAnswer = {
       id: `ans-${Date.now()}`,
@@ -467,6 +501,7 @@ export async function addAnswerInFirestore(
       content: String(answerOrContent),
       createdAt: new Date().toISOString(),
       votes: 0,
+      votedBy: [],
       isAccepted: false,
     };
   }
@@ -484,25 +519,102 @@ export async function addAnswerInFirestore(
   return newAnswer;
 }
 
-export async function acceptAnswerInFirestore(questionId: string, answerId: string): Promise<void> {
+export async function toggleAnswerVoteInFirestore(
+  questionId: string,
+  answerId: string,
+  userId: string
+): Promise<{ votes: number; hasVoted: boolean; answers: IssueAnswer[] }> {
   try {
     const docRef = doc(db, QUESTIONS_COLLECTION, questionId);
     const snap = await getDoc(docRef);
+
     if (snap.exists()) {
       const data = snap.data();
+      const currentAnswers: IssueAnswer[] = Array.isArray(data.answers) ? [...data.answers] : [];
+      let targetAnswerVotes = 0;
+      let targetHasVoted = false;
+
+      const updatedAnswers = currentAnswers.map(ans => {
+        if (ans.id === answerId) {
+          let votedBy: string[] = Array.isArray(ans.votedBy) ? [...ans.votedBy] : [];
+          let currentVotes = typeof ans.votes === 'number' ? ans.votes : votedBy.length;
+          const alreadyVoted = votedBy.includes(userId);
+
+          if (alreadyVoted) {
+            votedBy = votedBy.filter(id => id !== userId);
+            currentVotes = Math.max(0, currentVotes - 1);
+            targetHasVoted = false;
+          } else {
+            votedBy.push(userId);
+            currentVotes += 1;
+            targetHasVoted = true;
+          }
+          targetAnswerVotes = currentVotes;
+          return {
+            ...ans,
+            votes: currentVotes,
+            votedBy,
+          };
+        }
+        return ans;
+      });
+
+      await updateDoc(docRef, { answers: updatedAnswers });
+      return { votes: targetAnswerVotes, hasVoted: targetHasVoted, answers: updatedAnswers };
+    }
+  } catch (error) {
+    console.warn('toggleAnswerVoteInFirestore error:', error);
+  }
+  return { votes: 0, hasVoted: false, answers: [] };
+}
+
+export async function acceptAnswerInFirestore(
+  questionId: string,
+  answerId: string,
+  currentUserId?: string,
+  currentUserEmail?: string,
+  isAdminUser = false
+): Promise<{ success: boolean; status: 'open' | 'solved'; solvedAnswerId?: string; message?: string }> {
+  try {
+    const docRef = doc(db, QUESTIONS_COLLECTION, questionId);
+    const snap = await getDoc(docRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      const isQuestionAuthor =
+        isAdminUser ||
+        (currentUserId && data.authorId && currentUserId === data.authorId) ||
+        (currentUserEmail && data.authorEmail && currentUserEmail.toLowerCase() === data.authorEmail.toLowerCase());
+
+      if (!isQuestionAuthor) {
+        return {
+          success: false,
+          status: data.status || 'open',
+          message: 'Hanya pembuat pertanyaan atau administrator yang dapat menandai solusi.',
+        };
+      }
+
+      const isCurrentlyAccepted = data.solvedAnswerId === answerId;
+      const newStatus: 'open' | 'solved' = isCurrentlyAccepted ? 'open' : 'solved';
+      const newSolvedId = isCurrentlyAccepted ? null : answerId;
+
       const updatedAnswers = (data.answers || []).map((ans: any) => ({
         ...ans,
-        isAccepted: ans.id === answerId,
+        isAccepted: isCurrentlyAccepted ? false : ans.id === answerId,
       }));
+
       await updateDoc(docRef, {
-        status: 'solved',
-        solvedAnswerId: answerId,
+        status: newStatus,
+        solvedAnswerId: newSolvedId,
         answers: updatedAnswers,
       });
+
+      return { success: true, status: newStatus, solvedAnswerId: newSolvedId || undefined };
     }
   } catch (error) {
     console.warn('Firestore acceptAnswer fallback:', error);
   }
+  return { success: false, status: 'open' };
 }
 
 export const markAnswerAcceptedInFirestore = acceptAnswerInFirestore;
@@ -528,7 +640,10 @@ export async function fetchCommentsForArticle(articleSlug: string): Promise<Arti
     local.forEach(c => commentMap.set(c.id, c));
     firestoreComments.forEach(c => commentMap.set(c.id, c));
 
-    return Array.from(commentMap.values());
+    // Sort by createdAt descending (newest first)
+    return Array.from(commentMap.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   } catch (error) {
     return initialCommentsData.filter(c => c.articleSlug === articleSlug);
   }
@@ -536,13 +651,17 @@ export async function fetchCommentsForArticle(articleSlug: string): Promise<Arti
 
 export async function addArticleCommentInFirestore(
   articleSlugOrComment: string | ArticleComment,
-  commentData?: { content: string; authorName: string },
+  commentData?: { content: string; authorName: string; replyToId?: string; replyToName?: string },
   user?: AuthUser | null
 ): Promise<ArticleComment> {
   let newComment: ArticleComment;
 
   if (typeof articleSlugOrComment === 'object') {
-    newComment = articleSlugOrComment;
+    newComment = {
+      ...articleSlugOrComment,
+      likedBy: articleSlugOrComment.likedBy || [],
+      likes: articleSlugOrComment.likes || 0,
+    };
   } else {
     newComment = {
       id: `com-${Date.now()}`,
@@ -552,20 +671,59 @@ export async function addArticleCommentInFirestore(
       authorId: user?.uid || '',
       authorEmail: user?.email || '',
       content: commentData?.content || '',
+      replyToId: commentData?.replyToId,
+      replyToName: commentData?.replyToName,
       createdAt: new Date().toISOString(),
       likes: 0,
+      likedBy: [],
     };
   }
 
   try {
-    await addDoc(collection(db, COMMENTS_COLLECTION), {
+    const docRef = await addDoc(collection(db, COMMENTS_COLLECTION), {
       ...newComment,
     });
+    newComment.id = docRef.id;
   } catch (error) {
     console.warn('Firestore addComment fallback:', error);
   }
 
   return newComment;
+}
+
+export async function toggleCommentLikeInFirestore(
+  commentId: string,
+  userIdOrAnon: string
+): Promise<{ likes: number; hasLiked: boolean }> {
+  try {
+    const docRef = doc(db, COMMENTS_COLLECTION, commentId);
+    const snap = await getDoc(docRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      let likedBy: string[] = Array.isArray(data.likedBy) ? [...data.likedBy] : [];
+      let currentLikes = typeof data.likes === 'number' ? data.likes : likedBy.length;
+      const alreadyLiked = likedBy.includes(userIdOrAnon);
+
+      if (alreadyLiked) {
+        likedBy = likedBy.filter(id => id !== userIdOrAnon);
+        currentLikes = Math.max(0, currentLikes - 1);
+      } else {
+        likedBy.push(userIdOrAnon);
+        currentLikes += 1;
+      }
+
+      await updateDoc(docRef, {
+        likes: currentLikes,
+        likedBy,
+      });
+
+      return { likes: currentLikes, hasLiked: !alreadyLiked };
+    }
+  } catch (error) {
+    console.warn('toggleCommentLikeInFirestore error:', error);
+  }
+  return { likes: 0, hasLiked: false };
 }
 
 // ==========================================

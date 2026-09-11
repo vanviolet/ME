@@ -77,6 +77,9 @@ export interface ArticleComment {
   content: string;
   createdAt: string;
   likes: number;
+  likedBy?: string[];
+  replyToId?: string;
+  replyToName?: string;
 }
 
 export interface Article {
@@ -158,6 +161,7 @@ export interface IssueAnswer {
   content: string;
   createdAt: string;
   votes: number;
+  votedBy?: string[];
   isAccepted?: boolean;
 }
 
@@ -173,6 +177,7 @@ export interface CommunityIssue {
   authorId?: string;
   createdAt: string;
   votes: number;
+  votedBy?: string[];
   answersCount: number;
   status: 'open' | 'solved';
   solvedAnswerId?: string;

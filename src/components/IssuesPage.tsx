@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
 import { CommunityIssue, IssueAnswer } from '../types';
@@ -8,8 +8,9 @@ import {
   fetchQuestionsFromFirestore,
   createQuestionInFirestore,
   addAnswerInFirestore,
-  upvoteQuestionInFirestore,
-  markAnswerAcceptedInFirestore,
+  toggleQuestionVoteInFirestore,
+  toggleAnswerVoteInFirestore,
+  acceptAnswerInFirestore,
 } from '../services/firestoreService';
 import {
   MessageSquare,
@@ -17,22 +18,25 @@ import {
   CheckCircle2,
   Plus,
   Search,
-  Tag,
   ArrowLeft,
   Send,
   User,
-  Clock,
   Sparkles,
-  Layers,
-  HelpCircle,
   X,
   ShieldCheck,
   Check,
   LogIn,
+  ChevronLeft,
+  ChevronRight,
+  HelpCircle,
+  AlertCircle,
+  CornerDownRight,
 } from 'lucide-react';
 import { Seo } from './Seo';
+import { EmojiPicker } from './EmojiPicker';
 
 const STORAGE_KEY = 'muchamad_irvan_issues_store';
+const ITEMS_PER_PAGE = 6;
 
 export const IssuesPage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -44,7 +48,8 @@ export const IssuesPage: React.FC = () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {
         console.error('Failed to parse local issues', e);
       }
@@ -57,6 +62,10 @@ export const IssuesPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'solved'>('all');
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(id || null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const questionsListRef = useRef<HTMLDivElement>(null);
 
   // New Question Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,6 +81,18 @@ export const IssuesPage: React.FC = () => {
   const [newAnswerText, setNewAnswerText] = useState('');
   const [answerAuthorName, setAnswerAuthorName] = useState('');
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
+  const answerInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Persistent User ID for 1-vote-per-account
+  const currentUserId = useMemo(() => {
+    if (user?.uid) return user.uid;
+    let anon = localStorage.getItem('user_reaction_uid');
+    if (!anon) {
+      anon = 'guest_' + Math.random().toString(36).substring(2, 12);
+      localStorage.setItem('user_reaction_uid', anon);
+    }
+    return anon;
+  }, [user?.uid]);
 
   // Sync selectedIssueId with route param :id
   useEffect(() => {
@@ -84,7 +105,7 @@ export const IssuesPage: React.FC = () => {
   const loadFirestoreQuestions = async () => {
     try {
       const data = await fetchQuestionsFromFirestore();
-      if (data && data.length > 0) {
+      if (data && data.length >= 0) {
         setIssues(data);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       }
@@ -105,7 +126,7 @@ export const IssuesPage: React.FC = () => {
   }, [issues]);
 
   const allTags = useMemo(() => {
-    return Array.from(new Set(issues.flatMap(i => i.tags))).sort();
+    return Array.from(new Set(issues.flatMap(i => i.tags || []))).sort();
   }, [issues]);
 
   const filteredIssues = useMemo(() => {
@@ -115,75 +136,185 @@ export const IssuesPage: React.FC = () => {
         q === '' ||
         issue.title.toLowerCase().includes(q) ||
         issue.description.toLowerCase().includes(q) ||
-        issue.tags.some(t => t.toLowerCase().includes(q));
+        (issue.tags || []).some(t => t.toLowerCase().includes(q));
 
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'solved' && issue.status === 'solved') ||
         (statusFilter === 'open' && issue.status === 'open');
 
-      const matchesTag = selectedTag === '' || issue.tags.includes(selectedTag);
+      const matchesTag = selectedTag === '' || (issue.tags || []).includes(selectedTag);
 
       return matchesSearch && matchesStatus && matchesTag;
     });
   }, [issues, searchQuery, statusFilter, selectedTag]);
 
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, selectedTag]);
+
+  const totalPages = Math.ceil(filteredIssues.length / ITEMS_PER_PAGE) || 1;
+  const paginatedIssues = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredIssues.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredIssues, currentPage]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    if (questionsListRef.current) {
+      questionsListRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const selectedIssue = useMemo(() => {
     return issues.find(i => i.id === selectedIssueId);
   }, [issues, selectedIssueId]);
 
+  // 1 Vote per account for Questions
   const handleVoteIssue = async (issueId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
+
+    // Optimistic local update
+    setIssues(prev =>
+      prev.map(item => {
+        if (item.id === issueId) {
+          const votedBy = Array.isArray(item.votedBy) ? [...item.votedBy] : [];
+          const alreadyVoted = votedBy.includes(currentUserId);
+          const newVotedBy = alreadyVoted
+            ? votedBy.filter(id => id !== currentUserId)
+            : [...votedBy, currentUserId];
+          const newVotes = alreadyVoted
+            ? Math.max(0, (item.votes || 1) - 1)
+            : (item.votes || 0) + 1;
+          return {
+            ...item,
+            votes: newVotes,
+            votedBy: newVotedBy,
+          };
+        }
+        return item;
+      })
+    );
+
+    try {
+      const res = await toggleQuestionVoteInFirestore(issueId, currentUserId);
+      setIssues(prev =>
+        prev.map(item => {
+          if (item.id === issueId) {
+            const votedBy = Array.isArray(item.votedBy) ? [...item.votedBy] : [];
+            const newVotedBy = res.hasVoted
+              ? Array.from(new Set([...votedBy, currentUserId]))
+              : votedBy.filter(id => id !== currentUserId);
+            return {
+              ...item,
+              votes: res.votes,
+              votedBy: newVotedBy,
+            };
+          }
+          return item;
+        })
+      );
+    } catch (err) {
+      console.warn('Voting error:', err);
+    }
+  };
+
+  // 1 Vote per account for Answers
+  const handleVoteAnswer = async (issueId: string, answerId: string) => {
+    // Optimistic local update
+    setIssues(prev =>
+      prev.map(item => {
+        if (item.id === issueId && item.answers) {
+          const updatedAnswers = item.answers.map(ans => {
+            if (ans.id === answerId) {
+              const votedBy = Array.isArray(ans.votedBy) ? [...ans.votedBy] : [];
+              const alreadyVoted = votedBy.includes(currentUserId);
+              const newVotedBy = alreadyVoted
+                ? votedBy.filter(id => id !== currentUserId)
+                : [...votedBy, currentUserId];
+              const newVotes = alreadyVoted
+                ? Math.max(0, (ans.votes || 1) - 1)
+                : (ans.votes || 0) + 1;
+              return {
+                ...ans,
+                votes: newVotes,
+                votedBy: newVotedBy,
+              };
+            }
+            return ans;
+          });
+          return { ...item, answers: updatedAnswers };
+        }
+        return item;
+      })
+    );
+
+    try {
+      const res = await toggleAnswerVoteInFirestore(issueId, answerId, currentUserId);
+      if (res.answers && res.answers.length > 0) {
+        setIssues(prev =>
+          prev.map(item => (item.id === issueId ? { ...item, answers: res.answers } : item))
+        );
+      }
+    } catch (err) {
+      console.warn('Answer voting error:', err);
+    }
+  };
+
+  // Only Question Author or Admin can mark as accepted solution
+  const isCurrentQuestionAuthor = useMemo(() => {
+    if (!selectedIssue) return false;
+    if (isAdmin) return true;
+    if (user?.uid && selectedIssue.authorId && user.uid === selectedIssue.authorId) return true;
+    if (user?.email && selectedIssue.authorEmail && user.email.toLowerCase() === selectedIssue.authorEmail.toLowerCase()) return true;
+    return false;
+  }, [selectedIssue, user, isAdmin]);
+
+  const handleMarkAccepted = async (issueId: string, answerId: string) => {
+    if (!isCurrentQuestionAuthor) {
+      alert(
+        language === 'en'
+          ? 'Only the author of this question can mark an answer as the accepted solution.'
+          : 'Hanya pembuat pertanyaan yang dapat menandai jawaban sebagai solusi.'
+      );
+      return;
+    }
+
+    const isCurrentlyAccepted = selectedIssue?.solvedAnswerId === answerId;
+    const newStatus: 'open' | 'solved' = isCurrentlyAccepted ? 'open' : 'solved';
+    const newSolvedId = isCurrentlyAccepted ? undefined : answerId;
+
     // Optimistic UI update
     setIssues(prev =>
       prev.map(item => {
         if (item.id === issueId) {
-          return { ...item, votes: item.votes + 1 };
-        }
-        return item;
-      }),
-    );
-    try {
-      await upvoteQuestionInFirestore(issueId);
-    } catch (err) {
-      console.warn('Voting saved locally only:', err);
-    }
-  };
-
-  const handleVoteAnswer = (issueId: string, answerId: string) => {
-    setIssues(prev =>
-      prev.map(item => {
-        if (item.id === issueId && item.answers) {
           return {
             ...item,
-            answers: item.answers.map(ans =>
-              ans.id === answerId ? { ...ans, votes: ans.votes + 1 } : ans,
-            ),
-          };
-        }
-        return item;
-      }),
-    );
-  };
-
-  const handleMarkAccepted = async (issueId: string, answerId: string) => {
-    setIssues(prev =>
-      prev.map(item => {
-        if (item.id === issueId) {
-          return {
-            ...item,
-            status: 'solved',
+            status: newStatus,
+            solvedAnswerId: newSolvedId,
             answers: (item.answers || []).map(ans => ({
               ...ans,
-              isAccepted: ans.id === answerId,
+              isAccepted: isCurrentlyAccepted ? false : ans.id === answerId,
             })),
           };
         }
         return item;
-      }),
+      })
     );
+
     try {
-      await markAnswerAcceptedInFirestore(issueId, answerId);
+      const res = await acceptAnswerInFirestore(
+        issueId,
+        answerId,
+        user?.uid,
+        user?.email,
+        isAdmin
+      );
+      if (!res.success && res.message) {
+        alert(res.message);
+        loadFirestoreQuestions();
+      }
     } catch (e) {
       console.error('Error marking answer accepted:', e);
     }
@@ -221,14 +352,15 @@ export const IssuesPage: React.FC = () => {
           authorName: effectiveAuthorName,
           authorEmail: user?.email || undefined,
           authorAvatar: user?.photoURL || undefined,
-          authorId: user?.uid || undefined,
+          authorId: user?.uid || currentUserId,
           votes: 1,
+          votedBy: [currentUserId],
           answersCount: 0,
           status: 'open',
           answers: [],
         },
         user?.email || undefined,
-        user?.uid || undefined
+        user?.uid || currentUserId
       );
 
       setIssues(prev => [savedIssue, ...prev]);
@@ -266,10 +398,11 @@ export const IssuesPage: React.FC = () => {
       authorName: effectiveAuthorName,
       authorEmail: user?.email || undefined,
       authorAvatar: user?.photoURL || undefined,
-      authorId: user?.uid || undefined,
+      authorId: user?.uid || currentUserId,
       content: newAnswerText.trim(),
       createdAt: new Date().toISOString(),
       votes: 0,
+      votedBy: [],
       isAccepted: false,
     };
 
@@ -280,16 +413,30 @@ export const IssuesPage: React.FC = () => {
           const currentAnswers = item.answers || [];
           return {
             ...item,
-            answersCount: item.answersCount + 1,
+            answersCount: (item.answersCount || 0) + 1,
             answers: [...currentAnswers, newAnswer],
           };
         }
         return item;
-      }),
+      })
     );
 
     try {
-      await addAnswerInFirestore(selectedIssueId, newAnswer);
+      const saved = await addAnswerInFirestore(selectedIssueId, newAnswer);
+      if (saved && saved.id) {
+        setIssues(prev =>
+          prev.map(item => {
+            if (item.id === selectedIssueId) {
+              const currentAnswers = item.answers || [];
+              return {
+                ...item,
+                answers: currentAnswers.map(ans => (ans.id === newAnswer.id ? saved : ans)),
+              };
+            }
+            return item;
+          })
+        );
+      }
       setNewAnswerText('');
       setAnswerAuthorName('');
     } catch (err: any) {
@@ -297,6 +444,15 @@ export const IssuesPage: React.FC = () => {
     } finally {
       setSubmittingAnswer(false);
     }
+  };
+
+  const handleInsertEmojiAnswer = (emoji: string) => {
+    setNewAnswerText(prev => prev + emoji);
+    answerInputRef.current?.focus();
+  };
+
+  const handleInsertEmojiQuestion = (emoji: string) => {
+    setNewDescription(prev => prev + emoji);
   };
 
   return (
@@ -321,7 +477,7 @@ export const IssuesPage: React.FC = () => {
               <span className="text-xs font-mono uppercase tracking-widest text-rose-500 font-semibold">
                 {language === 'en' ? 'Community & Discussions' : 'Komunitas & Tanya Jawab'}
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-bold">
+              <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-bold">
                 <Sparkles size={11} />
                 <span>Q&A Stack Overflow Style</span>
               </span>
@@ -331,8 +487,8 @@ export const IssuesPage: React.FC = () => {
             </h1>
             <p className="text-sm text-stone-600 dark:text-zinc-400 mt-2 max-w-xl font-mono">
               {language === 'en'
-                ? 'Ask questions about system design, AI algorithms, database concurrency, and music theory. Answered by developers & open for community feedback.'
-                : 'Ajukan pertanyaan tentang arsitektur sistem, algoritma AI, konkurensi database, dan teori musik. Dibuka untuk diskusi komunitas.'}
+                ? 'Ask questions about system design, AI algorithms, database concurrency, and web engineering. Open for community answers.'
+                : 'Ajukan pertanyaan tentang arsitektur sistem, algoritma AI, konkurensi database, dan rekayasa web. Dibuka untuk diskusi komunitas.'}
             </p>
           </div>
 
@@ -364,15 +520,15 @@ export const IssuesPage: React.FC = () => {
             <ShieldCheck size={16} className="text-rose-500 shrink-0 mt-0.5" />
             <p>
               {language === 'en'
-                ? `Firebase Firestore sync active. Every question automatically notifies ${adminEmail} via email.`
-                : `Sinkronisasi Firebase Firestore aktif. Setiap pertanyaan otomatis mengirimkan notifikasi email ke ${adminEmail}.`}
+                ? `1-vote per account enabled. Only the question author can mark answers as accepted solution.`
+                : `Sistem 1 vote per akun aktif. Hanya pembuat pertanyaan yang berhak menandai jawaban sebagai solusi.`}
             </p>
           </div>
 
           {!user && (
             <button
               onClick={signInWithGoogle}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-[11px] font-semibold hover:opacity-90 transition-opacity shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-[11px] font-semibold hover:opacity-90 transition-opacity shrink-0 shadow-xs"
             >
               <LogIn size={13} />
               <span>{language === 'en' ? 'Sign In with Google' : 'Masuk Akun Google'}</span>
@@ -397,28 +553,41 @@ export const IssuesPage: React.FC = () => {
             {/* Question Details Card */}
             <div className="p-6 sm:p-8 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 shadow-xs">
               <div className="flex items-start gap-4">
-                {/* Voting Column */}
-                <div className="flex flex-col items-center gap-1.5 shrink-0 bg-stone-100 dark:bg-zinc-800/80 p-2 rounded-xl">
-                  <button
-                    onClick={() => handleVoteIssue(selectedIssue.id)}
-                    className="p-1.5 rounded-lg hover:bg-rose-500/10 text-stone-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
-                    title="Upvote"
-                  >
-                    <ThumbsUp size={16} />
-                  </button>
-                  <span className="font-mono text-sm font-bold text-stone-900 dark:text-zinc-100">
-                    {selectedIssue.votes}
-                  </span>
-                  <span className="text-[10px] text-stone-500 dark:text-zinc-400 uppercase font-mono">
-                    votes
-                  </span>
-                </div>
+                {/* Voting Column (1 Vote per Account) */}
+                {(() => {
+                  const votedBy = Array.isArray(selectedIssue.votedBy) ? selectedIssue.votedBy : [];
+                  const userHasVoted = votedBy.includes(currentUserId);
+                  const votesCount = typeof selectedIssue.votes === 'number' ? selectedIssue.votes : votedBy.length;
+
+                  return (
+                    <div className="flex flex-col items-center gap-1 shrink-0 bg-stone-100 dark:bg-zinc-800/80 p-2.5 rounded-2xl border border-stone-200 dark:border-zinc-700">
+                      <button
+                        type="button"
+                        onClick={(e) => handleVoteIssue(selectedIssue.id, e)}
+                        className={`p-2 rounded-xl transition-all ${
+                          userHasVoted
+                            ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold scale-110'
+                            : 'hover:bg-rose-500/10 text-stone-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400'
+                        }`}
+                        title={userHasVoted ? 'Batalkan Vote' : 'Vote Pertanyaan ini (1x per akun)'}
+                      >
+                        <ThumbsUp size={18} className={userHasVoted ? 'fill-rose-500 text-rose-500' : ''} />
+                      </button>
+                      <span className="font-mono text-base font-bold text-stone-900 dark:text-zinc-100">
+                        {votesCount}
+                      </span>
+                      <span className="text-[10px] text-stone-500 dark:text-zinc-400 uppercase font-mono font-semibold">
+                        votes
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* Content */}
                 <div className="flex-1 space-y-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-md font-semibold border ${
+                      className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full font-semibold border ${
                         selectedIssue.status === 'solved'
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                           : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
@@ -448,10 +617,10 @@ export const IssuesPage: React.FC = () => {
 
                   <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-stone-200 dark:border-zinc-800 text-xs font-mono">
                     <div className="flex flex-wrap gap-1.5">
-                      {selectedIssue.tags.map(t => (
+                      {(selectedIssue.tags || []).map(t => (
                         <span
                           key={t}
-                          className="px-2 py-0.5 rounded bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border border-stone-200 dark:border-zinc-700"
+                          className="px-2.5 py-0.5 rounded-lg bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border border-stone-200 dark:border-zinc-700"
                         >
                           #{t}
                         </span>
@@ -463,89 +632,148 @@ export const IssuesPage: React.FC = () => {
                       ) : (
                         <User size={13} />
                       )}
-                      <span>{selectedIssue.authorName}</span>
+                      <span className="font-semibold">{selectedIssue.authorName}</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Answers List */}
+            {/* Answers / Comments List */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-stone-900 dark:text-zinc-100 flex items-center gap-2">
-                <MessageSquare size={18} className="text-rose-500" />
-                <span>
-                  {selectedIssue.answers?.length || 0}{' '}
-                  {language === 'en' ? 'Answers' : 'Jawaban'}
-                </span>
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-stone-900 dark:text-zinc-100 flex items-center gap-2">
+                  <MessageSquare size={18} className="text-rose-500" />
+                  <span>
+                    {selectedIssue.answers?.length || 0}{' '}
+                    {language === 'en' ? 'Answers & Solutions' : 'Jawaban & Diskusi Solusi'}
+                  </span>
+                </h3>
+
+                {isCurrentQuestionAuthor && (
+                  <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-semibold">
+                    {language === 'en' ? 'You are the Author (Can mark solution)' : 'Anda Pembuat Pertanyaan (Bisa tandai solusi)'}
+                  </span>
+                )}
+              </div>
 
               {selectedIssue.answers && selectedIssue.answers.length > 0 ? (
-                selectedIssue.answers.map(ans => (
-                  <div
-                    key={ans.id}
-                    className={`p-6 rounded-2xl border transition-all ${
-                      ans.isAccepted
-                        ? 'border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/20'
-                        : 'border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* Upvote Answer */}
-                      <div className="flex flex-col items-center gap-1 shrink-0 bg-stone-100 dark:bg-zinc-800/60 p-2 rounded-xl">
-                        <button
-                          onClick={() => handleVoteAnswer(selectedIssue.id, ans.id)}
-                          className="p-1 rounded hover:bg-rose-500/10 text-stone-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
-                          title="Upvote Answer"
-                        >
-                          <ThumbsUp size={14} />
-                        </button>
-                        <span className="font-mono text-xs font-bold text-stone-900 dark:text-zinc-100">
-                          {ans.votes}
-                        </span>
-                      </div>
+                selectedIssue.answers.map(ans => {
+                  const ansVotedBy = Array.isArray(ans.votedBy) ? ans.votedBy : [];
+                  const userHasVotedAns = ansVotedBy.includes(currentUserId);
+                  const ansVotes = typeof ans.votes === 'number' ? ans.votes : ansVotedBy.length;
+                  const isAnswerByAuthor = ans.authorId === selectedIssue.authorId || (ans.authorEmail && ans.authorEmail === selectedIssue.authorEmail);
 
-                      <div className="flex-1 space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            {ans.authorAvatar && (
-                              <img src={ans.authorAvatar} alt="" className="w-5 h-5 rounded-full" />
-                            )}
-                            <span className="text-xs font-semibold text-stone-900 dark:text-zinc-100">
-                              {ans.authorName}
-                            </span>
-                            {ans.isAccepted && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono font-semibold border border-emerald-500/20">
-                                <CheckCircle2 size={11} />
-                                <span>Accepted Answer</span>
+                  return (
+                    <div
+                      key={ans.id}
+                      className={`p-6 rounded-2xl border transition-all ${
+                        ans.isAccepted
+                          ? 'border-emerald-500/50 bg-emerald-500/5 dark:bg-emerald-950/20 shadow-xs'
+                          : 'border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900'
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        {/* Vote Answer Column (1 Vote per Account) */}
+                        <div className="flex flex-col items-center gap-1 shrink-0 bg-stone-100 dark:bg-zinc-800/80 p-2 rounded-xl border border-stone-200 dark:border-zinc-700">
+                          <button
+                            type="button"
+                            onClick={() => handleVoteAnswer(selectedIssue.id, ans.id)}
+                            className={`p-1.5 rounded-lg transition-all ${
+                              userHasVotedAns
+                                ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold scale-110'
+                                : 'hover:bg-rose-500/10 text-stone-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400'
+                            }`}
+                            title={userHasVotedAns ? 'Batalkan Vote' : 'Vote Jawaban ini (1x per akun)'}
+                          >
+                            <ThumbsUp size={15} className={userHasVotedAns ? 'fill-rose-500 text-rose-500' : ''} />
+                          </button>
+                          <span className="font-mono text-xs font-bold text-stone-900 dark:text-zinc-100">
+                            {ansVotes}
+                          </span>
+                        </div>
+
+                        <div className="flex-1 space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              {ans.authorAvatar ? (
+                                <img src={ans.authorAvatar} alt="" className="w-6 h-6 rounded-full" />
+                              ) : (
+                                <div className="w-6 h-6 rounded-full bg-rose-500/10 text-rose-600 flex items-center justify-center font-mono text-[10px] font-bold">
+                                  {ans.authorName.slice(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="text-xs font-bold text-stone-900 dark:text-zinc-100">
+                                {ans.authorName}
                               </span>
+
+                              {isAnswerByAuthor && (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold border border-purple-500/20">
+                                  Question Author
+                                </span>
+                              )}
+
+                              {ans.isAccepted && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono font-bold border border-emerald-500/30">
+                                  <CheckCircle2 size={12} />
+                                  <span>{language === 'en' ? 'Accepted Solution' : 'Solusi Terpilih'}</span>
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Solution Button ONLY for Question Author or Admin */}
+                            {isCurrentQuestionAuthor && (
+                              <button
+                                type="button"
+                                onClick={() => handleMarkAccepted(selectedIssue.id, ans.id)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-mono font-semibold transition-all shadow-xs ${
+                                  ans.isAccepted
+                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                    : 'bg-stone-100 dark:bg-zinc-800 hover:bg-emerald-500/10 text-stone-700 dark:text-zinc-300 hover:text-emerald-600 border border-stone-200 dark:border-zinc-700'
+                                }`}
+                                title={
+                                  ans.isAccepted
+                                    ? 'Klik untuk membatalkan tanda solusi'
+                                    : 'Tandai jawaban ini sebagai solusi resmi pertanyaan Anda'
+                                }
+                              >
+                                <Check size={13} />
+                                <span>
+                                  {ans.isAccepted
+                                    ? (language === 'en' ? 'Solution Marked' : 'Solusi Terpilih (Batalkan)')
+                                    : (language === 'en' ? 'Mark as Solution' : 'Tandai sebagai Solusi')}
+                                </span>
+                              </button>
                             )}
                           </div>
 
-                          {(isAdmin || user?.uid === selectedIssue.authorId) && !ans.isAccepted && (
-                            <button
-                              onClick={() => handleMarkAccepted(selectedIssue.id, ans.id)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-emerald-50 text-stone-600 hover:text-emerald-600 border border-stone-200 text-[11px] font-mono transition-colors"
-                            >
-                              <Check size={12} />
-                              <span>{language === 'en' ? 'Accept Solution' : 'Tandai Solusi'}</span>
-                            </button>
-                          )}
-                        </div>
+                          <p className="text-xs sm:text-sm text-stone-800 dark:text-zinc-200 leading-relaxed whitespace-pre-line font-reading-sans">
+                            {ans.content}
+                          </p>
 
-                        <p className="text-sm sm:text-base text-stone-800 dark:text-zinc-200 leading-relaxed whitespace-pre-line font-reading-sans">
-                          {ans.content}
-                        </p>
+                          <div className="text-[10px] font-mono text-stone-400">
+                            {new Date(ans.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <div className="p-8 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl">
-                  <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono">
+                <div className="p-8 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl bg-stone-50/50 dark:bg-zinc-900/30">
+                  <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-3">
+                    <MessageSquare size={18} />
+                  </div>
+                  <p className="text-xs text-stone-600 dark:text-zinc-400 font-mono">
                     {language === 'en'
                       ? 'No answers yet. Be the first to share your perspective!'
-                      : 'Belum ada jawaban. Jadilah yang pertama memberikan solusi!'}
+                      : 'Belum ada jawaban. Jadilah yang pertama memberikan solusi atau tanggapan!'}
                   </p>
                 </div>
               )}
@@ -553,43 +781,64 @@ export const IssuesPage: React.FC = () => {
               {/* Submit Answer Box */}
               <form
                 onSubmit={handleAddAnswer}
-                className="mt-6 p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 space-y-4"
+                className="mt-6 p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 shadow-xs space-y-3.5"
               >
-                <h4 className="text-sm font-semibold text-stone-900 dark:text-zinc-100 font-mono">
-                  {language === 'en' ? 'Your Answer' : 'Jawaban Anda'}
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    placeholder={language === 'en' ? 'Your name / handle' : 'Nama Anda'}
-                    value={answerAuthorName || (user?.displayName || '')}
-                    onChange={e => setAnswerAuthorName(e.target.value)}
-                    className="px-3.5 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-mono"
-                  />
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-stone-900 dark:text-zinc-100 font-mono flex items-center gap-1.5">
+                    <CornerDownRight size={15} className="text-rose-500" />
+                    <span>{language === 'en' ? 'Write Your Answer / Comment' : 'Tuliskan Jawaban / Komentar Anda'}</span>
+                  </h4>
+
+                  {user && (
+                    <span className="text-xs font-mono text-stone-500">
+                      {user.displayName || user.email}
+                    </span>
+                  )}
                 </div>
+
+                {!user && (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder={language === 'en' ? 'Your Name or Handle (optional)' : 'Nama Anda (opsional)'}
+                      value={answerAuthorName}
+                      onChange={e => setAnswerAuthorName(e.target.value)}
+                      className="w-full sm:w-72 px-3.5 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-mono"
+                    />
+                  </div>
+                )}
+
                 <textarea
+                  ref={answerInputRef}
                   rows={4}
                   placeholder={
                     language === 'en'
-                      ? 'Provide detailed code snippets, architectural trade-offs, or explanations...'
-                      : 'Tuliskan penjelasan teknis, potongan kode, atau solusi yang Anda sarankan...'
+                      ? 'Provide detailed explanations, code snippets, or troubleshooting steps...'
+                      : 'Tuliskan penjelasan teknis, langkah pemecahan masalah, atau kode yang disarankan...'
                   }
                   value={newAnswerText}
                   onChange={e => setNewAnswerText(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-mono"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-mono leading-relaxed"
                   required
                 />
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-stone-400">
-                    {user ? `Posting as ${user.displayName || user.email}` : (language === 'en' ? 'Posting as guest contributor' : 'Posting sebagai kontributor')}
-                  </span>
+
+                {/* Quick Emoji Bar & Action Row */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <div className="flex items-center gap-2">
+                    <EmojiPicker onSelectEmoji={handleInsertEmojiAnswer} buttonLabel="Emoticon" />
+                  </div>
+
                   <button
                     type="submit"
-                    disabled={submittingAnswer}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 font-medium text-xs hover:bg-stone-800 dark:hover:bg-white transition-colors disabled:opacity-50 font-mono"
+                    disabled={submittingAnswer || !newAnswerText.trim()}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 font-mono"
                   >
                     <Send size={13} />
-                    <span>{submittingAnswer ? (language === 'en' ? 'Posting...' : 'Mengirim...') : (language === 'en' ? 'Post Answer' : 'Kirim Jawaban')}</span>
+                    <span>
+                      {submittingAnswer
+                        ? (language === 'en' ? 'Posting...' : 'Mengirim...')
+                        : (language === 'en' ? 'Post Answer' : 'Kirim Jawaban')}
+                    </span>
                   </button>
                 </div>
               </form>
@@ -597,7 +846,7 @@ export const IssuesPage: React.FC = () => {
           </div>
         ) : (
           /* Issues Listing */
-          <div className="space-y-6">
+          <div className="space-y-6" ref={questionsListRef}>
             {/* Search & Filter Bar */}
             <div className="space-y-4">
               <div className="relative">
@@ -687,106 +936,177 @@ export const IssuesPage: React.FC = () => {
 
             {/* Questions List */}
             <div className="space-y-3">
-              {filteredIssues.map(issue => (
-                <div
-                  key={issue.id}
-                  onClick={() => {
-                    setSelectedIssueId(issue.id);
-                    navigate(`/issues/${issue.id}`);
-                  }}
-                  className="p-5 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 hover:border-rose-500/30 transition-all cursor-pointer group"
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Stat Badges */}
-                    <div className="flex sm:flex-col items-center gap-3 shrink-0 text-center font-mono">
-                      <div className="flex flex-col items-center">
-                        <span className="text-xs font-bold text-stone-800 dark:text-zinc-200">
-                          {issue.votes}
-                        </span>
-                        <span className="text-[10px] text-stone-400 uppercase">votes</span>
+              {paginatedIssues.map(issue => {
+                const votedBy = Array.isArray(issue.votedBy) ? issue.votedBy : [];
+                const userHasVoted = votedBy.includes(currentUserId);
+                const votesCount = typeof issue.votes === 'number' ? issue.votes : votedBy.length;
+
+                return (
+                  <div
+                    key={issue.id}
+                    onClick={() => {
+                      setSelectedIssueId(issue.id);
+                      navigate(`/issues/${issue.id}`);
+                    }}
+                    className="p-5 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 hover:border-rose-500/30 transition-all cursor-pointer group shadow-xs"
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Stat Badges */}
+                      <div className="flex sm:flex-col items-center gap-2 shrink-0 text-center font-mono">
+                        <button
+                          type="button"
+                          onClick={(e) => handleVoteIssue(issue.id, e)}
+                          className={`flex flex-col items-center px-2 py-1 rounded-xl border transition-all ${
+                            userHasVoted
+                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 font-bold'
+                              : 'bg-stone-50 dark:bg-zinc-800/60 text-stone-700 dark:text-zinc-300 border-stone-200 dark:border-zinc-700 hover:text-rose-600'
+                          }`}
+                          title="Vote Pertanyaan"
+                        >
+                          <ThumbsUp size={13} className={userHasVoted ? 'fill-rose-500 text-rose-500' : ''} />
+                          <span className="text-xs font-bold mt-0.5">{votesCount}</span>
+                          <span className="text-[9px] uppercase text-stone-400">votes</span>
+                        </button>
+
+                        <div
+                          className={`flex flex-col items-center px-2 py-1 rounded-xl border text-[11px] ${
+                            issue.status === 'solved'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold'
+                              : 'bg-stone-50 dark:bg-zinc-800/60 text-stone-600 dark:text-zinc-400 border-stone-200 dark:border-zinc-700'
+                          }`}
+                        >
+                          <span className="font-bold">{issue.answersCount || issue.answers?.length || 0}</span>
+                          <span className="text-[9px] uppercase">ans</span>
+                        </div>
                       </div>
 
-                      <div
-                        className={`flex flex-col items-center px-2 py-1 rounded-lg border text-[11px] ${
-                          issue.status === 'solved'
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold'
-                            : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border-stone-200 dark:border-zinc-700'
-                        }`}
-                      >
-                        <span className="font-bold">{issue.answersCount}</span>
-                        <span className="text-[9px] uppercase">ans</span>
-                      </div>
-                    </div>
-
-                    {/* Question Summary */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20">
-                          {issue.category}
-                        </span>
-                        <span className="text-stone-400 dark:text-zinc-600 text-xs">•</span>
-                        <span className="text-[11px] font-mono text-stone-400">
-                          {new Date(issue.createdAt).toLocaleDateString(
-                            language === 'en' ? 'en-US' : 'id-ID',
-                            { month: 'short', day: 'numeric', year: 'numeric' },
-                          )}
-                        </span>
-                      </div>
-
-                      <h3 className="text-base font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors line-clamp-1">
-                        {issue.title}
-                      </h3>
-
-                      <p className="text-xs text-stone-600 dark:text-zinc-400 line-clamp-2 mt-1.5 leading-relaxed">
-                        {issue.description}
-                      </p>
-
-                      <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800/80 text-[11px] font-mono">
-                        <div className="flex flex-wrap gap-1.5">
-                          {issue.tags.map(t => (
-                            <span
-                              key={t}
-                              className="px-2 py-0.5 rounded bg-stone-100 dark:bg-zinc-800/80 text-stone-600 dark:text-zinc-400 text-[10px]"
-                            >
-                              #{t}
-                            </span>
-                          ))}
+                      {/* Question Summary */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20">
+                            {issue.category}
+                          </span>
+                          <span className="text-stone-400 dark:text-zinc-600 text-xs">•</span>
+                          <span className="text-[11px] font-mono text-stone-400">
+                            {new Date(issue.createdAt).toLocaleDateString(
+                              language === 'en' ? 'en-US' : 'id-ID',
+                              { month: 'short', day: 'numeric', year: 'numeric' },
+                            )}
+                          </span>
                         </div>
 
-                        <div className="text-stone-400 flex items-center gap-1.5">
-                          {issue.authorAvatar ? (
-                            <img src={issue.authorAvatar} alt="" className="w-4 h-4 rounded-full" />
-                          ) : (
-                            <User size={12} />
-                          )}
-                          <span>{issue.authorName}</span>
+                        <h3 className="text-base font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors line-clamp-1">
+                          {issue.title}
+                        </h3>
+
+                        <p className="text-xs text-stone-600 dark:text-zinc-400 line-clamp-2 mt-1.5 leading-relaxed font-reading-sans">
+                          {issue.description}
+                        </p>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800/80 text-[11px] font-mono">
+                          <div className="flex flex-wrap gap-1.5">
+                            {(issue.tags || []).map(t => (
+                              <span
+                                key={t}
+                                className="px-2 py-0.5 rounded bg-stone-100 dark:bg-zinc-800/80 text-stone-600 dark:text-zinc-400 text-[10px]"
+                              >
+                                #{t}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="text-stone-400 flex items-center gap-1.5">
+                            {issue.authorAvatar ? (
+                              <img src={issue.authorAvatar} alt="" className="w-4 h-4 rounded-full" />
+                            ) : (
+                              <User size={12} />
+                            )}
+                            <span className="font-semibold">{issue.authorName}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {filteredIssues.length === 0 && (
-                <div className="py-16 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl font-mono text-xs">
-                  <p className="text-stone-600 dark:text-zinc-400 mb-3">
+                <div className="py-16 px-4 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl font-mono text-xs space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+                    <HelpCircle size={22} />
+                  </div>
+                  <p className="text-stone-600 dark:text-zinc-400">
                     {language === 'en'
-                      ? 'No questions found matching your criteria.'
-                      : 'Tidak ditemukan pertanyaan yang cocok dengan pencarian Anda.'}
+                      ? 'No questions posted yet. Be the first to ask!'
+                      : 'Belum ada pertanyaan yang diajukan. Jadilah yang pertama bertanya!'}
                   </p>
                   <button
-                    onClick={() => {
-                      setSearchQuery('');
-                      setStatusFilter('all');
-                      setSelectedTag('');
-                    }}
-                    className="text-xs font-mono text-rose-600 dark:text-rose-400 underline"
+                    onClick={handleOpenAskModal}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 text-white font-semibold text-xs hover:bg-rose-700 transition-colors"
                   >
-                    {language === 'en' ? 'Reset Filters' : 'Reset Filter'}
+                    <Plus size={14} />
+                    <span>{language === 'en' ? 'Ask a Question' : 'Buat Pertanyaan Pertama'}</span>
                   </button>
                 </div>
               )}
             </div>
+
+            {/* Q&A PAGINATION CONTROLS */}
+            {totalPages > 1 && (
+              <div className="mt-8 pt-6 border-t border-stone-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs">
+                <div className="text-stone-500 dark:text-zinc-400">
+                  {language === 'en' ? 'Showing' : 'Menampilkan'}{' '}
+                  <span className="font-bold text-stone-900 dark:text-zinc-100">
+                    {(currentPage - 1) * ITEMS_PER_PAGE + 1}
+                  </span>{' '}
+                  -{' '}
+                  <span className="font-bold text-stone-900 dark:text-zinc-100">
+                    {Math.min(currentPage * ITEMS_PER_PAGE, filteredIssues.length)}
+                  </span>{' '}
+                  {language === 'en' ? 'of' : 'dari'}{' '}
+                  <span className="font-bold text-stone-900 dark:text-zinc-100">
+                    {filteredIssues.length}
+                  </span>{' '}
+                  {language === 'en' ? 'questions' : 'pertanyaan'}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 text-stone-700 dark:text-zinc-300 hover:border-rose-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    <ChevronLeft size={14} />
+                    <span>{language === 'en' ? 'Prev' : 'Sebelumnya'}</span>
+                  </button>
+
+                  <div className="flex items-center gap-1 px-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`w-8 h-8 rounded-xl font-mono font-bold text-xs transition-all ${
+                          currentPage === page
+                            ? 'bg-rose-600 text-white shadow-xs'
+                            : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 hover:bg-stone-200 dark:hover:bg-zinc-700'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 text-stone-700 dark:text-zinc-300 hover:border-rose-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    <span>{language === 'en' ? 'Next' : 'Berikutnya'}</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -879,9 +1199,12 @@ export const IssuesPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
-                    {language === 'en' ? 'Description & Details *' : 'Deskripsi & Penjelasan Teknis *'}
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-stone-700 dark:text-zinc-300 font-semibold">
+                      {language === 'en' ? 'Description & Details *' : 'Deskripsi & Penjelasan Teknis *'}
+                    </label>
+                    <EmojiPicker onSelectEmoji={handleInsertEmojiQuestion} buttonLabel="Tambah Emoji" />
+                  </div>
                   <textarea
                     rows={4}
                     required
@@ -922,3 +1245,4 @@ export const IssuesPage: React.FC = () => {
     </>
   );
 };
+

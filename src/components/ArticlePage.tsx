@@ -11,6 +11,7 @@ import {
   updateArticleStatusInFirestore,
   fetchArticleLikeStats,
   toggleArticleLikeInFirestore,
+  toggleCommentLikeInFirestore,
 } from '../services/firestoreService';
 import {
   Calendar,
@@ -39,6 +40,8 @@ import {
   Type,
   Flag,
   Sparkles,
+  Reply,
+  Smile,
 } from 'lucide-react';
 import { ArticleContent } from './ArticleContent';
 import { Seo } from './Seo';
@@ -47,6 +50,7 @@ import { vanpediaTermsData } from '../data/articlesData';
 import { exportToPdf } from '../utils/pdfExport';
 import { buildAiDiscussionLinks } from '../utils/aiPrompts';
 import { ReportModal } from './ReportModal';
+import { EmojiPicker } from './EmojiPicker';
 
 export const ArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -63,6 +67,7 @@ export const ArticlePage: React.FC = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [likeLoading, setLikeLoading] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Reading experience preferences
   const [fontMode, setFontMode] = useState<'serif' | 'sans'>(() => {
@@ -82,13 +87,24 @@ export const ArticlePage: React.FC = () => {
     localStorage.setItem('article_reader_size', size);
   };
 
+  // User identifier for 1-like-per-account validation
+  const currentUserId = useMemo(() => {
+    if (user?.uid) return user.uid;
+    let anon = localStorage.getItem('user_reaction_uid');
+    if (!anon) {
+      anon = 'guest_' + Math.random().toString(36).substring(2, 12);
+      localStorage.setItem('user_reaction_uid', anon);
+    }
+    return anon;
+  }, [user?.uid]);
+
   // Article data (with dynamic Firestore fallback to static articlesData)
   const [post, setPost] = useState<Article | null>(() => {
     return articlesData.find(a => a.slug === slug) || null;
   });
   const [loadingArticle, setLoadingArticle] = useState(true);
 
-  // Likes state backed by Firestore database
+  // Likes state backed by Firestore database (1 like per account)
   const [likes, setLikes] = useState<number>(() => {
     const fallback = articlesData.find(a => a.slug === slug)?.likes || 12;
     return fallback;
@@ -113,6 +129,7 @@ export const ArticlePage: React.FC = () => {
   const [commenterName, setCommenterName] = useState('');
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -123,16 +140,10 @@ export const ArticlePage: React.FC = () => {
     const loadData = async () => {
       if (!slug) return;
       try {
-        const userIdOrAnon = user?.uid || localStorage.getItem('anon_client_id') || (() => {
-          const id = 'anon-' + Math.random().toString(36).substring(2, 10);
-          localStorage.setItem('anon_client_id', id);
-          return id;
-        })();
-
         const [firestorePost, firestoreComments, likeStats] = await Promise.all([
           fetchArticleBySlugFromFirestore(slug),
           fetchCommentsForArticle(slug),
-          fetchArticleLikeStats(slug, userIdOrAnon),
+          fetchArticleLikeStats(slug, currentUserId),
         ]);
 
         if (firestorePost) {
@@ -155,7 +166,7 @@ export const ArticlePage: React.FC = () => {
       }
     };
     loadData();
-  }, [slug, user?.uid]);
+  }, [slug, currentUserId]);
 
   // Persist comments when updated
   useEffect(() => {
@@ -184,8 +195,7 @@ export const ArticlePage: React.FC = () => {
 
   const handleLike = async () => {
     if (!slug || likeLoading) return;
-    const userIdOrAnon = user?.uid || localStorage.getItem('anon_client_id') || 'anon-client';
-    
+
     // Optimistic UI update
     const willLike = !hasLiked;
     setHasLiked(willLike);
@@ -193,7 +203,7 @@ export const ArticlePage: React.FC = () => {
     setLikeLoading(true);
 
     try {
-      const stats = await toggleArticleLikeInFirestore(slug, userIdOrAnon);
+      const stats = await toggleArticleLikeInFirestore(slug, currentUserId);
       setLikes(stats.likes);
       setHasLiked(stats.hasLiked);
     } catch (err) {
@@ -202,6 +212,105 @@ export const ArticlePage: React.FC = () => {
       setLikeLoading(false);
     }
   };
+
+  const handleAddComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !post) return;
+
+    setSubmittingComment(true);
+    const authorDisplayName =
+      commenterName.trim() ||
+      user?.displayName ||
+      (language === 'en' ? 'Guest Reader' : 'Pembaca Tamu');
+
+    const newComment: ArticleComment = {
+      id: `comment-${Date.now()}`,
+      articleSlug: post.slug,
+      authorName: authorDisplayName,
+      authorAvatar: user?.photoURL || '',
+      authorEmail: user?.email || undefined,
+      authorId: user?.uid || currentUserId,
+      content: commentText.trim(),
+      createdAt: new Date().toISOString(),
+      likes: 0,
+      likedBy: [],
+      replyToId: replyingTo?.id,
+      replyToName: replyingTo?.name,
+    };
+
+    setComments(prev => [newComment, ...prev]);
+    setCommentText('');
+    setReplyingTo(null);
+
+    try {
+      const saved = await addArticleCommentInFirestore(newComment, undefined, user);
+      if (saved && saved.id) {
+        setComments(prev => prev.map(c => (c.id === newComment.id ? saved : c)));
+      }
+    } catch (err) {
+      console.warn('Comment saved locally only:', err);
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  // 1 Like per account for Comments
+  const handleLikeComment = async (commentId: string) => {
+    // Optimistic toggle
+    setComments(prev =>
+      prev.map(c => {
+        if (c.id === commentId) {
+          const likedBy = Array.isArray(c.likedBy) ? [...c.likedBy] : [];
+          const alreadyLiked = likedBy.includes(currentUserId);
+          const newLikedBy = alreadyLiked
+            ? likedBy.filter(id => id !== currentUserId)
+            : [...likedBy, currentUserId];
+          const newLikes = alreadyLiked ? Math.max(0, (c.likes || 1) - 1) : (c.likes || 0) + 1;
+          return {
+            ...c,
+            likes: newLikes,
+            likedBy: newLikedBy,
+          };
+        }
+        return c;
+      })
+    );
+
+    try {
+      const res = await toggleCommentLikeInFirestore(commentId, currentUserId);
+      setComments(prev =>
+        prev.map(c => {
+          if (c.id === commentId) {
+            const likedBy = Array.isArray(c.likedBy) ? [...c.likedBy] : [];
+            const newLikedBy = res.hasLiked
+              ? Array.from(new Set([...likedBy, currentUserId]))
+              : likedBy.filter(id => id !== currentUserId);
+            return {
+              ...c,
+              likes: res.likes,
+              likedBy: newLikedBy,
+            };
+          }
+          return c;
+        })
+      );
+    } catch (err) {
+      console.error('Error toggling comment like:', err);
+    }
+  };
+
+  const handleReplyToComment = (c: ArticleComment) => {
+    setReplyingTo({ id: c.id, name: c.authorName });
+    setCommentText(prev => (prev.startsWith(`@${c.authorName} `) ? prev : `@${c.authorName} ` + prev));
+    commentInputRef.current?.focus();
+  };
+
+  const handleInsertEmoji = (emoji: string) => {
+    setCommentText(prev => prev + emoji);
+    commentInputRef.current?.focus();
+  };
+
+  const quickEmojis = ['👍', '❤️', '🔥', '💡', '🚀', '👏', '🎉', '✨', '💯', '🤝', '🧠', '💻'];
 
   if (!post) {
     return (
@@ -262,47 +371,6 @@ export const ArticlePage: React.FC = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleAddComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentText.trim() || !post) return;
-
-    setSubmittingComment(true);
-    const authorDisplayName =
-      commenterName.trim() ||
-      user?.displayName ||
-      (language === 'en' ? 'Guest Reader' : 'Pembaca Tamu');
-
-    const newComment: ArticleComment = {
-      id: `comment-${Date.now()}`,
-      articleSlug: post.slug,
-      authorName: authorDisplayName,
-      authorAvatar: user?.photoURL || '',
-      authorEmail: user?.email || undefined,
-      authorId: user?.uid || undefined,
-      content: commentText.trim(),
-      createdAt: new Date().toISOString(),
-      likes: 0,
-    };
-
-    setComments(prev => [newComment, ...prev]);
-    setCommentText('');
-    setCommenterName('');
-
-    try {
-      await addArticleCommentInFirestore(newComment);
-    } catch (err) {
-      console.warn('Comment saved locally only:', err);
-    } finally {
-      setSubmittingComment(false);
-    }
-  };
-
-  const handleLikeComment = (commentId: string) => {
-    setComments(prev =>
-      prev.map(c => (c.id === commentId ? { ...c, likes: c.likes + 1 } : c)),
-    );
   };
 
   const handleViewMarkdown = () => {
@@ -742,26 +810,54 @@ export const ArticlePage: React.FC = () => {
 
         {/* Interactive Discussion & Comments Section */}
         <section className="my-12 pt-8 border-t border-stone-200 dark:border-zinc-800">
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-2">
-              <MessageSquare size={20} className="text-rose-500" />
-              <h3 className="text-xl font-bold text-stone-900 dark:text-zinc-100">
-                {language === 'en' ? 'Discussion & Comments' : 'Komentar & Diskusi'}
-              </h3>
-              <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400">
-                {comments.length}
-              </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                <MessageSquare size={20} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-stone-900 dark:text-zinc-100 flex items-center gap-2">
+                  <span>{language === 'en' ? 'Discussion & Comments' : 'Komentar & Diskusi'}</span>
+                  <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20">
+                    {comments.length}
+                  </span>
+                </h3>
+                <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono mt-0.5">
+                  {language === 'en'
+                    ? 'Join the technical conversation and share your insights.'
+                    : 'Diskusikan topik, tanyakan hal teknis, atau bagikan saran Anda.'}
+                </p>
+              </div>
             </div>
+
+            <button
+              onClick={handleLike}
+              disabled={likeLoading}
+              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-mono font-semibold transition-all shadow-xs self-start sm:self-auto ${
+                hasLiked
+                  ? 'bg-rose-500/10 border-rose-500/40 text-rose-600 dark:text-rose-400 ring-2 ring-rose-500/20'
+                  : 'bg-white/80 dark:bg-zinc-900/80 border-stone-200 dark:border-zinc-800 text-stone-700 dark:text-zinc-300 hover:border-rose-500/30'
+              }`}
+            >
+              <Heart
+                size={14}
+                className={hasLiked ? 'fill-rose-500 text-rose-500 animate-pulse' : 'text-rose-500'}
+              />
+              <span>{hasLiked ? (language === 'en' ? 'Liked Article' : 'Menyukai') : (language === 'en' ? 'Like Article' : 'Suka')}</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-stone-100 dark:bg-zinc-800 text-[10px] font-bold">
+                {likes}
+              </span>
+            </button>
           </div>
 
           {/* Architecture notice */}
-          <div className="mb-6 p-3 rounded-xl border border-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10 text-xs text-stone-600 dark:text-zinc-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
+          <div className="mb-6 p-3.5 rounded-2xl border border-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10 text-xs text-stone-600 dark:text-zinc-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
             <div className="flex items-start gap-2">
               <ShieldCheck size={16} className="text-rose-500 shrink-0 mt-0.5" />
               <p>
                 {language === 'en'
-                  ? 'Real-time comments synced with Firebase Firestore database.'
-                  : 'Komentar tersinkronisasi real-time dengan database Firebase Firestore.'}
+                  ? 'Real-time comments and 1-like-per-account synced securely via Firebase Firestore.'
+                  : 'Komentar real-time dan sistem 1 like per akun tersinkronisasi aman di Firebase Firestore.'}
               </p>
             </div>
 
@@ -769,7 +865,7 @@ export const ArticlePage: React.FC = () => {
               <button
                 type="button"
                 onClick={signInWithGoogle}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-[11px] font-semibold hover:opacity-90 transition-opacity self-start sm:self-auto shrink-0"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-[11px] font-semibold hover:opacity-90 transition-opacity self-start sm:self-auto shrink-0 shadow-xs"
               >
                 <LogIn size={12} />
                 <span>{language === 'en' ? 'Sign in with Google' : 'Masuk dengan Google'}</span>
@@ -780,107 +876,225 @@ export const ArticlePage: React.FC = () => {
           {/* Comment Form */}
           <form
             onSubmit={handleAddComment}
-            className="mb-8 p-5 sm:p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 space-y-4 font-mono"
+            className="mb-8 p-5 sm:p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 shadow-xs space-y-3.5 font-mono"
           >
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-stone-900 dark:text-zinc-100">
-                {language === 'en' ? 'Leave a Comment' : 'Tulis Komentar'}
-              </h4>
-              {user && (
-                <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-400">
-                  {user.photoURL && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-stone-900 dark:text-zinc-100">
+                  {language === 'en' ? 'Write a Comment' : 'Tuliskan Komentar'}
+                </span>
+                {replyingTo && (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[11px] font-semibold">
+                    <Reply size={11} />
+                    <span>Membalas @{replyingTo.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setReplyingTo(null)}
+                      className="hover:text-rose-800 ml-1 text-xs"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+              </div>
+
+              {user ? (
+                <div className="flex items-center gap-2 text-xs text-stone-600 dark:text-zinc-300">
+                  {user.photoURL ? (
                     <img src={user.photoURL} alt="" className="w-5 h-5 rounded-full" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center font-bold">
+                      {user.displayName?.slice(0, 1) || 'U'}
+                    </div>
                   )}
-                  <span>{user.displayName || user.email}</span>
+                  <span className="font-semibold">{user.displayName || user.email}</span>
                 </div>
+              ) : (
+                <span className="text-[11px] text-stone-400">
+                  {language === 'en' ? 'Guest Mode' : 'Mode Tamu'}
+                </span>
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <input
-                type="text"
-                placeholder={user?.displayName || (language === 'en' ? 'Your Name or Alias' : 'Nama atau Panggilan Anda')}
-                value={commenterName}
-                onChange={e => setCommenterName(e.target.value)}
-                className="px-3.5 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+            {!user && (
+              <div>
+                <input
+                  type="text"
+                  placeholder={language === 'en' ? 'Your Name or Alias (optional)' : 'Nama atau Panggilan Anda (opsional)'}
+                  value={commenterName}
+                  onChange={e => setCommenterName(e.target.value)}
+                  className="w-full sm:w-72 px-3.5 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                />
+              </div>
+            )}
+
+            <div className="relative">
+              <textarea
+                ref={commentInputRef}
+                rows={3}
+                required
+                placeholder={
+                  language === 'en'
+                    ? 'Share your questions, technical insights, or constructive feedback...'
+                    : 'Tuliskan tanggapan, pertanyaan, atau saran Anda mengenai artikel ini...'
+                }
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 leading-relaxed font-mono"
               />
             </div>
-            <textarea
-              rows={3}
-              required
-              placeholder={
-                language === 'en'
-                  ? 'Share your thoughts, questions, or alternative approaches...'
-                  : 'Tuliskan tanggapan, pertanyaan, atau saran Anda mengenai artikel ini...'
-              }
-              value={commentText}
-              onChange={e => setCommentText(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
-            />
-            <div className="flex justify-end">
+
+            {/* Quick Emoji Bar & Action Row */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {/* Emoji Picker Dropdown */}
+                <EmojiPicker onSelectEmoji={handleInsertEmoji} buttonLabel="Emoticon" />
+
+                {/* Quick frequency pills */}
+                <div className="hidden sm:flex items-center gap-1 overflow-x-auto">
+                  {quickEmojis.slice(0, 7).map(emoji => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => handleInsertEmoji(emoji)}
+                      className="px-1.5 py-1 text-xs rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+                      title={emoji}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <button
                 type="submit"
-                disabled={submittingComment}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 font-medium text-xs hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs disabled:opacity-50"
+                disabled={submittingComment || !commentText.trim()}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-50"
               >
                 <Send size={13} />
                 <span>
                   {submittingComment
                     ? (language === 'en' ? 'Submitting...' : 'Mengirim...')
-                    : (language === 'en' ? 'Submit Comment' : 'Kirim Komentar')}
+                    : (language === 'en' ? 'Post Comment' : 'Kirim Komentar')}
                 </span>
               </button>
             </div>
           </form>
 
           {/* Comments List */}
-          <div className="space-y-3">
-            {comments.map(c => (
-              <div
-                key={c.id}
-                className="p-5 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/40 space-y-2.5"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 font-mono text-xs font-bold flex items-center justify-center">
-                      {c.authorName.slice(0, 2).toUpperCase()}
+          <div className="space-y-3.5">
+            {comments.map(c => {
+              const isCommentAuthor = c.authorId === currentUserId || (user && c.authorEmail === user.email);
+              const isArticleCreator = c.authorEmail === adminEmail || c.authorName.toLowerCase().includes('irvan');
+              const likedByArray = Array.isArray(c.likedBy) ? c.likedBy : [];
+              const userHasLikedComment = likedByArray.includes(currentUserId);
+              const commentLikes = typeof c.likes === 'number' ? c.likes : likedByArray.length;
+
+              return (
+                <div
+                  key={c.id}
+                  className="p-5 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900/80 transition-all space-y-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      {c.authorAvatar ? (
+                        <img
+                          src={c.authorAvatar}
+                          alt=""
+                          className="w-8 h-8 rounded-full border border-stone-200 dark:border-zinc-700 object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500 to-amber-500 text-white font-mono text-xs font-bold flex items-center justify-center shadow-xs">
+                          {c.authorName.slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-stone-900 dark:text-zinc-100">
+                            {c.authorName}
+                          </span>
+
+                          {isArticleCreator && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold border border-purple-500/20">
+                              Author
+                            </span>
+                          )}
+
+                          {isCommentAuthor && !isArticleCreator && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20">
+                              You
+                            </span>
+                          )}
+                        </div>
+
+                        <span className="block text-[10px] font-mono text-stone-400 dark:text-zinc-500">
+                          {new Date(c.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-xs font-semibold text-stone-900 dark:text-zinc-100">
-                        {c.authorName}
-                      </span>
-                      <span className="block text-[10px] font-mono text-stone-400">
-                        {new Date(c.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
+
+                    <div className="flex items-center gap-2">
+                      {/* Reply Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleReplyToComment(c)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-mono text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+                        title="Balas komentar"
+                      >
+                        <Reply size={12} />
+                        <span className="hidden sm:inline">{language === 'en' ? 'Reply' : 'Balas'}</span>
+                      </button>
+
+                      {/* Like Comment (1 Like per account) */}
+                      <button
+                        type="button"
+                        onClick={() => handleLikeComment(c.id)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-mono transition-all ${
+                          userHasLikedComment
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 font-bold'
+                            : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 border border-stone-200 dark:border-zinc-700'
+                        }`}
+                        title={userHasLikedComment ? 'Batalkan Suka' : 'Sukai Komentar (1x per akun)'}
+                      >
+                        <Heart
+                          size={13}
+                          className={userHasLikedComment ? 'fill-rose-500 text-rose-500' : ''}
+                        />
+                        <span>{commentLikes}</span>
+                      </button>
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleLikeComment(c.id)}
-                    className="inline-flex items-center gap-1 text-[11px] font-mono text-stone-500 dark:text-zinc-400 hover:text-rose-600 transition-colors p-1"
-                    title="Like comment"
-                  >
-                    <Heart size={12} />
-                    <span>{c.likes}</span>
-                  </button>
-                </div>
+                  {c.replyToName && (
+                    <div className="inline-flex items-center gap-1 text-[11px] font-mono text-rose-600 dark:text-rose-400 bg-rose-500/5 px-2 py-0.5 rounded-md">
+                      <Reply size={10} />
+                      <span>Membalas @{c.replyToName}</span>
+                    </div>
+                  )}
 
-                <p className="text-xs sm:text-sm text-stone-700 dark:text-zinc-300 leading-relaxed pl-9">
-                  {c.content}
-                </p>
-              </div>
-            ))}
+                  <p className="text-xs sm:text-sm text-stone-800 dark:text-zinc-200 leading-relaxed font-reading-sans whitespace-pre-line pl-1 sm:pl-2">
+                    {c.content}
+                  </p>
+                </div>
+              );
+            })}
 
             {comments.length === 0 && (
-              <div className="py-10 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl">
-                <p className="text-xs text-stone-500 dark:text-zinc-400">
+              <div className="py-12 px-4 text-center border border-dashed border-stone-200 dark:border-zinc-800 rounded-2xl bg-stone-50/50 dark:bg-zinc-900/30">
+                <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-3">
+                  <MessageSquare size={18} />
+                </div>
+                <p className="text-xs font-mono text-stone-600 dark:text-zinc-400">
                   {language === 'en'
                     ? 'No comments yet. Start the conversation!'
-                    : 'Belum ada komentar. Jadilah yang pertama berkomentar!'}
+                    : 'Belum ada komentar. Jadilah yang pertama memberikan masukan atau tanggapan!'}
                 </p>
               </div>
             )}
