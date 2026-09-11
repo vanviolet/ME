@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { marked } from 'marked';
 import { useParams, Link } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
 import { vanpediaTermsData, articlesData } from '../data/articlesData';
+import { renderMarkdownWithMath, renderInlineFormula } from '../lib/renderMath';
 import {
   fetchVanpediaTermsFromFirestore,
   fetchVanpediaTermBySlugFromFirestore,
@@ -36,6 +36,7 @@ import {
   ExternalLink,
   Menu,
   FileText,
+  Flag,
 } from 'lucide-react';
 import { Seo } from './Seo';
 import { exportToPdf } from '../utils/pdfExport';
@@ -44,6 +45,7 @@ import { RichEditor } from './RichEditor';
 import { TemplateUploadZone } from './TemplateUploadZone';
 import { AiPromptModal } from './AiPromptModal';
 import { ParsedVanpediaFile } from '../utils/fileParser';
+import { ReportModal } from './ReportModal';
 
 /**
  * Vanpedia term page — each term (e.g. /vanpedia/tritone) gets its own SEO-optimized page.
@@ -64,6 +66,7 @@ export const VanpediaPage: React.FC = () => {
   const [aiCopied, setAiCopied] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
   const aiLinks = useMemo(() => {
     if (!term) return null;
@@ -88,7 +91,7 @@ export const VanpediaPage: React.FC = () => {
     if (!term) return;
     setDownloading(true);
     try {
-      const htmlContent = marked.parse(t(term.content) || t(term.definition), { gfm: true, breaks: true, async: false }) as string;
+      const htmlContent = renderMarkdownWithMath(t(term.content) || t(term.definition));
       await exportToPdf({
         title: `${t(term.title)} - Vanpedia`,
         category: term.category,
@@ -287,6 +290,16 @@ export const VanpediaPage: React.FC = () => {
                 <span>{downloading ? (language === 'en' ? 'Exporting...' : 'Mengunduh...') : 'PDF'}</span>
               </button>
 
+              {/* Report Term Button */}
+              <button
+                onClick={() => setIsReportModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded-lg border border-stone-200 dark:border-zinc-800 text-stone-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/30 transition-colors"
+                title={language === 'en' ? 'Report issue with this Vanpedia entry' : 'Laporkan kesalahan pada istilah ini'}
+              >
+                <Flag size={13} />
+                <span className="hidden sm:inline">{language === 'en' ? 'Report' : 'Lapor'}</span>
+              </button>
+
               {/* AI & Export Options Dropdown */}
               <div className="relative inline-block">
                 <button
@@ -381,14 +394,39 @@ export const VanpediaPage: React.FC = () => {
 
           {/* Mathematical / Technical Formula (if present) */}
           {term.formula && (
-            <div className="mt-4 p-4 rounded-xl bg-stone-100/80 dark:bg-zinc-900/80 border border-stone-200 dark:border-zinc-800 font-mono text-xs sm:text-sm text-stone-800 dark:text-zinc-200 flex items-center justify-between gap-4">
-              <div>
-                <span className="text-[10px] uppercase tracking-wider text-stone-400 dark:text-zinc-500 block mb-0.5">
-                  {language === 'en' ? 'Mathematical Formulation / Concept' : 'Formula Matematis / Konsep'}
+            <div className="mt-4 p-4 rounded-xl bg-stone-100/80 dark:bg-zinc-900/80 border border-stone-200 dark:border-zinc-800 text-stone-800 dark:text-zinc-200 flex items-center justify-between gap-4">
+              <div className="w-full">
+                <span className="text-[10px] uppercase tracking-wider text-stone-400 dark:text-zinc-500 block mb-1 font-mono">
+                  {language === 'en' ? 'Mathematical Formulation / Concept' : 'Formula Matematis / Notasi Simbol'}
                 </span>
-                <span className="font-semibold text-rose-600 dark:text-rose-400 font-code">{term.formula}</span>
+                <div
+                  className="font-semibold text-rose-600 dark:text-rose-400 text-sm sm:text-base overflow-x-auto py-1"
+                  dangerouslySetInnerHTML={{ __html: renderInlineFormula(term.formula) }}
+                />
               </div>
               <Sparkles size={16} className="text-rose-500 shrink-0 opacity-70" />
+            </div>
+          )}
+
+          {/* AI Assistance Metadata Banner */}
+          {(term.isAiAssisted || term.aiModel) && (
+            <div className="mt-4 p-3.5 rounded-xl bg-purple-500/5 dark:bg-purple-950/20 border border-purple-500/20 flex items-center gap-3 text-xs font-mono">
+              <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
+                <Sparkles size={14} />
+              </div>
+              <div className="flex-1">
+                <span className="font-semibold text-purple-900 dark:text-purple-200">
+                  {language === 'en' ? 'AI-Assisted Knowledge Entry' : 'Entri Istilah Diriset dengan Bantuan AI'}:
+                </span>{' '}
+                <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[10px] font-bold">
+                  {term.aiModel || 'Gemini 3.7 Flash'}
+                </span>
+                <span className="text-stone-500 dark:text-zinc-400 ml-1.5 text-[11px]">
+                  {language === 'en'
+                    ? '(Reviewed & verified for accuracy)'
+                    : '(Divalidasi & diverifikasi secara teknis)'}
+                </span>
+              </div>
             </div>
           )}
         </header>
@@ -399,7 +437,7 @@ export const VanpediaPage: React.FC = () => {
             className="max-w-none text-base leading-relaxed space-y-4 text-stone-700 dark:text-zinc-300 mb-12 font-reading-serif"
             data-article-content
             dangerouslySetInnerHTML={{
-              __html: marked.parse(t(term.content) || '', { gfm: true, breaks: true, async: false }),
+              __html: renderMarkdownWithMath(t(term.content) || ''),
             }}
           />
         )}
@@ -484,7 +522,7 @@ export const VanpediaPage: React.FC = () => {
         )}
 
         {/* Back Link */}
-        <div className="pt-8 border-t border-stone-200 dark:border-zinc-800">
+        <div className="pt-8 border-t border-stone-200 dark:border-zinc-800 flex items-center justify-between">
           <Link
             to="/vanpedia"
             className="inline-flex items-center gap-2 text-xs font-mono text-rose-600 dark:text-rose-400 hover:underline"
@@ -492,7 +530,24 @@ export const VanpediaPage: React.FC = () => {
             <ArrowLeft size={14} />
             <span>{language === 'en' ? 'Back to All Vanpedia Terms' : 'Kembali ke Semua Istilah Vanpedia'}</span>
           </Link>
+
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-mono text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+          >
+            <Flag size={13} />
+            <span>{language === 'en' ? 'Report issue with this term' : 'Laporkan istilah ini'}</span>
+          </button>
         </div>
+
+        {/* Report Issue Modal */}
+        <ReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          contentType="vanpedia"
+          contentTitle={t(term.title)}
+          contentSlug={term.slug}
+        />
       </article>
     </>
   );
@@ -522,6 +577,8 @@ export const VanpediaIndexPage: React.FC = () => {
   const [newDefinitionEn, setNewDefinitionEn] = useState('');
   const [newExamples, setNewExamples] = useState('');
   const [newFormula, setNewFormula] = useState('');
+  const [isAiAssisted, setIsAiAssisted] = useState(false);
+  const [aiModel, setAiModel] = useState('Gemini 3.7 Flash');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -531,6 +588,8 @@ export const VanpediaIndexPage: React.FC = () => {
     if (parsed.category) setNewCategory(parsed.category);
     if (parsed.definition) setNewDefinitionId(parsed.definition);
     if (parsed.formula) setNewFormula(parsed.formula);
+    if (parsed.isAiAssisted !== undefined) setIsAiAssisted(parsed.isAiAssisted);
+    if (parsed.aiModel) setAiModel(parsed.aiModel);
     if (parsed.examples && parsed.examples.length > 0) {
       setNewExamples(parsed.examples.join('\n'));
     }
@@ -621,6 +680,8 @@ export const VanpediaIndexPage: React.FC = () => {
           authorName: user?.displayName || 'Contributor',
           authorEmail: user?.email || undefined,
           authorId: user?.uid || undefined,
+          isAiAssisted,
+          aiModel: isAiAssisted ? aiModel : undefined,
         },
         user?.email || undefined,
         user?.uid || undefined,
@@ -635,6 +696,7 @@ export const VanpediaIndexPage: React.FC = () => {
       setNewDefinitionEn('');
       setNewExamples('');
       setNewFormula('');
+      setIsAiAssisted(false);
 
       if (isSubmittingAdmin) {
         setFeedback(language === 'en' ? 'Term published directly as Administrator!' : 'Istilah langsung dipublikasikan sebagai Administrator!');
@@ -807,6 +869,13 @@ export const VanpediaIndexPage: React.FC = () => {
                     {t(term.title)}
                   </h3>
 
+                  {term.formula && (
+                    <div
+                      className="mt-2 px-2.5 py-1 rounded-lg bg-stone-100/90 dark:bg-zinc-800/80 border border-stone-200/80 dark:border-zinc-700/80 text-xs text-rose-600 dark:text-rose-400 font-mono overflow-x-hidden text-ellipsis whitespace-nowrap inline-block max-w-full"
+                      dangerouslySetInnerHTML={{ __html: renderInlineFormula(term.formula) }}
+                    />
+                  )}
+
                   <p className="text-xs sm:text-sm font-reading-sans text-stone-600 dark:text-zinc-300 line-clamp-3 mt-2 leading-relaxed">
                     {t(term.definition)}
                   </p>
@@ -973,6 +1042,45 @@ export const VanpediaIndexPage: React.FC = () => {
                     placeholder="B ke F = tritone (dalam akor Dominan G7)&#10;Resolusi tritone ke 3rd dan root akor C Major"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                   />
+                </div>
+
+                {/* AI Model Assistance Metadata */}
+                <div className="p-3.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50/70 dark:bg-zinc-950/70 space-y-3">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isAiAssisted}
+                      onChange={e => setIsAiAssisted(e.target.checked)}
+                      className="rounded text-rose-600 focus:ring-rose-500 w-4 h-4"
+                    />
+                    <span className="font-semibold text-stone-800 dark:text-zinc-200">
+                      {language === 'en'
+                        ? 'Researched or drafted with AI assistance'
+                        : 'Diriset atau disusun dengan bantuan Model AI'}
+                    </span>
+                  </label>
+
+                  {isAiAssisted && (
+                    <div>
+                      <label className="block text-stone-600 dark:text-zinc-400 font-medium mb-1">
+                        {language === 'en' ? 'AI Model Used' : 'Model AI yang Digunakan'}
+                      </label>
+                      <select
+                        value={aiModel}
+                        onChange={e => setAiModel(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs"
+                      >
+                        <option value="Gemini 3.7 Flash">Gemini 3.7 Flash</option>
+                        <option value="Gemini 2.5 Pro">Gemini 2.5 Pro</option>
+                        <option value="ChatGPT (GPT-4o)">ChatGPT (GPT-4o)</option>
+                        <option value="Claude 3.7 Sonnet">Claude 3.7 Sonnet</option>
+                        <option value="v0 by Vercel">v0 by Vercel</option>
+                        <option value="Scira AI">Scira AI</option>
+                        <option value="GLM-4 / Zhipu AI">GLM-4 / Zhipu AI</option>
+                        <option value="DeepSeek R1 / V3">DeepSeek R1 / V3</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 flex justify-end gap-3">

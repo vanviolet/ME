@@ -59,6 +59,10 @@ export const ArticlesPage: React.FC = () => {
   const [newSummaryEn, setNewSummaryEn] = useState('');
   const [newContentId, setNewContentId] = useState('');
   const [newContentEn, setNewContentEn] = useState('');
+  const [newIsAiAssisted, setNewIsAiAssisted] = useState(false);
+  const [newAiModel, setNewAiModel] = useState('Gemini 3.7 Flash');
+  const [newAuthorName, setNewAuthorName] = useState('');
+  const [newAuthorRole, setNewAuthorRole] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
 
@@ -68,6 +72,13 @@ export const ArticlesPage: React.FC = () => {
     if (parsed.summary) setNewSummaryId(parsed.summary);
     if (parsed.content) setNewContentId(parsed.content);
     if (parsed.tags && parsed.tags.length > 0) setNewTags(parsed.tags.join(', '));
+    if (parsed.isAiAssisted !== undefined) setNewIsAiAssisted(parsed.isAiAssisted);
+    if (parsed.aiModel) {
+      setNewIsAiAssisted(true);
+      setNewAiModel(parsed.aiModel);
+    }
+    if (parsed.authorName) setNewAuthorName(parsed.authorName);
+    if (parsed.authorRole) setNewAuthorRole(parsed.authorRole);
   };
 
   // Load from Firestore
@@ -166,8 +177,8 @@ export const ArticlesPage: React.FC = () => {
           date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           readTime: `${readMinutes} min read`,
           author: {
-            name: user?.displayName || 'Contributor',
-            role: isSubmittingAdmin ? 'Lead Architect' : 'Community Author',
+            name: newAuthorName.trim() || user?.displayName || 'Contributor',
+            role: newAuthorRole.trim() || (isSubmittingAdmin ? 'Lead Architect' : 'Community Author'),
             avatar: user?.photoURL || undefined,
           },
           content: {
@@ -176,6 +187,8 @@ export const ArticlesPage: React.FC = () => {
           },
           featured: false,
           likes: 0,
+          isAiAssisted: newIsAiAssisted,
+          aiModel: newIsAiAssisted ? newAiModel : undefined,
         },
         user?.email || undefined,
         user?.uid || undefined,
@@ -190,6 +203,9 @@ export const ArticlesPage: React.FC = () => {
       setNewSummaryEn('');
       setNewContentId('');
       setNewContentEn('');
+      setNewIsAiAssisted(false);
+      setNewAuthorName('');
+      setNewAuthorRole('');
 
       if (isSubmittingAdmin) {
         setFeedbackBanner(
@@ -433,9 +449,17 @@ export const ArticlesPage: React.FC = () => {
 
                 <div className="space-y-3 sm:space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-1 text-xs font-mono">
-                    <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold uppercase text-[10px] tracking-wider border border-rose-500/20 shrink-0">
-                      {post.category}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold uppercase text-[10px] tracking-wider border border-rose-500/20 shrink-0">
+                        {post.category}
+                      </span>
+                      {post.isAiAssisted && (
+                        <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] border border-blue-500/20 flex items-center gap-1">
+                          <Bot size={11} />
+                          <span>{post.aiModel || 'Gemini 3.7 Flash'}</span>
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2.5 text-xs text-stone-500 dark:text-zinc-400">
                       <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                         <Calendar size={13} className="text-stone-400 dark:text-zinc-500" />
@@ -599,6 +623,63 @@ export const ArticlesPage: React.FC = () => {
                       className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                     />
                   </div>
+                </div>
+
+                {/* AI-Assisted Metadata Section */}
+                <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-zinc-950/60 border border-stone-200 dark:border-zinc-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newIsAiAssisted}
+                        onChange={e => setNewIsAiAssisted(e.target.checked)}
+                        className="rounded border-stone-300 dark:border-zinc-700 text-rose-600 focus:ring-rose-500"
+                      />
+                      <span className="font-semibold text-stone-800 dark:text-zinc-200 text-xs">
+                        {language === 'en' ? 'Article is AI-Assisted / Co-authored' : 'Artikel Dibuat dengan Bantuan AI'}
+                      </span>
+                    </label>
+                    {newIsAiAssisted && (
+                      <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-mono border border-blue-500/20">
+                        Metadata AI Aktif
+                      </span>
+                    )}
+                  </div>
+
+                  {newIsAiAssisted && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label className="block text-[11px] text-stone-600 dark:text-zinc-400 font-semibold mb-1">
+                          {language === 'en' ? 'AI Model Used' : 'Model AI yang Digunakan'}
+                        </label>
+                        <select
+                          value={newAiModel}
+                          onChange={e => setNewAiModel(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs"
+                        >
+                          <option value="Gemini 3.7 Flash">Gemini 3.7 Flash</option>
+                          <option value="ChatGPT (GPT-4o)">ChatGPT (GPT-4o)</option>
+                          <option value="Claude 3.7 Sonnet">Claude 3.7 Sonnet</option>
+                          <option value="V0 (v0.dev)">V0 (v0.dev)</option>
+                          <option value="Scira AI">Scira AI</option>
+                          <option value="GLM-4 (ChatGLM)">GLM-4 (ChatGLM)</option>
+                          <option value="DeepSeek R1">DeepSeek R1</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-stone-600 dark:text-zinc-400 font-semibold mb-1">
+                          {language === 'en' ? 'Author Display Name' : 'Nama Penulis Utama'}
+                        </label>
+                        <input
+                          type="text"
+                          value={newAuthorName}
+                          onChange={e => setNewAuthorName(e.target.value)}
+                          placeholder={user?.displayName || 'Muchamad Irvan'}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Summary */}

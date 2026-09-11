@@ -36,12 +36,23 @@ interface QuestionNotifyPayload {
   tags: string[];
 }
 
+export interface ReportNotifyPayload {
+  contentType: 'article' | 'vanpedia' | 'question';
+  contentSlug: string;
+  contentTitle: string;
+  reason: string;
+  details: string;
+  reporterName?: string;
+  reporterEmail?: string;
+  url?: string;
+}
+
 /**
  * Dispatch free notification email to vanviolet.js@gmail.com
  */
 async function sendNotificationEmail(data: {
   subject: string;
-  type: 'ARTICLE_VERIFICATION' | 'VANPEDIA_VERIFICATION' | 'QA_NOTIFICATION';
+  type: 'ARTICLE_VERIFICATION' | 'VANPEDIA_VERIFICATION' | 'QA_NOTIFICATION' | 'CONTENT_REPORT';
   payload: Record<string, string | number | boolean | string[]>;
 }): Promise<boolean> {
   try {
@@ -147,6 +158,34 @@ export async function notifyAdminNewQuestion(payload: QuestionNotifyPayload): Pr
       author_email: payload.authorEmail,
       description: payload.description,
       question_url: questionLink
+    }
+  });
+}
+
+/**
+ * Notify vanviolet.js@gmail.com when a reader/user reports an issue on an Article or Vanpedia term
+ */
+export async function notifyAdminContentReport(payload: ReportNotifyPayload): Promise<boolean> {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const contentPath = payload.contentType === 'article' 
+    ? `/articles/${payload.contentSlug}`
+    : `/vanpedia/${payload.contentSlug}`;
+  const targetLink = `${origin}${contentPath}`;
+
+  return sendNotificationEmail({
+    subject: `[LAPORAN KONTEN] Laporan Ketidaksesuaian: ${payload.contentType.toUpperCase()} "${payload.contentTitle}"`,
+    type: 'CONTENT_REPORT',
+    payload: {
+      status: 'USER_REPORT_SUBMITTED (Laporan Perlu Ditinjau)',
+      content_type: payload.contentType,
+      content_title: payload.contentTitle,
+      content_slug: payload.contentSlug,
+      report_reason: payload.reason,
+      reporter_name: payload.reporterName || 'Anonymous Reader',
+      reporter_email: payload.reporterEmail || 'Not specified',
+      details_explanation: payload.details,
+      content_link: targetLink,
+      reported_at: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
     }
   });
 }

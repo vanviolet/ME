@@ -15,15 +15,17 @@ import {
   arrayRemove,
 } from 'firebase/firestore';
 import { db, ADMIN_EMAIL } from '../lib/firebase';
-import { Article, VanpediaTerm, CommunityIssue, ArticleComment, IssueAnswer } from '../types';
+import { Article, VanpediaTerm, CommunityIssue, ArticleComment, IssueAnswer, ContentReport } from '../types';
 import { articlesData, vanpediaTermsData, initialIssuesData, initialCommentsData } from '../data/articlesData';
-import { notifyAdminNewArticle, notifyAdminNewVanpedia, notifyAdminNewQuestion } from './emailService';
+import { notifyAdminNewArticle, notifyAdminNewVanpedia, notifyAdminNewQuestion, notifyAdminContentReport } from './emailService';
 import { AuthUser } from '../context/AuthContext';
 
 const ARTICLES_COLLECTION = 'articles';
 const VANPEDIA_COLLECTION = 'vanpedia';
 const QUESTIONS_COLLECTION = 'questions';
 const COMMENTS_COLLECTION = 'comments';
+const REPORTS_COLLECTION = 'reports';
+const ARTICLE_LIKES_COLLECTION = 'article_likes';
 
 // ==========================================
 // ARTICLES SERVICE
@@ -142,6 +144,9 @@ export async function createArticleInFirestore(
     tags: Array.isArray(articleData.tags) && articleData.tags.length ? articleData.tags : ['Engineering'],
     readTime: articleData.readTime || '5 min read',
     date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    isAiAssisted: Boolean(articleData.isAiAssisted ?? (articleData.aiModel ? true : false)),
+    aiModel: articleData.aiModel || (articleData.isAiAssisted ? 'ChatGPT (GPT-4o)' : undefined),
+    aiPromptUsed: articleData.aiPromptUsed,
     author: {
       id: uid,
       name: articleData.author?.name || articleData.authorName || userEmail?.split('@')[0] || 'Contributor',
@@ -302,6 +307,8 @@ export async function createVanpediaTermInFirestore(
       en: termData.examplesEn || ['Real-world application.'],
       id: termData.examplesId || termData.examplesEn || ['Contoh penerapan istilah.'],
     },
+    isAiAssisted: Boolean(termData.isAiAssisted ?? (termData.aiModel ? true : false)),
+    aiModel: termData.aiModel || (termData.isAiAssisted ? 'ChatGPT (GPT-4o)' : undefined),
     status,
     authorName: termData.authorName || userEmail?.split('@')[0] || 'Contributor',
     authorEmail: userEmail,
@@ -558,6 +565,160 @@ export async function addArticleCommentInFirestore(
   }
 
   return newComment;
+}
+
+// ==========================================
+// ARTICLE LIKES SERVICE (DATABASE PERSISTED)
+// ==========================================
+
+export async function fetchArticleLikeStats(
+  slug: string,
+  userIdOrAnon: string
+): Promise<{ likes: number; hasLiked: boolean }> {
+  try {
+    const docRef = doc(db, ARTICLE_LIKES_COLLECTION, slug);
+    const snap = await getDoc(docRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      const likedBy: string[] = Array.isArray(data.likedBy) ? data.likedBy : [];
+      const likes: number = typeof data.likes === 'number' ? data.likes : likedBy.length;
+      return {
+        likes: Math.max(likes, likedBy.length),
+        hasLiked: likedBy.includes(userIdOrAnon),
+      };
+    }
+
+    // Default from static data or 0
+    const local = articlesData.find(a => a.slug === slug);
+    const baseLikes = local?.likes || 0;
+    return { likes: baseLikes, hasLiked: false };
+  } catch (error) {
+    console.warn('fetchArticleLikeStats error, fallback:', error);
+    const local = articlesData.find(a => a.slug === slug);
+    return { likes: local?.likes || 0, hasLiked: false };
+  }
+}
+
+export async function toggleArticleLikeInFirestore(
+  slug: string,
+  userIdOrAnon: string
+): Promise<{ likes: number; hasLiked: boolean }> {
+  try {
+    const docRef = doc(db, ARTICLE_LIKES_COLLECTION, slug);
+    const snap = await getDoc(docRef);
+
+    let likedBy: string[] = [];
+    let currentLikes = 0;
+
+    if (snap.exists()) {
+      const data = snap.data();
+      likedBy = Array.isArray(data.likedBy) ? [...data.likedBy] : [];
+      currentLikes = typeof data.likes === 'number' ? data.likes : likedBy.length;
+    } else {
+      const local = articlesData.find(a => a.slug === slug);
+      currentLikes = local?.likes || 0;
+    }
+
+    const alreadyLiked = likedBy.includes(userIdOrAnon);
+
+    if (alreadyLiked) {
+      // Unlike
+      likedBy = likedBy.filter(id => id !== userIdOrAnon);
+      currentLikes = Math.max(0, currentLikes - 1);
+    } else {
+      // Like
+      likedBy.push(userIdOrAnon);
+      currentLikes += 1;
+    }
+
+    await setDoc(
+      docRef,
+      {
+        slug,
+        likes: currentLikes,
+        likedBy,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return { likes: currentLikes, hasLiked: !alreadyLiked };
+  } catch (error) {
+    console.error('toggleArticleLikeInFirestore error:', error);
+    throw error;
+  }
+}
+
+// ==========================================
+// CONTENT REPORTS SERVICE (ERRORS & IRREGULARITIES)
+// ==========================================
+
+export async function submitContentReportInFirestore(reportData: {
+  contentType: 'article' | 'vanpedia' | 'question';
+  contentSlug: string;
+  contentTitle: string;
+  reason: 'incorrect_info' | 'math_error' | 'typo' | 'copyright' | 'inappropriate' | 'other';
+  reasonLabel?: string;
+  details: string;
+  reporterName?: string;
+  reporterEmail?: string;
+  reporterId?: string;
+}): Promise<ContentReport> {
+  const newReport: Omit<ContentReport, 'id'> = {
+    ...reportData,
+    createdAt: new Date().toISOString(),
+    status: 'pending',
+  };
+
+  const docRef = await addDoc(collection(db, REPORTS_COLLECTION), newReport);
+  const createdReport: ContentReport = { id: docRef.id, ...newReport };
+
+  // Dispatch email notification to vanviolet.js@gmail.com
+  notifyAdminContentReport({
+    contentType: reportData.contentType,
+    contentSlug: reportData.contentSlug,
+    contentTitle: reportData.contentTitle,
+    reason: reportData.reasonLabel || reportData.reason,
+    details: reportData.details,
+    reporterName: reportData.reporterName,
+    reporterEmail: reportData.reporterEmail,
+  }).catch(err => console.error('Email report notify error:', err));
+
+  return createdReport;
+}
+
+export async function fetchContentReportsFromFirestore(): Promise<ContentReport[]> {
+  try {
+    const colRef = collection(db, REPORTS_COLLECTION);
+    const snap = await getDocs(colRef);
+
+    const reports = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+    })) as ContentReport[];
+
+    // Sort descending by date
+    return reports.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  } catch (error) {
+    console.warn('fetchContentReportsFromFirestore error:', error);
+    return [];
+  }
+}
+
+export async function updateContentReportStatusInFirestore(
+  reportId: string,
+  newStatus: 'resolved' | 'dismissed',
+  adminEmail: string
+): Promise<void> {
+  const docRef = doc(db, REPORTS_COLLECTION, reportId);
+  await updateDoc(docRef, {
+    status: newStatus,
+    resolvedAt: new Date().toISOString(),
+    resolvedBy: adminEmail,
+  });
 }
 
 // ==========================================

@@ -11,6 +11,10 @@ export interface ParsedArticleFile {
   content?: string;
   contentId?: string;
   contentEn?: string;
+  isAiAssisted?: boolean;
+  aiModel?: string;
+  authorName?: string;
+  authorRole?: string;
 }
 
 export interface ParsedVanpediaFile {
@@ -28,6 +32,8 @@ export interface ParsedVanpediaFile {
   content?: string;
   contentId?: string;
   contentEn?: string;
+  isAiAssisted?: boolean;
+  aiModel?: string;
 }
 
 /**
@@ -111,6 +117,10 @@ export async function parseArticleFile(file: File): Promise<ParsedArticleFile> {
         content: data.contentId || data.content_id || (typeof data.content === 'object' ? data.content.id : data.content),
         contentId: data.contentId || data.content_id || (typeof data.content === 'object' ? data.content.id : data.content),
         contentEn: data.contentEn || data.content_en || (typeof data.content === 'object' ? data.content.en : ''),
+        isAiAssisted: data.isAiAssisted ?? data.is_ai_assisted ?? Boolean(data.aiModel || data.ai_model),
+        aiModel: data.aiModel || data.ai_model || undefined,
+        authorName: data.authorName || data.author_name || (typeof data.author === 'object' ? data.author.name : undefined),
+        authorRole: data.authorRole || data.author_role || (typeof data.author === 'object' ? data.author.role : undefined),
       };
     } catch (e) {
       throw new Error('Invalid JSON format: ' + (e as any).message);
@@ -132,6 +142,10 @@ export async function parseArticleFile(file: File): Promise<ParsedArticleFile> {
   const summaryVal = frontmatter.summary_id || frontmatter.summaryId || frontmatter.summary;
   const contentVal = body || frontmatter.content_id || frontmatter.contentId;
 
+  const rawAiAssisted = frontmatter.is_ai_assisted ?? frontmatter.isAiAssisted;
+  const isAiAssisted = rawAiAssisted === true || rawAiAssisted === 'true' || Boolean(frontmatter.ai_model || frontmatter.aiModel);
+  const aiModel = frontmatter.ai_model || frontmatter.aiModel || (isAiAssisted ? 'ChatGPT (GPT-4o)' : undefined);
+
   return {
     title: titleVal,
     titleId: titleVal,
@@ -145,6 +159,10 @@ export async function parseArticleFile(file: File): Promise<ParsedArticleFile> {
     content: contentVal,
     contentId: contentVal,
     contentEn: frontmatter.content_en || frontmatter.contentEn,
+    isAiAssisted,
+    aiModel,
+    authorName: frontmatter.author_name || frontmatter.authorName,
+    authorRole: frontmatter.author_role || frontmatter.authorRole,
   };
 }
 
@@ -174,6 +192,8 @@ export async function parseVanpediaFile(file: File): Promise<ParsedVanpediaFile>
         content: data.contentId || data.content_id || data.content,
         contentId: data.contentId || data.content_id || data.content,
         contentEn: data.contentEn || data.content_en,
+        isAiAssisted: data.isAiAssisted ?? data.is_ai_assisted ?? Boolean(data.aiModel || data.ai_model),
+        aiModel: data.aiModel || data.ai_model,
       };
     } catch (e) {
       throw new Error('Invalid JSON format: ' + (e as any).message);
@@ -193,6 +213,10 @@ export async function parseVanpediaFile(file: File): Promise<ParsedVanpediaFile>
   const vDef = frontmatter.definition_id || frontmatter.definitionId || frontmatter.definition;
   const vContent = body || frontmatter.content_id || frontmatter.content;
 
+  const rawAiAssisted = frontmatter.is_ai_assisted ?? frontmatter.isAiAssisted;
+  const isAiAssisted = rawAiAssisted === true || rawAiAssisted === 'true' || Boolean(frontmatter.ai_model || frontmatter.aiModel);
+  const aiModel = frontmatter.ai_model || frontmatter.aiModel || (isAiAssisted ? 'Gemini 3.7 Flash' : undefined);
+
   return {
     title: vTitle,
     termId: vTitle,
@@ -207,6 +231,8 @@ export async function parseVanpediaFile(file: File): Promise<ParsedVanpediaFile>
     examples: parsedExamples.length > 0 ? parsedExamples : undefined,
     content: vContent,
     contentId: vContent,
+    isAiAssisted,
+    aiModel,
   };
 }
 
@@ -222,6 +248,10 @@ tags: "neural-network, deep-learning, machine-learning"
 summary_id: "Ringkasan komprehensif dalam 2 hingga 3 kalimat yang memikat dan padat informasi mengenai bahasan artikel ini."
 summary_en: "A comprehensive 2-3 sentence overview describing the core technical takeaways of this article."
 read_time: "6 min read"
+is_ai_assisted: true
+ai_model: "ChatGPT (GPT-4o)"
+author_name: "Muchamad Irvan"
+author_role: "Software Engineer"
 ---
 
 # Judul Utama Artikel
@@ -279,6 +309,8 @@ phonetic: "/ˈtraɪtoʊn/"
 definition_id: "Interval musik yang terdiri dari tiga whole tone (6 semitone) yang membagi satu oktaf tepat menjadi dua bagian simetris, menghasilkan disonansi kuat yang memicu dorongan gerak harmonik."
 definition_en: "A musical interval spanning three whole tones (6 semitones), known for its high tension and harmonic instability."
 formula: "f2 = f1 * 2^(6/12)"
+is_ai_assisted: true
+ai_model: "Gemini 3.7 Flash"
 examples:
   - "Interval antara nada B dan F dalam akor Dominan 7 (G7) yang menyelesaikan ke akor C Major"
   - "Penggunaan tritone substitution dalam progresi jazz ii-V-I"
@@ -304,15 +336,28 @@ Tuliskan contoh kasus konkret dalam arsitektur sistem atau seni musik.
   URL.revokeObjectURL(url);
 }
 
+export interface AiPromptResult {
+  prompt: string;
+  url: string;
+  chatGptUrl: string;
+  claudeUrl: string;
+  v0Url: string;
+  sciraUrl: string;
+  glmUrl: string;
+  geminiUrl: string;
+}
+
 /**
- * Generates the master prompt for ChatGPT to write an article matching the exact template
+ * Generates the master prompt for writing an article matching the exact template
  */
 export function generateChatGptArticlePrompt(data: {
   outlineTitle: string;
   category: string;
   keyPoints?: string;
   targetLanguage?: 'id' | 'en' | 'both';
-}): { prompt: string; url: string } {
+  targetModel?: string;
+}): AiPromptResult {
+  const modelName = data.targetModel || 'ChatGPT (GPT-4o)';
   const prompt = `Anda adalah seorang Penulis Teknis Senior, Arsitek Sistem, dan Peneliti AI.
 Tolong buatkan draf artikel teknis yang sangat mendalam, akurat, dan komprehensif berdasarkan garis besar ide berikut:
 
@@ -331,6 +376,10 @@ tags: "tag1, tag2, tag3, tag4"
 summary_id: "[Ringkasan padat 2-3 kalimat dalam Bahasa Indonesia yang menjelaskan problem, solusi, dan intisari]"
 summary_en: "[Concise 2-3 sentence summary in English]"
 read_time: "7 min read"
+is_ai_assisted: true
+ai_model: "${modelName}"
+author_name: "Nama Anda"
+author_role: "Author / Engineer"
 ---
 
 # [Judul Utama Artikel]
@@ -339,7 +388,7 @@ read_time: "7 min read"
 [Jelaskan motivasi teknis mengapa topik ini penting, masalah yang dihadapi, dan solusi yang ditawarkan.]
 
 ## 2. Konsep Inti & Landasan Teoretis
-[Jelaskan arsitektur teknis secara gamblang. Jika relevan, sertakan formula matematis LaTeX seperti $$E=mc^2$$ atau analogi visual. Bila menyebutkan istilah teknis, hubungkan dengan format [[istilah-slug]] (misal: [[backpropagation]], [[tritone]], [[floating-point]], dll).]
+[Jelaskan arsitektur teknis secara gamblang. Jika relevan, sertakan formula matematis LaTeX seperti $$E=mc^2$$ atau analogi visual. Bila menyebutkan istilah teknis, hubungkan dengan format [[istilah-slug]] (misal: [[backpropagation]], [[tritone]], [[floating-point-arithmetic]], dll).]
 
 ## 3. Implementasi Kode Nyata (Production-Ready)
 [Berikan contoh kode TypeScript/Python/Arsitektur yang bersih, memiliki tipe data, dan komentar instruktif.]
@@ -358,20 +407,30 @@ read_time: "7 min read"
 
 Tolong buat artikel ini secara berbobot, berstandar engineering tinggi, dan lengkap tanpa memotong kode atau penjelasan.`;
 
+  const encoded = encodeURIComponent(prompt);
+
   return {
     prompt,
-    url: `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`,
+    url: `https://chatgpt.com/?q=${encoded}`,
+    chatGptUrl: `https://chatgpt.com/?q=${encoded}`,
+    claudeUrl: `https://claude.ai/new?q=${encoded}`,
+    v0Url: `https://v0.dev/chat?q=${encoded}`,
+    sciraUrl: `https://scira.ai/?q=${encoded}`,
+    glmUrl: `https://chatglm.cn/main/gcommit?prompt=${encoded}`,
+    geminiUrl: `https://gemini.google.com/app?text=${encoded}`,
   };
 }
 
 /**
- * Generates the master prompt for ChatGPT to create a Vanpedia Glossary Entry matching template
+ * Generates the master prompt for creating a Vanpedia Glossary Entry matching template
  */
 export function generateChatGptVanpediaPrompt(data: {
   termName: string;
   category: string;
   details?: string;
-}): { prompt: string; url: string } {
+  targetModel?: string;
+}): AiPromptResult {
+  const modelName = data.targetModel || 'Gemini 3.7 Flash';
   const prompt = `Anda adalah seorang Leksikografer Teknis dan Arsitek Rekayasa Perangkat Lunak & Teori Musik.
 Tolong buatkan entri kamus istilah teknis komprehensif untuk kamus "Vanpedia" berdasarkan istilah berikut:
 
@@ -390,6 +449,8 @@ phonetic: "/[simbol fonetik]/ (contoh: /ˈtraɪtoʊn/)"
 definition_id: "[Definisi presisi 1-2 kalimat dalam Bahasa Indonesia yang formal dan ilmiah]"
 definition_en: "[Formal 1-2 sentence definition in English]"
 formula: "[Model matematis, rumus frekuensi, atau formulasi algoritma jika ada]"
+is_ai_assisted: true
+ai_model: "${modelName}"
 examples:
   - "[Contoh nyata 1]"
   - "[Contoh nyata 2]"
@@ -406,8 +467,16 @@ examples:
 ## 3. Kesalahan Konsep yang Sering Terjadi (Common Misconceptions)
 [Uraikan kekeliruan umum yang sering dipahami orang mengenai istilah ini.]`;
 
+  const encoded = encodeURIComponent(prompt);
+
   return {
     prompt,
-    url: `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`,
+    url: `https://chatgpt.com/?q=${encoded}`,
+    chatGptUrl: `https://chatgpt.com/?q=${encoded}`,
+    claudeUrl: `https://claude.ai/new?q=${encoded}`,
+    v0Url: `https://v0.dev/chat?q=${encoded}`,
+    sciraUrl: `https://scira.ai/?q=${encoded}`,
+    glmUrl: `https://chatglm.cn/main/gcommit?prompt=${encoded}`,
+    geminiUrl: `https://gemini.google.com/app?text=${encoded}`,
   };
 }

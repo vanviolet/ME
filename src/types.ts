@@ -92,6 +92,9 @@ export interface Article {
   author?: Author;
   authorEmail?: string;
   authorId?: string;
+  isAiAssisted?: boolean;
+  aiModel?: string; // e.g. "Gemini 3.7 Flash", "ChatGPT (GPT-4o)", "Claude 3.7 Sonnet", "v0 by Vercel", "Scira AI", "GLM-4"
+  aiPromptUsed?: string;
   status?: 'pending' | 'approved' | 'rejected';
   verifiedAt?: string;
   verifiedBy?: string;
@@ -102,6 +105,7 @@ export interface Article {
   relatedArticleSlugs?: string[]; // relational slugs to other articles
   views?: number;
   likes?: number;
+  likedBy?: string[];
   commentsCount?: number;
 }
 
@@ -118,12 +122,31 @@ export interface VanpediaTerm {
   relatedSlugs?: string[]; // alias
   articleIds?: string[]; // article IDs that reference this term
   content?: LocalizedString; // full markdown content for term page
+  isAiAssisted?: boolean;
+  aiModel?: string; // e.g. "Gemini 3.7 Flash", "Claude 3.7 Sonnet"
   status?: 'pending' | 'approved' | 'rejected';
   authorName?: string;
   authorEmail?: string;
   authorId?: string;
   verifiedAt?: string;
   createdAt?: string;
+}
+
+export interface ContentReport {
+  id: string;
+  contentType: 'article' | 'vanpedia' | 'question';
+  contentSlug: string;
+  contentTitle: string;
+  reason: 'incorrect_info' | 'math_error' | 'typo' | 'copyright' | 'inappropriate' | 'other';
+  reasonLabel?: string;
+  details: string;
+  reporterName?: string;
+  reporterEmail?: string;
+  reporterId?: string;
+  createdAt: string;
+  status: 'pending' | 'resolved' | 'dismissed';
+  resolvedAt?: string;
+  resolvedBy?: string;
 }
 
 export interface IssueAnswer {

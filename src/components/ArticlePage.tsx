@@ -9,6 +9,8 @@ import {
   fetchCommentsForArticle,
   addArticleCommentInFirestore,
   updateArticleStatusInFirestore,
+  fetchArticleLikeStats,
+  toggleArticleLikeInFirestore,
 } from '../services/firestoreService';
 import {
   Calendar,
@@ -35,12 +37,15 @@ import {
   CheckCircle2,
   LogIn,
   Type,
+  Flag,
+  Sparkles,
 } from 'lucide-react';
 import { ArticleContent } from './ArticleContent';
 import { Seo } from './Seo';
 import { marked } from 'marked';
 import { exportToPdf } from '../utils/pdfExport';
 import { buildAiDiscussionLinks } from '../utils/aiPrompts';
+import { ReportModal } from './ReportModal';
 
 export const ArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -54,6 +59,8 @@ export const ArticlePage: React.FC = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [likeLoading, setLikeLoading] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Reading experience preferences
@@ -80,11 +87,10 @@ export const ArticlePage: React.FC = () => {
   });
   const [loadingArticle, setLoadingArticle] = useState(true);
 
-  // Likes state persisted in localStorage
+  // Likes state backed by Firestore database
   const [likes, setLikes] = useState<number>(() => {
-    if (!slug) return 12;
-    const saved = localStorage.getItem(`article_likes_${slug}`);
-    return saved ? parseInt(saved, 10) : 12;
+    const fallback = articlesData.find(a => a.slug === slug)?.likes || 12;
+    return fallback;
   });
   const [hasLiked, setHasLiked] = useState(false);
 
@@ -111,18 +117,30 @@ export const ArticlePage: React.FC = () => {
     window.scrollTo(0, 0);
   }, [slug]);
 
-  // Load article and comments from Firestore
+  // Load article, comments, and like statistics from Firestore
   useEffect(() => {
     const loadData = async () => {
       if (!slug) return;
       try {
-        const [firestorePost, firestoreComments] = await Promise.all([
+        const userIdOrAnon = user?.uid || localStorage.getItem('anon_client_id') || (() => {
+          const id = 'anon-' + Math.random().toString(36).substring(2, 10);
+          localStorage.setItem('anon_client_id', id);
+          return id;
+        })();
+
+        const [firestorePost, firestoreComments, likeStats] = await Promise.all([
           fetchArticleBySlugFromFirestore(slug),
           fetchCommentsForArticle(slug),
+          fetchArticleLikeStats(slug, userIdOrAnon),
         ]);
 
         if (firestorePost) {
           setPost(firestorePost);
+        }
+
+        if (likeStats) {
+          setLikes(likeStats.likes);
+          setHasLiked(likeStats.hasLiked);
         }
 
         if (firestoreComments && firestoreComments.length > 0) {
@@ -130,13 +148,13 @@ export const ArticlePage: React.FC = () => {
           localStorage.setItem(`article_comments_${slug}`, JSON.stringify(firestoreComments));
         }
       } catch (err) {
-        console.error('Error loading article from Firestore:', err);
+        console.error('Error loading article details from Firestore:', err);
       } finally {
         setLoadingArticle(false);
       }
     };
     loadData();
-  }, [slug]);
+  }, [slug, user?.uid]);
 
   // Persist comments when updated
   useEffect(() => {
@@ -160,6 +178,27 @@ export const ArticlePage: React.FC = () => {
       alert('Error approving article: ' + err.message);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleLike = async () => {
+    if (!slug || likeLoading) return;
+    const userIdOrAnon = user?.uid || localStorage.getItem('anon_client_id') || 'anon-client';
+    
+    // Optimistic UI update
+    const willLike = !hasLiked;
+    setHasLiked(willLike);
+    setLikes(prev => (willLike ? prev + 1 : Math.max(0, prev - 1)));
+    setLikeLoading(true);
+
+    try {
+      const stats = await toggleArticleLikeInFirestore(slug, userIdOrAnon);
+      setLikes(stats.likes);
+      setHasLiked(stats.hasLiked);
+    } catch (err) {
+      console.error('Failed to sync like with Firestore:', err);
+    } finally {
+      setLikeLoading(false);
     }
   };
 
@@ -222,15 +261,6 @@ export const ArticlePage: React.FC = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleLike = () => {
-    if (!hasLiked && slug) {
-      const nextLikes = likes + 1;
-      setLikes(nextLikes);
-      setHasLiked(true);
-      localStorage.setItem(`article_likes_${slug}`, nextLikes.toString());
-    }
   };
 
   const handleAddComment = async (e: React.FormEvent) => {
@@ -478,6 +508,16 @@ export const ArticlePage: React.FC = () => {
                 <span>{copied ? (language === 'en' ? 'Copied' : 'Tersalin') : (language === 'en' ? 'Share' : 'Bagikan')}</span>
               </button>
 
+              {/* Report Content Button */}
+              <button
+                onClick={() => setIsReportModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded-lg border border-stone-200 dark:border-zinc-800 text-stone-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/30 transition-colors"
+                title={language === 'en' ? 'Report issue with this article' : 'Laporkan kesalahan pada artikel ini'}
+              >
+                <Flag size={13} />
+                <span className="hidden sm:inline">{language === 'en' ? 'Report' : 'Lapor'}</span>
+              </button>
+
               {/* More Actions Dropdown */}
               <div className="relative inline-block">
                 <button
@@ -575,6 +615,32 @@ export const ArticlePage: React.FC = () => {
           <p className="text-base sm:text-lg text-stone-600 dark:text-zinc-300 leading-relaxed font-normal border-l-2 border-rose-500 pl-4 py-1 font-reading-sans">
             {t(post.summary)}
           </p>
+
+          {/* AI Assistance Metadata Banner */}
+          {(post.isAiAssisted || post.aiModel) && (
+            <div className="mt-6 p-4 rounded-xl bg-purple-500/5 dark:bg-purple-950/20 border border-purple-500/20 flex items-start sm:items-center gap-3 text-xs font-mono">
+              <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
+                <Sparkles size={16} />
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2 text-purple-900 dark:text-purple-200 font-semibold">
+                  <span>
+                    {language === 'en'
+                      ? `AI-Assisted Article (${post.aiModel || 'Gemini 3.7 Flash'})`
+                      : `Artikel Dibuat & Diriset dengan Bantuan AI (${post.aiModel || 'Gemini 3.7 Flash'})`}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 text-[10px] font-bold">
+                    {post.aiModel || 'Gemini 3.7 Flash'}
+                  </span>
+                </div>
+                <p className="text-stone-600 dark:text-zinc-400 mt-0.5 text-[11px] leading-relaxed">
+                  {language === 'en'
+                    ? `Synthesized using ${post.aiModel || 'Gemini 3.7 Flash'} with human fact-checking, technical code validation, and editorial review.`
+                    : `Disusun dan diriset dengan bantuan model ${post.aiModel || 'Gemini 3.7 Flash'}, kemudian melalui tahap validasi kode, kurasi teknis, dan verifikasi manusia.`}
+                </p>
+              </div>
+            </div>
+          )}
         </header>
 
         {/* Article Body with interactive Vanpedia sentinel links & comfortable typography */}
@@ -818,7 +884,7 @@ export const ArticlePage: React.FC = () => {
         </section>
 
         {/* Back Link */}
-        <div className="pt-8 border-t border-stone-200 dark:border-zinc-800">
+        <div className="pt-8 border-t border-stone-200 dark:border-zinc-800 flex items-center justify-between">
           <Link
             to="/articles"
             className="inline-flex items-center gap-2 text-xs font-mono text-rose-600 dark:text-rose-400 hover:underline"
@@ -826,7 +892,24 @@ export const ArticlePage: React.FC = () => {
             <ArrowLeft size={14} />
             <span>{language === 'en' ? 'Back to All Articles' : 'Kembali ke Semua Artikel'}</span>
           </Link>
+
+          <button
+            onClick={() => setIsReportModalOpen(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-mono text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+          >
+            <Flag size={13} />
+            <span>{language === 'en' ? 'Report issue with this article' : 'Laporkan artikel ini'}</span>
+          </button>
         </div>
+
+        {/* Report Issue Modal */}
+        <ReportModal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          contentType="article"
+          contentTitle={t(post.title)}
+          contentSlug={post.slug}
+        />
       </article>
     </>
   );
