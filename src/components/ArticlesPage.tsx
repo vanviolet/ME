@@ -60,7 +60,7 @@ export const ArticlesPage: React.FC = () => {
   const [newContentId, setNewContentId] = useState('');
   const [newContentEn, setNewContentEn] = useState('');
   const [newIsAiAssisted, setNewIsAiAssisted] = useState(false);
-  const [newAiModel, setNewAiModel] = useState('Gemini 3.7 Flash');
+  const [newAiModel, setNewAiModel] = useState('KIMI');
   const [newAuthorName, setNewAuthorName] = useState('');
   const [newAuthorRole, setNewAuthorRole] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -151,6 +151,7 @@ export const ArticlesPage: React.FC = () => {
       }
       return;
     }
+    setNewAuthorName(user.email || user.displayName || '');
     setIsSubmitModalOpen(true);
   };
 
@@ -193,7 +194,7 @@ export const ArticlesPage: React.FC = () => {
           date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           readTime: `${readMinutes} min read`,
           author: {
-            name: newAuthorName.trim() || user?.displayName || 'Contributor',
+            name: newAuthorName.trim() || user?.email || user?.displayName || 'Contributor',
             role: newAuthorRole.trim() || (isSubmittingAdmin ? 'Lead Architect' : 'Community Author'),
             avatar: user?.photoURL || undefined,
           },
@@ -204,7 +205,7 @@ export const ArticlesPage: React.FC = () => {
           featured: false,
           likes: 0,
           isAiAssisted: newIsAiAssisted,
-          aiModel: newIsAiAssisted ? newAiModel : undefined,
+          aiModel: newIsAiAssisted ? (newAiModel.trim() || 'KIMI') : undefined,
         },
         user?.email || undefined,
         user?.uid || undefined,
@@ -717,32 +718,31 @@ export const ArticlesPage: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                       <div>
                         <label className="block text-[11px] text-stone-600 dark:text-zinc-400 font-semibold mb-1">
-                          {language === 'en' ? 'AI Model Used' : 'Model AI yang Digunakan'}
-                        </label>
-                        <select
-                          value={newAiModel}
-                          onChange={e => setNewAiModel(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs"
-                        >
-                          <option value="Gemini 3.7 Flash">Gemini 3.7 Flash</option>
-                          <option value="ChatGPT (GPT-4o)">ChatGPT (GPT-4o)</option>
-                          <option value="Claude 3.7 Sonnet">Claude 3.7 Sonnet</option>
-                          <option value="V0 (v0.dev)">V0 (v0.dev)</option>
-                          <option value="Scira AI">Scira AI</option>
-                          <option value="GLM-4 (ChatGLM)">GLM-4 (ChatGLM)</option>
-                          <option value="DeepSeek R1">DeepSeek R1</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] text-stone-600 dark:text-zinc-400 font-semibold mb-1">
-                          {language === 'en' ? 'Author Display Name' : 'Nama Penulis Utama'}
+                          {language === 'en' ? 'AI Model / Engine Used (Free Text)' : 'Model AI yang Digunakan (Teks Bebas)'}
                         </label>
                         <input
                           type="text"
-                          value={newAuthorName}
+                          value={newAiModel}
+                          onChange={e => setNewAiModel(e.target.value)}
+                          placeholder="Misal: KIMI, Gemini 3.7 Flash, Claude 3.5 Sonnet"
+                          className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs focus:ring-2 focus:ring-emerald-500/30"
+                        />
+                        <p className="text-[10px] text-stone-500 dark:text-zinc-500 mt-1">
+                          {language === 'en'
+                            ? 'Specify exact AI model (e.g., if created using Scira with Kimi model, write "KIMI")'
+                            : 'Tuliskan spesifikasi AI (misal: jika dibuat menggunakan Scira dengan model Kimi, ketik "KIMI")'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-stone-600 dark:text-zinc-400 font-semibold mb-1">
+                          {language === 'en' ? 'Author (Auto-filled from Google)' : 'Penulis (Otomatis dari Email Pengguna)'}
+                        </label>
+                        <input
+                          type="text"
+                          value={newAuthorName || user?.email || ''}
                           onChange={e => setNewAuthorName(e.target.value)}
-                          placeholder={user?.displayName || 'Muchamad Irvan'}
-                          className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs"
+                          placeholder={user?.email || 'email@domain.com'}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-100 dark:bg-zinc-900/60 text-stone-900 dark:text-zinc-100 text-xs"
                         />
                       </div>
                     </div>

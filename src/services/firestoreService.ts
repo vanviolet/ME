@@ -28,6 +28,28 @@ const REPORTS_COLLECTION = 'reports';
 const ARTICLE_LIKES_COLLECTION = 'article_likes';
 const MESSAGES_COLLECTION = 'messages';
 
+// Helper function to remove undefined values before Firestore writes
+export function cleanUndefined<T>(obj: T): T {
+  if (obj === null || obj === undefined || typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => cleanUndefined(item)) as unknown as T;
+  }
+  const cleaned: any = {};
+  for (const key of Object.keys(obj as Record<string, any>)) {
+    const val = (obj as Record<string, any>)[key];
+    if (val !== undefined) {
+      if (val !== null && typeof val === 'object' && !(val instanceof Date)) {
+        cleaned[key] = cleanUndefined(val);
+      } else {
+        cleaned[key] = val;
+      }
+    }
+  }
+  return cleaned as T;
+}
+
 // ==========================================
 // ARTICLES SERVICE
 // ==========================================
@@ -38,7 +60,7 @@ export async function fetchArticlesFromFirestore(isAdmin = false, authorId?: str
     const snap = await getDocs(colRef);
 
     if (snap.empty) {
-      return articlesData.map(a => ({ ...a, status: 'approved' as const }));
+      return [];
     }
 
     const firestoreArticles = snap.docs.map(d => {
@@ -49,22 +71,15 @@ export async function fetchArticlesFromFirestore(isAdmin = false, authorId?: str
       } as Article;
     });
 
-    // Merge with static articles if not already present in Firestore
-    const combinedMap = new Map<string, Article>();
-    articlesData.forEach(a => combinedMap.set(a.slug, { ...a, status: 'approved' as const }));
-    firestoreArticles.forEach(a => combinedMap.set(a.slug, a));
-
-    const all = Array.from(combinedMap.values());
-
     if (isAdmin) {
-      return all;
+      return firestoreArticles;
     }
 
     // Public view: only approved or user's own pending submissions
-    return all.filter(a => a.status === 'approved' || (authorId && a.authorId === authorId));
+    return firestoreArticles.filter(a => a.status === 'approved' || (authorId && a.authorId === authorId));
   } catch (error) {
-    console.warn('Firestore fetchArticles fallback to local:', error);
-    return articlesData.map(a => ({ ...a, status: 'approved' as const }));
+    console.warn('Firestore fetchArticles error:', error);
+    return [];
   }
 }
 
@@ -82,14 +97,9 @@ export async function fetchArticleBySlug(slug: string, isAdmin = false, authorId
       }
       return null;
     }
-
-    const local = articlesData.find(a => a.slug === slug);
-    if (local) return { ...local, status: 'approved' as const };
     return null;
   } catch (error) {
-    console.warn('Firestore fetchArticleBySlug fallback to local:', error);
-    const local = articlesData.find(a => a.slug === slug);
-    if (local) return { ...local, status: 'approved' as const };
+    console.warn('Firestore fetchArticleBySlug error:', error);
     return null;
   }
 }
@@ -167,10 +177,10 @@ export async function createArticleInFirestore(
     commentsCount: 0,
   };
 
-  const docRef = await addDoc(collection(db, ARTICLES_COLLECTION), {
+  const docRef = await addDoc(collection(db, ARTICLES_COLLECTION), cleanUndefined({
     ...newArticle,
     createdAt: new Date().toISOString(),
-  });
+  }));
 
   const created = { id: docRef.id, ...newArticle } as Article;
 
@@ -318,7 +328,7 @@ export async function createVanpediaTermInFirestore(
     verifiedAt: isAuthorAdmin ? new Date().toISOString() : undefined,
   };
 
-  const docRef = await addDoc(collection(db, VANPEDIA_COLLECTION), newTerm);
+  const docRef = await addDoc(collection(db, VANPEDIA_COLLECTION), cleanUndefined(newTerm));
   const created = { id: docRef.id, ...newTerm } as VanpediaTerm;
 
   // Send email notification to vanviolet.js@gmail.com for verification
@@ -419,7 +429,7 @@ export async function createQuestionInFirestore(
     answers: [],
   };
 
-  const docRef = await addDoc(collection(db, QUESTIONS_COLLECTION), newQuestion);
+  const docRef = await addDoc(collection(db, QUESTIONS_COLLECTION), cleanUndefined(newQuestion));
   const created = { id: docRef.id, ...newQuestion } as CommunityIssue;
 
   // Q&A requirement: notify admin vanviolet.js@gmail.com
@@ -680,9 +690,9 @@ export async function addArticleCommentInFirestore(
   }
 
   try {
-    const docRef = await addDoc(collection(db, COMMENTS_COLLECTION), {
+    const docRef = await addDoc(collection(db, COMMENTS_COLLECTION), cleanUndefined({
       ...newComment,
-    });
+    }));
     newComment.id = docRef.id;
   } catch (error) {
     console.warn('Firestore addComment fallback:', error);
@@ -734,6 +744,15 @@ export async function fetchArticleLikeStats(
   slug: string,
   userIdOrAnon: string
 ): Promise<{ likes: number; hasLiked: boolean }> {
+  const localKey = `article_likes_store_${slug}`;
+  let localData: { likes: number; likedBy: string[] } | null = null;
+  try {
+    const saved = localStorage.getItem(localKey);
+    if (saved) localData = JSON.parse(saved);
+  } catch (e) {
+    // Ignore JSON errors
+  }
+
   try {
     const docRef = doc(db, ARTICLE_LIKES_COLLECTION, slug);
     const snap = await getDoc(docRef);
@@ -742,18 +761,34 @@ export async function fetchArticleLikeStats(
       const data = snap.data();
       const likedBy: string[] = Array.isArray(data.likedBy) ? data.likedBy : [];
       const likes: number = typeof data.likes === 'number' ? data.likes : likedBy.length;
-      return {
+      const res = {
         likes: Math.max(likes, likedBy.length),
         hasLiked: likedBy.includes(userIdOrAnon),
       };
+      try {
+        localStorage.setItem(localKey, JSON.stringify({ likes: res.likes, likedBy }));
+      } catch (e) {}
+      return res;
     }
 
-    // Default from static data or 0
+    if (localData) {
+      return {
+        likes: localData.likes,
+        hasLiked: localData.likedBy.includes(userIdOrAnon),
+      };
+    }
+
     const local = articlesData.find(a => a.slug === slug);
     const baseLikes = local?.likes || 0;
     return { likes: baseLikes, hasLiked: false };
   } catch (error) {
-    console.warn('fetchArticleLikeStats error, fallback:', error);
+    console.warn('fetchArticleLikeStats offline/fallback mode:', error);
+    if (localData) {
+      return {
+        likes: localData.likes,
+        hasLiked: localData.likedBy.includes(userIdOrAnon),
+      };
+    }
     const local = articlesData.find(a => a.slug === slug);
     return { likes: local?.likes || 0, hasLiked: false };
   }
@@ -763,6 +798,13 @@ export async function toggleArticleLikeInFirestore(
   slug: string,
   userIdOrAnon: string
 ): Promise<{ likes: number; hasLiked: boolean }> {
+  const localKey = `article_likes_store_${slug}`;
+  let localData: { likes: number; likedBy: string[] } = { likes: 0, likedBy: [] };
+  try {
+    const saved = localStorage.getItem(localKey);
+    if (saved) localData = JSON.parse(saved);
+  } catch (e) {}
+
   try {
     const docRef = doc(db, ARTICLE_LIKES_COLLECTION, slug);
     const snap = await getDoc(docRef);
@@ -776,22 +818,26 @@ export async function toggleArticleLikeInFirestore(
       currentLikes = typeof data.likes === 'number' ? data.likes : likedBy.length;
     } else {
       const local = articlesData.find(a => a.slug === slug);
-      currentLikes = local?.likes || 0;
+      currentLikes = localData.likes || local?.likes || 0;
+      likedBy = localData.likedBy || [];
     }
 
     const alreadyLiked = likedBy.includes(userIdOrAnon);
 
     if (alreadyLiked) {
-      // Unlike
       likedBy = likedBy.filter(id => id !== userIdOrAnon);
       currentLikes = Math.max(0, currentLikes - 1);
     } else {
-      // Like
       likedBy.push(userIdOrAnon);
       currentLikes += 1;
     }
 
-    await setDoc(
+    try {
+      localStorage.setItem(localKey, JSON.stringify({ likes: currentLikes, likedBy }));
+    } catch (e) {}
+
+    // Async setDoc without blocking or throwing if offline
+    setDoc(
       docRef,
       {
         slug,
@@ -800,12 +846,29 @@ export async function toggleArticleLikeInFirestore(
         updatedAt: serverTimestamp(),
       },
       { merge: true }
-    );
+    ).catch(err => {
+      console.warn('Firestore article like sync offline/background:', err);
+    });
 
     return { likes: currentLikes, hasLiked: !alreadyLiked };
   } catch (error) {
-    console.error('toggleArticleLikeInFirestore error:', error);
-    throw error;
+    console.warn('toggleArticleLikeInFirestore offline/fallback mode:', error);
+    const alreadyLiked = localData.likedBy.includes(userIdOrAnon);
+    let likedBy = [...localData.likedBy];
+    const defaultLikes = articlesData.find(a => a.slug === slug)?.likes || 0;
+    let currentLikes = typeof localData.likes === 'number' ? localData.likes : defaultLikes;
+
+    if (alreadyLiked) {
+      likedBy = likedBy.filter(id => id !== userIdOrAnon);
+      currentLikes = Math.max(0, currentLikes - 1);
+    } else {
+      likedBy.push(userIdOrAnon);
+      currentLikes += 1;
+    }
+    try {
+      localStorage.setItem(localKey, JSON.stringify({ likes: currentLikes, likedBy }));
+    } catch (e) {}
+    return { likes: currentLikes, hasLiked: !alreadyLiked };
   }
 }
 

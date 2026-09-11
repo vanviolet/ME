@@ -14,7 +14,8 @@ export const defaultAuthor: Author = {
   },
 };
 
-export const articlesData: Article[] = [
+export const articlesData: Article[] = [];
+const legacyArticlesData: Article[] = [
   {
     id: 'article-learning-ai-neural-networks',
     slug: 'learning-neural-networks-backpropagation-prompting',

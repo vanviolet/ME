@@ -207,7 +207,7 @@ export const ArticlePage: React.FC = () => {
       setLikes(stats.likes);
       setHasLiked(stats.hasLiked);
     } catch (err) {
-      console.error('Failed to sync like with Firestore:', err);
+      console.warn('Article like synced locally:', err);
     } finally {
       setLikeLoading(false);
     }
