@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usePortfolio } from '../context/PortfolioContext';
-import { fetchArticlesFromFirestore, updateArticleStatusInFirestore, fetchVanpediaTermsFromFirestore, updateVanpediaStatusInFirestore } from '../services/firestoreService';
+import { fetchArticlesFromFirestore, updateArticleStatusInFirestore, fetchVanpediaTermsFromFirestore, updateVanpediaStatusInFirestore, seedAllToFirestore } from '../services/firestoreService';
 import { Article, VanpediaTerm } from '../types';
-import { ShieldCheck, CheckCircle2, XCircle, Clock, FileText, Compass, ExternalLink, AlertCircle, RefreshCw, UserCheck } from 'lucide-react';
+import { ShieldCheck, CheckCircle2, XCircle, Clock, FileText, Compass, ExternalLink, AlertCircle, RefreshCw, UserCheck, Database, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Seo } from './Seo';
 
@@ -16,7 +16,26 @@ export const AdminVerificationPage: React.FC = () => {
   const [vanpediaTerms, setVanpediaTerms] = useState<VanpediaTerm[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [seedLoading, setSeedLoading] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  const handleSeedFirestore = async () => {
+    if (!confirm(language === 'en' ? 'Upload all initial Articles and Vanpedia terms to Firestore?' : 'Upload semua data awal Artikel & Vanpedia ke Firestore?')) return;
+    setSeedLoading(true);
+    try {
+      const result = await seedAllToFirestore(user);
+      setFeedbackMessage(
+        language === 'en'
+          ? `Successfully synced ${result.articlesInserted} articles & ${result.vanpediaInserted} Vanpedia terms to Firestore!`
+          : `Berhasil mengunggah ${result.articlesInserted} artikel & ${result.vanpediaInserted} istilah Vanpedia ke Firestore!`
+      );
+      await loadData();
+    } catch (e: any) {
+      alert('Seeding error: ' + e.message);
+    } finally {
+      setSeedLoading(false);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -167,14 +186,26 @@ export const AdminVerificationPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors shadow-xs"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          <span>{language === 'en' ? 'Refresh Submissions' : 'Muat Ulang Data'}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleSeedFirestore}
+            disabled={seedLoading}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-mono font-semibold transition-colors shadow-xs"
+            title="Upload data awal Artikel & Vanpedia ke Firestore"
+          >
+            <Database size={14} className={seedLoading ? 'animate-bounce' : ''} />
+            <span>{seedLoading ? (language === 'en' ? 'Uploading...' : 'Mengunggah...') : (language === 'en' ? 'Sync All to Firestore' : 'Sync Semua Data ke Firestore')}</span>
+          </button>
+
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors shadow-xs"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <span>{language === 'en' ? 'Refresh Submissions' : 'Muat Ulang Data'}</span>
+          </button>
+        </div>
       </div>
 
       {feedbackMessage && (

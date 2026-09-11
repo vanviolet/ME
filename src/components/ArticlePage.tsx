@@ -34,6 +34,7 @@ import {
   Clock3,
   CheckCircle2,
   LogIn,
+  Type,
 } from 'lucide-react';
 import { ArticleContent } from './ArticleContent';
 import { Seo } from './Seo';
@@ -54,6 +55,24 @@ export const ArticlePage: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Reading experience preferences
+  const [fontMode, setFontMode] = useState<'serif' | 'sans'>(() => {
+    return (localStorage.getItem('article_reader_font') as 'serif' | 'sans') || 'serif';
+  });
+  const [fontSize, setFontSize] = useState<'sm' | 'base' | 'lg'>(() => {
+    return (localStorage.getItem('article_reader_size') as 'sm' | 'base' | 'lg') || 'base';
+  });
+
+  const handleFontModeChange = (mode: 'serif' | 'sans') => {
+    setFontMode(mode);
+    localStorage.setItem('article_reader_font', mode);
+  };
+
+  const handleFontSizeChange = (size: 'sm' | 'base' | 'lg') => {
+    setFontSize(size);
+    localStorage.setItem('article_reader_size', size);
+  };
 
   // Article data (with dynamic Firestore fallback to static articlesData)
   const [post, setPost] = useState<Article | null>(() => {
@@ -376,7 +395,69 @@ export const ArticlePage: React.FC = () => {
             </div>
 
             {/* Quick Action Tools */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Reading Font & Size Controls */}
+              <div className="hidden sm:flex items-center rounded-lg border border-stone-200 dark:border-zinc-800 p-0.5 bg-stone-100/60 dark:bg-zinc-800/60 text-xs font-mono">
+                <button
+                  onClick={() => handleFontModeChange('serif')}
+                  className={`px-2 py-1 rounded-md transition-all ${
+                    fontMode === 'serif'
+                      ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-xs font-semibold'
+                      : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
+                  }`}
+                  title="Font Serif (Newsreader Editorial)"
+                >
+                  Serif
+                </button>
+                <button
+                  onClick={() => handleFontModeChange('sans')}
+                  className={`px-2 py-1 rounded-md transition-all ${
+                    fontMode === 'sans'
+                      ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-xs font-semibold'
+                      : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
+                  }`}
+                  title="Font Sans (Plus Jakarta Sans Modern)"
+                >
+                  Sans
+                </button>
+              </div>
+
+              <div className="hidden sm:flex items-center rounded-lg border border-stone-200 dark:border-zinc-800 p-0.5 bg-stone-100/60 dark:bg-zinc-800/60 text-xs font-mono">
+                <button
+                  onClick={() => handleFontSizeChange('sm')}
+                  className={`px-1.5 py-1 rounded-md text-[11px] transition-all ${
+                    fontSize === 'sm'
+                      ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-xs font-bold'
+                      : 'text-stone-500 dark:text-zinc-400'
+                  }`}
+                  title="Teks Lebih Kecil"
+                >
+                  A-
+                </button>
+                <button
+                  onClick={() => handleFontSizeChange('base')}
+                  className={`px-1.5 py-1 rounded-md text-xs transition-all ${
+                    fontSize === 'base'
+                      ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-xs font-bold'
+                      : 'text-stone-500 dark:text-zinc-400'
+                  }`}
+                  title="Teks Standar"
+                >
+                  A
+                </button>
+                <button
+                  onClick={() => handleFontSizeChange('lg')}
+                  className={`px-1.5 py-1 rounded-md text-sm transition-all ${
+                    fontSize === 'lg'
+                      ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-xs font-bold'
+                      : 'text-stone-500 dark:text-zinc-400'
+                  }`}
+                  title="Teks Lebih Besar"
+                >
+                  A+
+                </button>
+              </div>
+
               <button
                 onClick={handleLike}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded-lg border transition-all ${
@@ -487,17 +568,22 @@ export const ArticlePage: React.FC = () => {
             </div>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-stone-900 dark:text-zinc-100 mb-4 leading-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight font-reading-sans text-stone-900 dark:text-zinc-100 mb-5 leading-tight">
             {t(post.title)}
           </h1>
 
-          <p className="text-base sm:text-lg text-stone-600 dark:text-zinc-300 leading-relaxed font-light border-l-2 border-rose-500 pl-4 py-1">
+          <p className="text-base sm:text-lg text-stone-600 dark:text-zinc-300 leading-relaxed font-normal border-l-2 border-rose-500 pl-4 py-1 font-reading-sans">
             {t(post.summary)}
           </p>
         </header>
 
-        {/* Article Body with interactive Vanpedia sentinel links */}
-        <div ref={contentRef}>
+        {/* Article Body with interactive Vanpedia sentinel links & comfortable typography */}
+        <div 
+          ref={contentRef}
+          className={`${fontMode === 'serif' ? 'font-reading-serif' : 'font-reading-sans'} ${
+            fontSize === 'sm' ? 'text-[15px]' : fontSize === 'lg' ? 'text-[18px]' : 'text-[16.5px]'
+          } transition-all duration-200`}
+        >
           <ArticleContent
             content={t(post.content)}
             vanpediaSlugs={post.vanpediaTerms || post.vanpediaSlugs || []}

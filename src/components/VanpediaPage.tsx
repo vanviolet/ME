@@ -370,12 +370,12 @@ export const VanpediaPage: React.FC = () => {
             </div>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-stone-900 dark:text-zinc-100 mb-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight font-reading-sans text-stone-900 dark:text-zinc-100 mb-5">
             {t(term.title)}
           </h1>
 
           {/* Core Definition Callout */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-500/20 text-stone-800 dark:text-zinc-200 text-base sm:text-lg leading-relaxed font-medium">
+          <div className="p-5 sm:p-6 rounded-2xl bg-rose-50/70 dark:bg-rose-950/25 border border-rose-500/20 text-stone-800 dark:text-zinc-100 text-base sm:text-lg leading-relaxed font-reading-sans">
             {t(term.definition)}
           </div>
 
@@ -386,7 +386,7 @@ export const VanpediaPage: React.FC = () => {
                 <span className="text-[10px] uppercase tracking-wider text-stone-400 dark:text-zinc-500 block mb-0.5">
                   {language === 'en' ? 'Mathematical Formulation / Concept' : 'Formula Matematis / Konsep'}
                 </span>
-                <span className="font-semibold text-rose-600 dark:text-rose-400">{term.formula}</span>
+                <span className="font-semibold text-rose-600 dark:text-rose-400 font-code">{term.formula}</span>
               </div>
               <Sparkles size={16} className="text-rose-500 shrink-0 opacity-70" />
             </div>
@@ -396,7 +396,7 @@ export const VanpediaPage: React.FC = () => {
         {/* Detailed Explanation / Markdown Content */}
         {term.content && (
           <div
-            className="max-w-none text-sm sm:text-base leading-relaxed space-y-4 text-stone-700 dark:text-zinc-300 mb-12"
+            className="max-w-none text-base leading-relaxed space-y-4 text-stone-700 dark:text-zinc-300 mb-12 font-reading-serif"
             data-article-content
             dangerouslySetInnerHTML={{
               __html: marked.parse(t(term.content) || '', { gfm: true, breaks: true, async: false }),
@@ -784,14 +784,14 @@ export const VanpediaIndexPage: React.FC = () => {
               <Link
                 key={term.slug}
                 to={`/vanpedia/${term.slug}`}
-                className={`p-5 rounded-2xl border transition-all duration-200 group flex flex-col justify-between ${
+                className={`p-5 sm:p-6 rounded-2xl border transition-all duration-300 group flex flex-col justify-between hover:shadow-lg hover:-translate-y-0.5 ${
                   isPending
                     ? 'border-amber-400/60 bg-amber-50/20 dark:bg-amber-950/20'
-                    : 'border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 hover:border-rose-500/40 dark:hover:border-rose-500/50'
+                    : 'border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 hover:border-rose-400/70 dark:hover:border-rose-500/60'
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center justify-between gap-2 mb-2.5">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20 font-semibold">
                       {term.category}
                     </span>
@@ -803,19 +803,19 @@ export const VanpediaIndexPage: React.FC = () => {
                     )}
                   </div>
 
-                  <h3 className="font-semibold text-base text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                  <h3 className="font-bold text-base sm:text-lg font-reading-sans text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
                     {t(term.title)}
                   </h3>
 
-                  <p className="text-xs text-stone-600 dark:text-zinc-400 line-clamp-2 mt-2 leading-relaxed">
+                  <p className="text-xs sm:text-sm font-reading-sans text-stone-600 dark:text-zinc-300 line-clamp-3 mt-2 leading-relaxed">
                     {t(term.definition)}
                   </p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-stone-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px] font-mono text-stone-500 dark:text-zinc-400">
+                <div className="mt-5 pt-3.5 border-t border-stone-100 dark:border-zinc-800/80 flex items-center justify-between text-xs font-mono text-stone-500 dark:text-zinc-400">
                   <span className="text-stone-400">/{term.slug}</span>
-                  <span className="group-hover:translate-x-1 transition-transform text-rose-600 dark:text-rose-400 font-semibold">
-                    Lihat →
+                  <span className="group-hover:translate-x-1 transition-transform text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
+                    Baca Term →
                   </span>
                 </div>
               </Link>

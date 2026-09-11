@@ -559,3 +559,84 @@ export async function addArticleCommentInFirestore(
 
   return newComment;
 }
+
+// ==========================================
+// SEEDING SERVICE (INITIAL DATA TO FIRESTORE)
+// ==========================================
+
+export interface SeedResult {
+  articlesInserted: number;
+  vanpediaInserted: number;
+  errors: string[];
+}
+
+export async function seedArticlesToFirestore(adminUser?: AuthUser | null): Promise<{ inserted: number; errors: string[] }> {
+  let inserted = 0;
+  const errors: string[] = [];
+
+  for (const article of articlesData) {
+    try {
+      const docRef = doc(db, ARTICLES_COLLECTION, article.slug);
+      await setDoc(docRef, {
+        ...article,
+        status: 'approved',
+        authorId: adminUser?.uid || 'admin-seed',
+        authorEmail: adminUser?.email || ADMIN_EMAIL,
+        author: {
+          id: adminUser?.uid || 'author-irvan',
+          name: adminUser?.displayName || 'Muchamad Irvan',
+          avatar: adminUser?.photoURL || '/images/favicon.png',
+        },
+        seededAt: serverTimestamp(),
+      }, { merge: true });
+      inserted++;
+    } catch (e: any) {
+      console.error(`Failed to seed article "${article.slug}":`, e);
+      errors.push(`Article ${article.slug}: ${e.message}`);
+    }
+  }
+
+  return { inserted, errors };
+}
+
+export async function seedVanpediaToFirestore(adminUser?: AuthUser | null): Promise<{ inserted: number; errors: string[] }> {
+  let inserted = 0;
+  const errors: string[] = [];
+
+  for (const term of vanpediaTermsData) {
+    try {
+      const docRef = doc(db, VANPEDIA_COLLECTION, term.slug);
+      await setDoc(docRef, {
+        ...term,
+        status: 'approved',
+        authorId: adminUser?.uid || 'admin-seed',
+        authorEmail: adminUser?.email || ADMIN_EMAIL,
+        author: {
+          id: adminUser?.uid || 'author-irvan',
+          name: adminUser?.displayName || 'Muchamad Irvan',
+          avatar: adminUser?.photoURL || '/images/favicon.png',
+        },
+        seededAt: serverTimestamp(),
+      }, { merge: true });
+      inserted++;
+    } catch (e: any) {
+      console.error(`Failed to seed vanpedia "${term.slug}":`, e);
+      errors.push(`Vanpedia ${term.slug}: ${e.message}`);
+    }
+  }
+
+  return { inserted, errors };
+}
+
+export async function seedAllToFirestore(adminUser?: AuthUser | null): Promise<SeedResult> {
+  const [artRes, vanRes] = await Promise.all([
+    seedArticlesToFirestore(adminUser),
+    seedVanpediaToFirestore(adminUser),
+  ]);
+
+  return {
+    articlesInserted: artRes.inserted,
+    vanpediaInserted: vanRes.inserted,
+    errors: [...artRes.errors, ...vanRes.errors],
+  };
+}

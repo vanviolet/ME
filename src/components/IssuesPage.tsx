@@ -438,11 +438,11 @@ export const IssuesPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <h2 className="text-xl sm:text-2xl font-bold text-stone-900 dark:text-zinc-100">
+                  <h2 className="text-xl sm:text-2xl font-bold font-reading-sans text-stone-900 dark:text-zinc-100 leading-snug">
                     {selectedIssue.title}
                   </h2>
 
-                  <p className="text-stone-700 dark:text-zinc-300 text-sm sm:text-base leading-relaxed whitespace-pre-line">
+                  <p className="text-stone-700 dark:text-zinc-300 text-sm sm:text-base leading-relaxed whitespace-pre-line font-reading-sans">
                     {selectedIssue.description}
                   </p>
 
@@ -533,7 +533,7 @@ export const IssuesPage: React.FC = () => {
                           )}
                         </div>
 
-                        <p className="text-xs sm:text-sm text-stone-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line font-mono">
+                        <p className="text-sm sm:text-base text-stone-800 dark:text-zinc-200 leading-relaxed whitespace-pre-line font-reading-sans">
                           {ans.content}
                         </p>
                       </div>

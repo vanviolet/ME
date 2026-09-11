@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
 import { articlesData } from '../data/articlesData';
@@ -37,6 +37,7 @@ import { ParsedArticleFile } from '../utils/fileParser';
  * notification to vanviolet.js@gmail.com, and admin moderation workflow.
  */
 export const ArticlesPage: React.FC = () => {
+  const navigate = useNavigate();
   const { language, t } = usePortfolio();
   const { user, isAdmin, adminEmail, signInWithGoogle } = useAuth();
 
@@ -390,22 +391,37 @@ export const ArticlesPage: React.FC = () => {
             return (
               <div
                 key={post.id}
-                className={`group border rounded-2xl transition-all duration-300 shadow-xs flex flex-col justify-between gap-6 p-6 sm:p-8 relative ${
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/articles/${post.slug}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/articles/${post.slug}`);
+                  }
+                }}
+                className={`group border rounded-2xl transition-all duration-300 shadow-xs hover:shadow-xl hover:-translate-y-1 flex flex-col justify-between gap-6 p-6 sm:p-8 relative cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-rose-500/40 ${
                   isPending
-                    ? 'border-amber-400/50 bg-amber-50/20 dark:bg-amber-950/10'
-                    : 'border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900'
+                    ? 'border-amber-400/50 bg-amber-50/20 dark:bg-amber-950/10 hover:border-amber-400'
+                    : 'border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 hover:border-rose-400/70 dark:hover:border-rose-500/60'
                 }`}
               >
                 {/* Pending Verification Banner */}
                 {isPending && (
-                  <div className="p-3 rounded-xl bg-amber-100/90 dark:bg-amber-900/40 border border-amber-300/80 dark:border-amber-700/60 flex items-center justify-between gap-2 text-xs font-mono">
+                  <div 
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-3 rounded-xl bg-amber-100/90 dark:bg-amber-900/40 border border-amber-300/80 dark:border-amber-700/60 flex items-center justify-between gap-2 text-xs font-mono"
+                  >
                     <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-200">
                       <Clock3 size={14} className="shrink-0 animate-pulse text-amber-600" />
                       <span>{language === 'en' ? `Pending verification by ${adminEmail}` : `Menunggu verifikasi oleh ${adminEmail}`}</span>
                     </div>
                     {isAdmin && (
                       <button
-                        onClick={(e) => handleQuickApprove(post.id, e)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuickApprove(post.id, e);
+                        }}
                         className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center gap-1 shrink-0"
                       >
                         <CheckCircle2 size={11} />
@@ -433,17 +449,17 @@ export const ArticlesPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <Link to={`/articles/${post.slug}`}>
-                    <h3 className="text-lg sm:text-xl font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors leading-snug flex items-start justify-between gap-3 pt-1">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-bold font-reading-sans text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors leading-snug flex items-start justify-between gap-3 pt-1">
                       <span>{t(post.title)}</span>
                       <ArrowUpRight
                         size={18}
                         className="shrink-0 text-stone-400 group-hover:text-rose-600 dark:group-hover:text-rose-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform mt-0.5"
                       />
                     </h3>
-                  </Link>
+                  </div>
 
-                  <p className="text-xs sm:text-sm text-stone-600 dark:text-zinc-300 line-clamp-3 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-stone-600 dark:text-zinc-300 line-clamp-3 leading-relaxed font-reading-sans">
                     {t(post.summary)}
                   </p>
                 </div>
@@ -453,20 +469,22 @@ export const ArticlesPage: React.FC = () => {
                     {post.tags.slice(0, 3).map(tg => (
                       <span
                         key={tg}
-                        className="text-[11px] px-2 py-0.5 rounded bg-stone-100 dark:bg-zinc-800/90 text-stone-600 dark:text-zinc-400 border border-stone-200/60 dark:border-zinc-700/60"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveCategory('');
+                          setSearchQuery(tg);
+                        }}
+                        className="text-[11px] px-2 py-0.5 rounded bg-stone-100 dark:bg-zinc-800/90 text-stone-600 dark:text-zinc-400 border border-stone-200/60 dark:border-zinc-700/60 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-400/50 transition-colors"
                       >
                         #{tg}
                       </span>
                     ))}
                   </div>
-                  <Link
-                    to={`/articles/${post.slug}`}
-                    className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-semibold text-xs sm:text-sm whitespace-nowrap group-hover:translate-x-0.5 transition-transform"
-                  >
+                  <div className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-semibold text-xs sm:text-sm whitespace-nowrap group-hover:translate-x-0.5 transition-transform">
                     <BookOpen size={14} className="shrink-0" />
                     <span>{language === 'en' ? 'Read Article' : 'Baca Artikel'}</span>
                     <ArrowUpRight size={14} className="shrink-0" />
-                  </Link>
+                  </div>
                 </div>
               </div>
             );
