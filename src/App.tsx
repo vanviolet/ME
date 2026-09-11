@@ -69,12 +69,15 @@ export default function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/articles" element={<ArticlesPage />} />
+              <Route path="/article" element={<ArticlesPage />} />
               <Route path="/articles/:slug" element={<ArticlePage />} />
+              <Route path="/article/:slug" element={<ArticlePage />} />
               <Route path="/vanpedia" element={<VanpediaIndexPage />} />
               <Route path="/vanpedia/:slug" element={<VanpediaPage />} />
               <Route path="/issues" element={<IssuesPage />} />
               <Route path="/issues/:id" element={<IssuesPage />} />
               <Route path="/issue" element={<IssuesPage />} />
+              <Route path="/issue/:id" element={<IssuesPage />} />
               <Route path="/admin" element={<AdminVerificationPage />} />
               {/* Fallback */}
               <Route path="*" element={<HomePage />} />
