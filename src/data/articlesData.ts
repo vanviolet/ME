@@ -477,7 +477,7 @@ Over 3,500 staff members now clock in daily with average verification speeds of 
 
 Pada lingkungan kampus dan kantor berskala besar, sistem absensi berbasis foto biasa kerap kali dicurangi:
 - Memotret foto orang lain dari layar HP atau cetakan kertas.
-- Penggunaan aplikasi Fake GPS ([[mock-location]]) untuk memanipulasi koordinat.
+- Penggunaan aplikasi [[mock-location|Fake GPS (Mock Location)]] untuk memanipulasi koordinat.
 - Pemutaran ulang (*replay attack*) permintaan HTTP absensi terdahulu.
 
 ### Strategi Pertahanan Bertingkat

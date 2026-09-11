@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
 import { vanpediaTermsData, articlesData } from '../data/articlesData';
-import { renderMarkdownWithMath, renderInlineFormula } from '../lib/renderMath';
+import { renderMarkdownWithMath, renderInlineFormula, renderTextWithMath } from '../lib/renderMath';
 import {
   fetchVanpediaTermsFromFirestore,
   fetchVanpediaTermBySlugFromFirestore,
@@ -91,7 +91,10 @@ export const VanpediaPage: React.FC = () => {
     if (!term) return;
     setDownloading(true);
     try {
-      const htmlContent = renderMarkdownWithMath(t(term.content) || t(term.definition));
+      const htmlContent = renderMarkdownWithMath(t(term.content) || t(term.definition), {
+        getTerm: (s) => allTerms.find(item => item.slug === s),
+        language,
+      });
       await exportToPdf({
         title: `${t(term.title)} - Vanpedia`,
         category: term.category,
@@ -388,9 +391,10 @@ export const VanpediaPage: React.FC = () => {
           </h1>
 
           {/* Core Definition Callout */}
-          <div className="p-5 sm:p-6 rounded-2xl bg-rose-50/70 dark:bg-rose-950/25 border border-rose-500/20 text-stone-800 dark:text-zinc-100 text-base sm:text-lg leading-relaxed font-reading-sans">
-            {t(term.definition)}
-          </div>
+          <div
+            className="p-5 sm:p-6 rounded-2xl bg-rose-50/70 dark:bg-rose-950/25 border border-rose-500/20 text-stone-800 dark:text-zinc-100 text-base sm:text-lg leading-relaxed font-reading-sans"
+            dangerouslySetInnerHTML={{ __html: renderTextWithMath(t(term.definition)) }}
+          />
 
           {/* Mathematical / Technical Formula (if present) */}
           {term.formula && (
@@ -437,7 +441,10 @@ export const VanpediaPage: React.FC = () => {
             className="max-w-none text-base leading-relaxed space-y-4 text-stone-700 dark:text-zinc-300 mb-12 font-reading-serif"
             data-article-content
             dangerouslySetInnerHTML={{
-              __html: renderMarkdownWithMath(t(term.content) || ''),
+              __html: renderMarkdownWithMath(t(term.content) || '', {
+                getTerm: (s) => allTerms.find(item => item.slug === s),
+                language,
+              }),
             }}
           />
         )}
@@ -453,7 +460,10 @@ export const VanpediaPage: React.FC = () => {
               {(term.examples[language] || term.examples.id || []).map((ex, idx) => (
                 <li key={idx} className="flex items-start gap-2.5">
                   <span className="text-rose-500 font-bold shrink-0 mt-0.5">→</span>
-                  <span className="leading-relaxed">{ex}</span>
+                  <span
+                    className="leading-relaxed font-reading-sans"
+                    dangerouslySetInnerHTML={{ __html: renderTextWithMath(ex) }}
+                  />
                 </li>
               ))}
             </ul>

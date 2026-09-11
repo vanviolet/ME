@@ -42,7 +42,8 @@ import {
 } from 'lucide-react';
 import { ArticleContent } from './ArticleContent';
 import { Seo } from './Seo';
-import { marked } from 'marked';
+import { renderMarkdownWithMath } from '../lib/renderMath';
+import { vanpediaTermsData } from '../data/articlesData';
 import { exportToPdf } from '../utils/pdfExport';
 import { buildAiDiscussionLinks } from '../utils/aiPrompts';
 import { ReportModal } from './ReportModal';
@@ -319,7 +320,10 @@ export const ArticlePage: React.FC = () => {
     setDownloading(true);
     try {
       const markdownContent = t(post.content);
-      const htmlContent = marked.parse(markdownContent, { gfm: true, breaks: true, async: false }) as string;
+      const htmlContent = renderMarkdownWithMath(markdownContent, {
+        getTerm: (s) => vanpediaTermsData.find(v => v.slug === s),
+        language,
+      });
       await exportToPdf({
         title: t(post.title),
         category: post.category,
