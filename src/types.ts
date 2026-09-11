@@ -72,6 +72,8 @@ export interface ArticleComment {
   articleSlug?: string;
   authorName: string;
   authorAvatar?: string;
+  authorEmail?: string;
+  authorId?: string;
   content: string;
   createdAt: string;
   likes: number;
@@ -88,12 +90,18 @@ export interface Article {
   category: string;
   tags: string[];
   author?: Author;
+  authorEmail?: string;
+  authorId?: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  verifiedAt?: string;
+  verifiedBy?: string;
   coverImage?: string;
   featured?: boolean;
   vanpediaTerms?: string[]; // slugs referenced in content via [[slug]]
   vanpediaSlugs?: string[]; // alias for vanpediaTerms
   relatedArticleSlugs?: string[]; // relational slugs to other articles
   views?: number;
+  likes?: number;
   commentsCount?: number;
 }
 
@@ -103,11 +111,31 @@ export interface VanpediaTerm {
   title: LocalizedString;
   definition: LocalizedString;
   category: string;
+  phonetic?: string;
   examples?: LocalizedStringArray;
   formula?: string;
   relatedTerms?: string[]; // slugs of related vanpedia terms
+  relatedSlugs?: string[]; // alias
   articleIds?: string[]; // article IDs that reference this term
   content?: LocalizedString; // full markdown content for term page
+  status?: 'pending' | 'approved' | 'rejected';
+  authorName?: string;
+  authorEmail?: string;
+  authorId?: string;
+  verifiedAt?: string;
+  createdAt?: string;
+}
+
+export interface IssueAnswer {
+  id: string;
+  authorName: string;
+  authorAvatar?: string;
+  authorEmail?: string;
+  authorId?: string;
+  content: string;
+  createdAt: string;
+  votes: number;
+  isAccepted?: boolean;
 }
 
 export interface CommunityIssue {
@@ -118,20 +146,14 @@ export interface CommunityIssue {
   tags: string[];
   authorName: string;
   authorAvatar?: string;
+  authorEmail?: string;
+  authorId?: string;
   createdAt: string;
   votes: number;
   answersCount: number;
   status: 'open' | 'solved';
   solvedAnswerId?: string;
-  answers?: {
-    id: string;
-    authorName: string;
-    authorAvatar?: string;
-    content: string;
-    createdAt: string;
-    votes: number;
-    isAccepted?: boolean;
-  }[];
+  answers?: IssueAnswer[];
 }
 
 export interface PhilosophyItem {

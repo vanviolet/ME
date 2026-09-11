@@ -1,8 +1,15 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
+import { useAuth } from '../context/AuthContext';
 import { articlesData, initialCommentsData } from '../data/articlesData';
-import { ArticleComment } from '../types';
+import { Article, ArticleComment } from '../types';
+import {
+  fetchArticleBySlugFromFirestore,
+  fetchCommentsForArticle,
+  addArticleCommentInFirestore,
+  updateArticleStatusInFirestore,
+} from '../services/firestoreService';
 import {
   Calendar,
   Clock,
@@ -24,6 +31,9 @@ import {
   ChevronRight,
   BookOpen,
   ArrowUpRight,
+  Clock3,
+  CheckCircle2,
+  LogIn,
 } from 'lucide-react';
 import { ArticleContent } from './ArticleContent';
 import { Seo } from './Seo';
@@ -35,14 +45,20 @@ export const ArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { language, t } = usePortfolio();
+  const { user, isAdmin, adminEmail, signInWithGoogle } = useAuth();
 
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Article data
-  const post = articlesData.find(a => a.slug === slug);
+  // Article data (with dynamic Firestore fallback to static articlesData)
+  const [post, setPost] = useState<Article | null>(() => {
+    return articlesData.find(a => a.slug === slug) || null;
+  });
+  const [loadingArticle, setLoadingArticle] = useState(true);
 
   // Likes state persisted in localStorage
   const [likes, setLikes] = useState<number>(() => {
@@ -52,7 +68,7 @@ export const ArticlePage: React.FC = () => {
   });
   const [hasLiked, setHasLiked] = useState(false);
 
-  // Comments state persisted in localStorage
+  // Comments state
   const [comments, setComments] = useState<ArticleComment[]>(() => {
     if (!slug) return [];
     const saved = localStorage.getItem(`article_comments_${slug}`);
@@ -69,9 +85,37 @@ export const ArticlePage: React.FC = () => {
   // New comment input form
   const [commenterName, setCommenterName] = useState('');
   const [commentText, setCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, [slug]);
+
+  // Load article and comments from Firestore
+  useEffect(() => {
+    const loadData = async () => {
+      if (!slug) return;
+      try {
+        const [firestorePost, firestoreComments] = await Promise.all([
+          fetchArticleBySlugFromFirestore(slug),
+          fetchCommentsForArticle(slug),
+        ]);
+
+        if (firestorePost) {
+          setPost(firestorePost);
+        }
+
+        if (firestoreComments && firestoreComments.length > 0) {
+          setComments(firestoreComments);
+          localStorage.setItem(`article_comments_${slug}`, JSON.stringify(firestoreComments));
+        }
+      } catch (err) {
+        console.error('Error loading article from Firestore:', err);
+      } finally {
+        setLoadingArticle(false);
+      }
+    };
+    loadData();
   }, [slug]);
 
   // Persist comments when updated
@@ -80,6 +124,24 @@ export const ArticlePage: React.FC = () => {
       localStorage.setItem(`article_comments_${slug}`, JSON.stringify(comments));
     }
   }, [comments, slug]);
+
+  const handleApproveArticle = async () => {
+    if (!post) return;
+    setActionLoading(true);
+    try {
+      await updateArticleStatusInFirestore(post.id, 'approved', adminEmail);
+      setPost(prev => (prev ? { ...prev, status: 'approved' } : null));
+      setFeedback(
+        language === 'en'
+          ? 'Article approved and published!'
+          : 'Artikel berhasil diverifikasi dan dipublikasikan!'
+      );
+    } catch (err: any) {
+      alert('Error approving article: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   if (!post) {
     return (
@@ -138,15 +200,23 @@ export const ArticlePage: React.FC = () => {
     }
   };
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
+    if (!commentText.trim() || !post) return;
+
+    setSubmittingComment(true);
+    const authorDisplayName =
+      commenterName.trim() ||
+      user?.displayName ||
+      (language === 'en' ? 'Guest Reader' : 'Pembaca Tamu');
 
     const newComment: ArticleComment = {
       id: `comment-${Date.now()}`,
       articleSlug: post.slug,
-      authorName: commenterName.trim() || (language === 'en' ? 'Guest Reader' : 'Pembaca Tamu'),
-      authorAvatar: '',
+      authorName: authorDisplayName,
+      authorAvatar: user?.photoURL || '',
+      authorEmail: user?.email || undefined,
+      authorId: user?.uid || undefined,
       content: commentText.trim(),
       createdAt: new Date().toISOString(),
       likes: 0,
@@ -155,6 +225,14 @@ export const ArticlePage: React.FC = () => {
     setComments(prev => [newComment, ...prev]);
     setCommentText('');
     setCommenterName('');
+
+    try {
+      await addArticleCommentInFirestore(newComment);
+    } catch (err) {
+      console.warn('Comment saved locally only:', err);
+    } finally {
+      setSubmittingComment(false);
+    }
   };
 
   const handleLikeComment = (commentId: string) => {
@@ -297,6 +375,41 @@ export const ArticlePage: React.FC = () => {
       />
 
       <article className="py-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto min-h-screen">
+        {/* Pending Verification Banner */}
+        {post.status === 'pending' && (
+          <div className="mb-8 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+            <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+              <Clock3 size={16} className="text-amber-600 shrink-0 animate-pulse" />
+              <span>
+                {language === 'en'
+                  ? `Pending review & approval by administrator (${adminEmail}).`
+                  : `Artikel ini sedang menunggu verifikasi dan persetujuan oleh (${adminEmail}).`}
+              </span>
+            </div>
+
+            {isAdmin && (
+              <button
+                onClick={handleApproveArticle}
+                disabled={actionLoading}
+                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 transition-colors self-start sm:self-auto shrink-0"
+              >
+                <CheckCircle2 size={13} />
+                <span>{language === 'en' ? 'Approve & Publish' : 'Setujui & Terbitkan'}</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {feedback && (
+          <div className="mb-8 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-mono flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              <span>{feedback}</span>
+            </div>
+            <button onClick={() => setFeedback(null)} className="font-bold">✕</button>
+          </div>
+        )}
+
         {/* Breadcrumb Navigation */}
         <nav className="flex items-center gap-2 text-xs font-mono text-stone-500 dark:text-zinc-400 mb-8">
           <Link to="/" className="hover:text-stone-900 dark:hover:text-zinc-100">
@@ -548,27 +661,51 @@ export const ArticlePage: React.FC = () => {
           </div>
 
           {/* Architecture notice */}
-          <div className="mb-6 p-3 rounded-xl border border-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10 text-xs text-stone-600 dark:text-zinc-400 flex items-start gap-2">
-            <ShieldCheck size={16} className="text-rose-500 shrink-0 mt-0.5" />
-            <p>
-              {language === 'en'
-                ? 'Local comments active. Prepared for future Google OAuth sign-in and persistent Firebase Firestore synchronization.'
-                : 'Penyimpanan komentar aktif di browser. Arsitektur data siap dihubungkan ke login Google OAuth dan sinkronisasi Firebase Firestore.'}
-            </p>
+          <div className="mb-6 p-3 rounded-xl border border-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10 text-xs text-stone-600 dark:text-zinc-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
+            <div className="flex items-start gap-2">
+              <ShieldCheck size={16} className="text-rose-500 shrink-0 mt-0.5" />
+              <p>
+                {language === 'en'
+                  ? 'Real-time comments synced with Firebase Firestore database.'
+                  : 'Komentar tersinkronisasi real-time dengan database Firebase Firestore.'}
+              </p>
+            </div>
+
+            {!user && (
+              <button
+                type="button"
+                onClick={signInWithGoogle}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-[11px] font-semibold hover:opacity-90 transition-opacity self-start sm:self-auto shrink-0"
+              >
+                <LogIn size={12} />
+                <span>{language === 'en' ? 'Sign in with Google' : 'Masuk dengan Google'}</span>
+              </button>
+            )}
           </div>
 
           {/* Comment Form */}
           <form
             onSubmit={handleAddComment}
-            className="mb-8 p-5 sm:p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 space-y-4"
+            className="mb-8 p-5 sm:p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 space-y-4 font-mono"
           >
-            <h4 className="text-sm font-semibold text-stone-900 dark:text-zinc-100">
-              {language === 'en' ? 'Leave a Comment' : 'Tulis Komentar'}
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-stone-900 dark:text-zinc-100">
+                {language === 'en' ? 'Leave a Comment' : 'Tulis Komentar'}
+              </h4>
+              {user && (
+                <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-400">
+                  {user.photoURL && (
+                    <img src={user.photoURL} alt="" className="w-5 h-5 rounded-full" />
+                  )}
+                  <span>{user.displayName || user.email}</span>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input
                 type="text"
-                placeholder={language === 'en' ? 'Your Name or Alias' : 'Nama atau Panggilan Anda'}
+                placeholder={user?.displayName || (language === 'en' ? 'Your Name or Alias' : 'Nama atau Panggilan Anda')}
                 value={commenterName}
                 onChange={e => setCommenterName(e.target.value)}
                 className="px-3.5 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
@@ -589,10 +726,15 @@ export const ArticlePage: React.FC = () => {
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 font-medium text-xs hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs"
+                disabled={submittingComment}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 font-medium text-xs hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs disabled:opacity-50"
               >
                 <Send size={13} />
-                <span>{language === 'en' ? 'Submit Comment' : 'Kirim Komentar'}</span>
+                <span>
+                  {submittingComment
+                    ? (language === 'en' ? 'Submitting...' : 'Mengirim...')
+                    : (language === 'en' ? 'Submit Comment' : 'Kirim Komentar')}
+                </span>
               </button>
             </div>
           </form>

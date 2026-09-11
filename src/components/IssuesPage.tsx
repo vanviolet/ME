@@ -1,30 +1,45 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
+import { useAuth } from '../context/AuthContext';
+import { CommunityIssue, IssueAnswer } from '../types';
 import { initialIssuesData } from '../data/articlesData';
-import { CommunityIssue } from '../types';
-import { Seo } from './Seo';
+import {
+  fetchQuestionsFromFirestore,
+  createQuestionInFirestore,
+  addAnswerInFirestore,
+  upvoteQuestionInFirestore,
+  markAnswerAcceptedInFirestore,
+} from '../services/firestoreService';
 import {
   MessageSquare,
   ThumbsUp,
   CheckCircle2,
-  HelpCircle,
-  Search,
   Plus,
+  Search,
   Tag,
-  Filter,
   ArrowLeft,
-  X,
   Send,
-  Sparkles,
-  ShieldCheck,
   User,
+  Clock,
+  Sparkles,
+  Layers,
+  HelpCircle,
+  X,
+  ShieldCheck,
+  Check,
+  LogIn,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Seo } from './Seo';
 
-const STORAGE_KEY = 'vanpedia_community_issues';
+const STORAGE_KEY = 'muchamad_irvan_issues_store';
 
 export const IssuesPage: React.FC = () => {
+  const { id } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
   const { language } = usePortfolio();
+  const { user, isAdmin, adminEmail, signInWithGoogle } = useAuth();
+
   const [issues, setIssues] = useState<CommunityIssue[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -37,10 +52,11 @@ export const IssuesPage: React.FC = () => {
     return initialIssuesData;
   });
 
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'solved'>('all');
   const [selectedTag, setSelectedTag] = useState<string>('');
-  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(id || null);
 
   // New Question Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,12 +65,41 @@ export const IssuesPage: React.FC = () => {
   const [newTags, setNewTags] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [authorName, setAuthorName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   // Answer Input State
   const [newAnswerText, setNewAnswerText] = useState('');
   const [answerAuthorName, setAnswerAuthorName] = useState('');
+  const [submittingAnswer, setSubmittingAnswer] = useState(false);
 
-  // Save to localStorage
+  // Sync selectedIssueId with route param :id
+  useEffect(() => {
+    if (id) {
+      setSelectedIssueId(id);
+    }
+  }, [id]);
+
+  // Load questions from Firestore
+  const loadFirestoreQuestions = async () => {
+    try {
+      const data = await fetchQuestionsFromFirestore();
+      if (data && data.length > 0) {
+        setIssues(data);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+    } catch (e) {
+      console.error('Error fetching questions from Firestore:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFirestoreQuestions();
+  }, []);
+
+  // Save to localStorage as backup
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(issues));
   }, [issues]);
@@ -87,8 +132,9 @@ export const IssuesPage: React.FC = () => {
     return issues.find(i => i.id === selectedIssueId);
   }, [issues, selectedIssueId]);
 
-  const handleVoteIssue = (issueId: string, e?: React.MouseEvent) => {
+  const handleVoteIssue = async (issueId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    // Optimistic UI update
     setIssues(prev =>
       prev.map(item => {
         if (item.id === issueId) {
@@ -97,6 +143,11 @@ export const IssuesPage: React.FC = () => {
         return item;
       }),
     );
+    try {
+      await upvoteQuestionInFirestore(issueId);
+    } catch (err) {
+      console.warn('Voting saved locally only:', err);
+    }
   };
 
   const handleVoteAnswer = (issueId: string, answerId: string) => {
@@ -115,51 +166,114 @@ export const IssuesPage: React.FC = () => {
     );
   };
 
-  const handleCreateIssue = (e: React.FormEvent) => {
+  const handleMarkAccepted = async (issueId: string, answerId: string) => {
+    setIssues(prev =>
+      prev.map(item => {
+        if (item.id === issueId) {
+          return {
+            ...item,
+            status: 'solved',
+            answers: (item.answers || []).map(ans => ({
+              ...ans,
+              isAccepted: ans.id === answerId,
+            })),
+          };
+        }
+        return item;
+      }),
+    );
+    try {
+      await markAnswerAcceptedInFirestore(issueId, answerId);
+    } catch (e) {
+      console.error('Error marking answer accepted:', e);
+    }
+  };
+
+  const handleOpenAskModal = () => {
+    if (user) {
+      setAuthorName(user.displayName || user.email || '');
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleCreateIssue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newDescription.trim()) return;
 
+    setSubmitting(true);
     const parsedTags = newTags
       .split(',')
       .map(t => t.trim().replace(/^#/, ''))
       .filter(Boolean);
 
-    const newIssueItem: CommunityIssue = {
-      id: `issue-${Date.now()}`,
-      title: newTitle.trim(),
-      description: newDescription.trim(),
-      category: newCategory,
-      tags: parsedTags.length > 0 ? parsedTags : ['General'],
-      authorName: authorName.trim() || (language === 'en' ? 'Anonymous Developer' : 'Developer Tamu'),
-      createdAt: new Date().toISOString(),
-      votes: 1,
-      answersCount: 0,
-      status: 'open',
-      answers: [],
-    };
+    const effectiveAuthorName =
+      authorName.trim() ||
+      user?.displayName ||
+      (language === 'en' ? 'Community Developer' : 'Developer Komunitas');
 
-    setIssues(prev => [newIssueItem, ...prev]);
-    setIsModalOpen(false);
-    setNewTitle('');
-    setNewDescription('');
-    setNewTags('');
-    setAuthorName('');
-    setSelectedIssueId(newIssueItem.id);
+    try {
+      const savedIssue = await createQuestionInFirestore(
+        {
+          title: newTitle.trim(),
+          description: newDescription.trim(),
+          category: newCategory,
+          tags: parsedTags.length > 0 ? parsedTags : ['General'],
+          authorName: effectiveAuthorName,
+          authorEmail: user?.email || undefined,
+          authorAvatar: user?.photoURL || undefined,
+          authorId: user?.uid || undefined,
+          votes: 1,
+          answersCount: 0,
+          status: 'open',
+          answers: [],
+        },
+        user?.email || undefined,
+        user?.uid || undefined
+      );
+
+      setIssues(prev => [savedIssue, ...prev]);
+      setIsModalOpen(false);
+      setNewTitle('');
+      setNewDescription('');
+      setNewTags('');
+      setAuthorName('');
+      setSelectedIssueId(savedIssue.id);
+
+      setFeedback(
+        language === 'en'
+          ? `Question published! Email notification dispatched to administrator (${adminEmail}).`
+          : `Pertanyaan dipublikasikan! Notifikasi email otomatis telah dikirim ke admin (${adminEmail}).`
+      );
+    } catch (err: any) {
+      alert('Error creating issue: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleAddAnswer = (e: React.FormEvent) => {
+  const handleAddAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedIssueId || !newAnswerText.trim()) return;
 
-    const newAnswer = {
+    setSubmittingAnswer(true);
+    const effectiveAuthorName =
+      answerAuthorName.trim() ||
+      user?.displayName ||
+      (language === 'en' ? 'Community Contributor' : 'Kontributor Komunitas');
+
+    const newAnswer: IssueAnswer = {
       id: `ans-${Date.now()}`,
-      authorName: answerAuthorName.trim() || (language === 'en' ? 'Community Contributor' : 'Kontributor Komunitas'),
+      authorName: effectiveAuthorName,
+      authorEmail: user?.email || undefined,
+      authorAvatar: user?.photoURL || undefined,
+      authorId: user?.uid || undefined,
       content: newAnswerText.trim(),
       createdAt: new Date().toISOString(),
       votes: 0,
       isAccepted: false,
     };
 
+    // Optimistic UI update
     setIssues(prev =>
       prev.map(item => {
         if (item.id === selectedIssueId) {
@@ -174,14 +288,21 @@ export const IssuesPage: React.FC = () => {
       }),
     );
 
-    setNewAnswerText('');
-    setAnswerAuthorName('');
+    try {
+      await addAnswerInFirestore(selectedIssueId, newAnswer);
+      setNewAnswerText('');
+      setAnswerAuthorName('');
+    } catch (err: any) {
+      console.warn('Answer saved locally:', err);
+    } finally {
+      setSubmittingAnswer(false);
+    }
   };
 
   return (
     <>
       <Seo
-        title={language === 'en' ? 'Community Q&A & Issues | Muchamad Irvan' : 'Diskusi & Q&A Komunitas | Muchamad Irvan'}
+        title={language === 'en' ? 'Community Q&A & Technical Issues | Muchamad Irvan' : 'Diskusi & Q&A Komunitas | Muchamad Irvan'}
         description={
           language === 'en'
             ? 'Interactive technical Q&A, software architectural discussions, and developer issue troubleshooting.'
@@ -189,25 +310,26 @@ export const IssuesPage: React.FC = () => {
         }
         url="https://vanviolet.my.id/issues"
         type="website"
+        keywords="issues, forum, qna, stackoverflow, questions, muchamad irvan, community"
       />
 
-      <section className="py-24 px-6 sm:px-8 max-w-6xl mx-auto min-h-screen">
+      <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto min-h-screen">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pb-8 border-b border-stone-200 dark:border-zinc-800">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-8 border-b border-stone-200 dark:border-zinc-800">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-mono uppercase tracking-widest text-rose-500 font-semibold">
                 {language === 'en' ? 'Community & Discussions' : 'Komunitas & Tanya Jawab'}
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-bold">
                 <Sparkles size={11} />
-                <span>Stack Overflow Style</span>
+                <span>Q&A Stack Overflow Style</span>
               </span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100">
               {language === 'en' ? 'Questions & Issues' : 'Tanya & Diskusi Teknis'}
             </h1>
-            <p className="text-sm text-stone-600 dark:text-zinc-400 mt-2 max-w-xl">
+            <p className="text-sm text-stone-600 dark:text-zinc-400 mt-2 max-w-xl font-mono">
               {language === 'en'
                 ? 'Ask questions about system design, AI algorithms, database concurrency, and music theory. Answered by developers & open for community feedback.'
                 : 'Ajukan pertanyaan tentang arsitektur sistem, algoritma AI, konkurensi database, dan teori musik. Dibuka untuk diskusi komunitas.'}
@@ -216,8 +338,8 @@ export const IssuesPage: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs sm:text-sm transition-all shadow-sm shrink-0"
+              onClick={handleOpenAskModal}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs sm:text-sm transition-all shadow-xs shrink-0 font-mono font-semibold"
             >
               <Plus size={16} />
               <span>{language === 'en' ? 'Ask a Question' : 'Ajukan Pertanyaan'}</span>
@@ -225,21 +347,47 @@ export const IssuesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Future Architecture Notice */}
-        <div className="mb-8 p-3.5 rounded-xl border border-rose-500/20 bg-rose-50/50 dark:bg-rose-950/10 text-xs text-stone-600 dark:text-zinc-400 flex items-start gap-2.5">
-          <ShieldCheck size={16} className="text-rose-500 shrink-0 mt-0.5" />
-          <p>
-            {language === 'en'
-              ? 'Local Persistence Active: Questions and votes are saved locally in your browser. Architecture is fully prepared for future Firebase Firestore sync and Google OAuth authentication.'
-              : 'Penyimpanan Lokal Aktif: Pertanyaan dan voting tersimpan di browser. Struktur data sudah siap disinkronkan ke Firebase Firestore dan otentikasi Google OAuth.'}
-          </p>
+        {/* Feedback Alert */}
+        {feedback && (
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-mono flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              <span>{feedback}</span>
+            </div>
+            <button onClick={() => setFeedback(null)} className="font-bold">✕</button>
+          </div>
+        )}
+
+        {/* User Auth Banner */}
+        <div className="mb-8 p-3.5 rounded-xl border border-rose-500/20 bg-rose-50/50 dark:bg-rose-950/10 text-xs text-stone-600 dark:text-zinc-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
+          <div className="flex items-start gap-2.5">
+            <ShieldCheck size={16} className="text-rose-500 shrink-0 mt-0.5" />
+            <p>
+              {language === 'en'
+                ? `Firebase Firestore sync active. Every question automatically notifies ${adminEmail} via email.`
+                : `Sinkronisasi Firebase Firestore aktif. Setiap pertanyaan otomatis mengirimkan notifikasi email ke ${adminEmail}.`}
+            </p>
+          </div>
+
+          {!user && (
+            <button
+              onClick={signInWithGoogle}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-[11px] font-semibold hover:opacity-90 transition-opacity shrink-0"
+            >
+              <LogIn size={13} />
+              <span>{language === 'en' ? 'Sign In with Google' : 'Masuk Akun Google'}</span>
+            </button>
+          )}
         </div>
 
         {/* If an issue is selected, show detail view */}
         {selectedIssue ? (
           <div className="space-y-6">
             <button
-              onClick={() => setSelectedIssueId(null)}
+              onClick={() => {
+                setSelectedIssueId(null);
+                navigate('/issues');
+              }}
               className="inline-flex items-center gap-2 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
             >
               <ArrowLeft size={14} />
@@ -309,8 +457,12 @@ export const IssuesPage: React.FC = () => {
                         </span>
                       ))}
                     </div>
-                    <div className="text-stone-500 dark:text-zinc-400 flex items-center gap-1.5">
-                      <User size={13} />
+                    <div className="text-stone-500 dark:text-zinc-400 flex items-center gap-2">
+                      {selectedIssue.authorAvatar ? (
+                        <img src={selectedIssue.authorAvatar} alt="" className="w-5 h-5 rounded-full" />
+                      ) : (
+                        <User size={13} />
+                      )}
                       <span>{selectedIssue.authorName}</span>
                     </div>
                   </div>
@@ -356,6 +508,9 @@ export const IssuesPage: React.FC = () => {
                       <div className="flex-1 space-y-3">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
+                            {ans.authorAvatar && (
+                              <img src={ans.authorAvatar} alt="" className="w-5 h-5 rounded-full" />
+                            )}
                             <span className="text-xs font-semibold text-stone-900 dark:text-zinc-100">
                               {ans.authorName}
                             </span>
@@ -366,9 +521,19 @@ export const IssuesPage: React.FC = () => {
                               </span>
                             )}
                           </div>
+
+                          {(isAdmin || user?.uid === selectedIssue.authorId) && !ans.isAccepted && (
+                            <button
+                              onClick={() => handleMarkAccepted(selectedIssue.id, ans.id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-100 hover:bg-emerald-50 text-stone-600 hover:text-emerald-600 border border-stone-200 text-[11px] font-mono transition-colors"
+                            >
+                              <Check size={12} />
+                              <span>{language === 'en' ? 'Accept Solution' : 'Tandai Solusi'}</span>
+                            </button>
+                          )}
                         </div>
 
-                        <p className="text-xs sm:text-sm text-stone-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line">
+                        <p className="text-xs sm:text-sm text-stone-700 dark:text-zinc-300 leading-relaxed whitespace-pre-line font-mono">
                           {ans.content}
                         </p>
                       </div>
@@ -377,7 +542,7 @@ export const IssuesPage: React.FC = () => {
                 ))
               ) : (
                 <div className="p-8 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl">
-                  <p className="text-xs text-stone-500 dark:text-zinc-400">
+                  <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono">
                     {language === 'en'
                       ? 'No answers yet. Be the first to share your perspective!'
                       : 'Belum ada jawaban. Jadilah yang pertama memberikan solusi!'}
@@ -390,16 +555,16 @@ export const IssuesPage: React.FC = () => {
                 onSubmit={handleAddAnswer}
                 className="mt-6 p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 space-y-4"
               >
-                <h4 className="text-sm font-semibold text-stone-900 dark:text-zinc-100">
+                <h4 className="text-sm font-semibold text-stone-900 dark:text-zinc-100 font-mono">
                   {language === 'en' ? 'Your Answer' : 'Jawaban Anda'}
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
                     type="text"
                     placeholder={language === 'en' ? 'Your name / handle' : 'Nama Anda'}
-                    value={answerAuthorName}
+                    value={answerAuthorName || (user?.displayName || '')}
                     onChange={e => setAnswerAuthorName(e.target.value)}
-                    className="px-3.5 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                    className="px-3.5 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-mono"
                   />
                 </div>
                 <textarea
@@ -411,16 +576,22 @@ export const IssuesPage: React.FC = () => {
                   }
                   value={newAnswerText}
                   onChange={e => setNewAnswerText(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-mono"
                   required
                 />
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 font-medium text-xs hover:bg-stone-800 dark:hover:bg-white transition-colors"
-                >
-                  <Send size={13} />
-                  <span>{language === 'en' ? 'Post Answer' : 'Kirim Jawaban'}</span>
-                </button>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-stone-400">
+                    {user ? `Posting as ${user.displayName || user.email}` : (language === 'en' ? 'Posting as guest contributor' : 'Posting sebagai kontributor')}
+                  </span>
+                  <button
+                    type="submit"
+                    disabled={submittingAnswer}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 font-medium text-xs hover:bg-stone-800 dark:hover:bg-white transition-colors disabled:opacity-50 font-mono"
+                  >
+                    <Send size={13} />
+                    <span>{submittingAnswer ? (language === 'en' ? 'Posting...' : 'Mengirim...') : (language === 'en' ? 'Post Answer' : 'Kirim Jawaban')}</span>
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -443,64 +614,67 @@ export const IssuesPage: React.FC = () => {
                       ? 'Search questions by keyword or topic...'
                       : 'Cari pertanyaan berdasarkan topik atau kata kunci...'
                   }
-                  className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-colors"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-colors font-mono"
                 />
               </div>
 
               {/* Status & Tag Filters */}
-              <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
-                <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-1 text-xs font-mono">
+                <div className="flex items-center gap-2">
+                  <span className="text-stone-500 dark:text-zinc-400">Status:</span>
                   <button
                     onClick={() => setStatusFilter('all')}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`px-2.5 py-1 rounded-lg transition-colors ${
                       statusFilter === 'all'
-                        ? 'bg-rose-600 text-white font-medium'
-                        : 'bg-stone-100 dark:bg-zinc-800/80 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                        ? 'bg-rose-600 text-white font-semibold'
+                        : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400'
                     }`}
                   >
                     {language === 'en' ? 'All' : 'Semua'} ({issues.length})
                   </button>
                   <button
-                    onClick={() => setStatusFilter('solved')}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
-                      statusFilter === 'solved'
-                        ? 'bg-emerald-600 text-white font-medium'
-                        : 'bg-stone-100 dark:bg-zinc-800/80 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                    onClick={() => setStatusFilter('open')}
+                    className={`px-2.5 py-1 rounded-lg transition-colors ${
+                      statusFilter === 'open'
+                        ? 'bg-rose-600 text-white font-semibold'
+                        : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400'
                     }`}
                   >
-                    {language === 'en' ? 'Solved' : 'Terjawab'}
+                    {language === 'en' ? 'Open' : 'Belum Selesai'} (
+                    {issues.filter(i => i.status === 'open').length})
                   </button>
                   <button
-                    onClick={() => setStatusFilter('open')}
-                    className={`px-3 py-1.5 rounded-lg transition-colors ${
-                      statusFilter === 'open'
-                        ? 'bg-amber-600 text-white font-medium'
-                        : 'bg-stone-100 dark:bg-zinc-800/80 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                    onClick={() => setStatusFilter('solved')}
+                    className={`px-2.5 py-1 rounded-lg transition-colors ${
+                      statusFilter === 'solved'
+                        ? 'bg-rose-600 text-white font-semibold'
+                        : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400'
                     }`}
                   >
-                    {language === 'en' ? 'Open' : 'Belum Terjawab'}
+                    {language === 'en' ? 'Solved' : 'Terjawab'} (
+                    {issues.filter(i => i.status === 'solved').length})
                   </button>
                 </div>
 
                 {allTags.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-stone-400 dark:text-zinc-500">Tag:</span>
+                  <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1">
+                    <span className="text-stone-500 dark:text-zinc-400 shrink-0">Tags:</span>
                     {selectedTag && (
                       <button
                         onClick={() => setSelectedTag('')}
-                        className="px-2 py-0.5 rounded bg-rose-600 text-white flex items-center gap-1"
+                        className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 border border-rose-500/30 text-[11px]"
                       >
-                        #{selectedTag} <X size={10} />
+                        ✕ Clear ({selectedTag})
                       </button>
                     )}
-                    {allTags.slice(0, 5).map(tag => (
+                    {allTags.slice(0, 6).map(tag => (
                       <button
                         key={tag}
-                        onClick={() => setSelectedTag(tag === selectedTag ? '' : tag)}
-                        className={`px-2 py-0.5 rounded ${
+                        onClick={() => setSelectedTag(selectedTag === tag ? '' : tag)}
+                        className={`px-2 py-0.5 rounded text-[11px] transition-colors ${
                           selectedTag === tag
-                            ? 'bg-rose-600 text-white'
-                            : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+                            ? 'bg-rose-600 text-white font-semibold'
+                            : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400'
                         }`}
                       >
                         #{tag}
@@ -513,84 +687,92 @@ export const IssuesPage: React.FC = () => {
 
             {/* Questions List */}
             <div className="space-y-3">
-              {filteredIssues.map(item => (
+              {filteredIssues.map(issue => (
                 <div
-                  key={item.id}
-                  onClick={() => setSelectedIssueId(item.id)}
-                  className="p-5 sm:p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 hover:border-rose-500/30 transition-all duration-200 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                  key={issue.id}
+                  onClick={() => {
+                    setSelectedIssueId(issue.id);
+                    navigate(`/issues/${issue.id}`);
+                  }}
+                  className="p-5 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 hover:border-rose-500/30 transition-all cursor-pointer group"
                 >
                   <div className="flex items-start gap-4">
-                    {/* Stats pills */}
-                    <div className="flex sm:flex-col items-center gap-2 shrink-0">
-                      <div className="px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-zinc-800 text-center min-w-[50px]">
-                        <span className="font-mono text-xs font-bold text-stone-900 dark:text-zinc-100">
-                          {item.votes}
+                    {/* Stat Badges */}
+                    <div className="flex sm:flex-col items-center gap-3 shrink-0 text-center font-mono">
+                      <div className="flex flex-col items-center">
+                        <span className="text-xs font-bold text-stone-800 dark:text-zinc-200">
+                          {issue.votes}
                         </span>
-                        <span className="block text-[9px] font-mono text-stone-500 dark:text-zinc-400 uppercase">
-                          votes
-                        </span>
+                        <span className="text-[10px] text-stone-400 uppercase">votes</span>
                       </div>
+
                       <div
-                        className={`px-2.5 py-1 rounded-lg text-center min-w-[50px] border ${
-                          item.status === 'solved'
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                            : 'bg-stone-100 dark:bg-zinc-800/60 border-transparent text-stone-600 dark:text-zinc-400'
+                        className={`flex flex-col items-center px-2 py-1 rounded-lg border text-[11px] ${
+                          issue.status === 'solved'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-semibold'
+                            : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border-stone-200 dark:border-zinc-700'
                         }`}
                       >
-                        <span className="font-mono text-xs font-bold">
-                          {item.answersCount}
-                        </span>
-                        <span className="block text-[9px] font-mono uppercase">
-                          ans
-                        </span>
+                        <span className="font-bold">{issue.answersCount}</span>
+                        <span className="text-[9px] uppercase">ans</span>
                       </div>
                     </div>
 
-                    {/* Question summary */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium">
-                          {item.category}
+                    {/* Question Summary */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20">
+                          {issue.category}
                         </span>
-                        {item.status === 'solved' && (
-                          <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <CheckCircle2 size={11} />
-                            <span>Solved</span>
-                          </span>
-                        )}
+                        <span className="text-stone-400 dark:text-zinc-600 text-xs">•</span>
+                        <span className="text-[11px] font-mono text-stone-400">
+                          {new Date(issue.createdAt).toLocaleDateString(
+                            language === 'en' ? 'en-US' : 'id-ID',
+                            { month: 'short', day: 'numeric', year: 'numeric' },
+                          )}
+                        </span>
                       </div>
-                      <h3 className="text-base font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors leading-snug">
-                        {item.title}
+
+                      <h3 className="text-base font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors line-clamp-1">
+                        {issue.title}
                       </h3>
-                      <p className="text-xs text-stone-600 dark:text-zinc-400 line-clamp-2">
-                        {item.description}
+
+                      <p className="text-xs text-stone-600 dark:text-zinc-400 line-clamp-2 mt-1.5 leading-relaxed">
+                        {issue.description}
                       </p>
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {item.tags.map(tag => (
-                          <span
-                            key={tag}
-                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-stone-100 dark:bg-zinc-800 text-stone-500 dark:text-zinc-400"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800/80 text-[11px] font-mono">
+                        <div className="flex flex-wrap gap-1.5">
+                          {issue.tags.map(t => (
+                            <span
+                              key={t}
+                              className="px-2 py-0.5 rounded bg-stone-100 dark:bg-zinc-800/80 text-stone-600 dark:text-zinc-400 text-[10px]"
+                            >
+                              #{t}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="text-stone-400 flex items-center gap-1.5">
+                          {issue.authorAvatar ? (
+                            <img src={issue.authorAvatar} alt="" className="w-4 h-4 rounded-full" />
+                          ) : (
+                            <User size={12} />
+                          )}
+                          <span>{issue.authorName}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="sm:text-right shrink-0 text-xs font-mono text-stone-400 dark:text-zinc-500">
-                    <span>{item.authorName}</span>
                   </div>
                 </div>
               ))}
 
               {filteredIssues.length === 0 && (
-                <div className="py-16 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl">
-                  <HelpCircle size={32} className="mx-auto text-stone-400 mb-3" />
-                  <p className="text-stone-600 dark:text-zinc-400 text-sm">
+                <div className="py-16 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl font-mono text-xs">
+                  <p className="text-stone-600 dark:text-zinc-400 mb-3">
                     {language === 'en'
-                      ? 'No questions matched your search.'
-                      : 'Tidak ada pertanyaan yang sesuai.'}
+                      ? 'No questions found matching your criteria.'
+                      : 'Tidak ditemukan pertanyaan yang cocok dengan pencarian Anda.'}
                   </p>
                   <button
                     onClick={() => {
@@ -598,7 +780,7 @@ export const IssuesPage: React.FC = () => {
                       setStatusFilter('all');
                       setSelectedTag('');
                     }}
-                    className="mt-3 text-xs font-mono text-rose-600 dark:text-rose-400 underline"
+                    className="text-xs font-mono text-rose-600 dark:text-rose-400 underline"
                   >
                     {language === 'en' ? 'Reset Filters' : 'Reset Filter'}
                   </button>
@@ -608,119 +790,128 @@ export const IssuesPage: React.FC = () => {
           </div>
         )}
 
-        {/* Modal: Ask a Question */}
+        {/* Modal Ask Question */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-            <div className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between pb-2 border-b border-stone-200 dark:border-zinc-800">
-                <h3 className="text-lg font-bold text-stone-900 dark:text-zinc-100">
-                  {language === 'en' ? 'Ask a Technical Question' : 'Ajukan Pertanyaan Teknis'}
-                </h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs">
+            <div className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-3xl max-w-xl w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
+              <div className="flex items-center justify-between border-b border-stone-100 dark:border-zinc-800 pb-4">
+                <div>
+                  <h2 className="text-lg font-bold font-mono text-stone-900 dark:text-zinc-100">
+                    {language === 'en' ? 'Ask a Technical Question' : 'Ajukan Pertanyaan Teknis'}
+                  </h2>
+                  <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono mt-0.5">
+                    {language === 'en'
+                      ? `Questions are published immediately and notify ${adminEmail}.`
+                      : `Pertanyaan langsung dipublikasikan dan mengirimkan email ke ${adminEmail}.`}
+                  </p>
+                </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200"
+                  className="p-1 text-stone-400 hover:text-stone-600 dark:hover:text-zinc-200"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateIssue} className="space-y-4">
+              <form onSubmit={handleCreateIssue} className="space-y-4 text-xs font-mono">
                 <div>
-                  <label className="block text-xs font-mono text-stone-600 dark:text-zinc-400 mb-1">
-                    {language === 'en' ? 'Your Name / Handle' : 'Nama Anda'}
+                  <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
+                    {language === 'en' ? 'Title *' : 'Judul Pertanyaan *'}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. John Doe / @dev"
-                    value={authorName}
-                    onChange={e => setAuthorName(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono text-stone-600 dark:text-zinc-400 mb-1">
-                    {language === 'en' ? 'Question Title' : 'Judul Pertanyaan'}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder={
-                      language === 'en'
-                        ? 'e.g. How to prevent memory leak in Web Audio oscillators?'
-                        : 'Contoh: Bagaimana mencegah memory leak pada oscillator Web Audio?'
-                    }
                     value={newTitle}
                     onChange={e => setNewTitle(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                    placeholder={
+                      language === 'en'
+                        ? 'e.g. How to prevent race condition in distributed PostgreSQL lock?'
+                        : 'Contoh: Bagaimana mencegah race condition pada PostgreSQL advisory lock?'
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-mono text-stone-600 dark:text-zinc-400 mb-1">
+                    <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
                       {language === 'en' ? 'Category' : 'Kategori'}
                     </label>
                     <select
                       value={newCategory}
                       onChange={e => setNewCategory(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                     >
-                      <option value="General">General / Umum</option>
-                      <option value="Artificial Intelligence">AI & Machine Learning</option>
-                      <option value="Backend & Database">Backend & Database</option>
-                      <option value="Music Theory & Audio">Music Theory & Web Audio</option>
-                      <option value="Architecture">System Architecture</option>
-                      <option value="Security">Security & Biometrics</option>
+                      <option value="AI & Math">AI & Math</option>
+                      <option value="Theory Music">Theory Music</option>
+                      <option value="Architecture">Architecture</option>
+                      <option value="Database">Database</option>
+                      <option value="Security">Security</option>
+                      <option value="General">General</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-mono text-stone-600 dark:text-zinc-400 mb-1">
-                      {language === 'en' ? 'Tags (comma separated)' : 'Tag (pisahkan koma)'}
+                    <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
+                      {language === 'en' ? 'Tags (comma separated)' : 'Tags (pisahkan dengan koma)'}
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Next.js, Redis, Concurrency"
                       value={newTags}
                       onChange={e => setNewTags(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                      placeholder="database, postgresql, lock"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono text-stone-600 dark:text-zinc-400 mb-1">
-                    {language === 'en' ? 'Problem Description' : 'Penjelasan Masalah'}
+                  <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
+                    {language === 'en' ? 'Your Name or Handle' : 'Nama atau Identitas Anda'}
+                  </label>
+                  <input
+                    type="text"
+                    value={authorName}
+                    onChange={e => setAuthorName(e.target.value)}
+                    placeholder={user?.displayName || (language === 'en' ? 'e.g. Alex Tech' : 'Contoh: Budi Coder')}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
+                    {language === 'en' ? 'Description & Details *' : 'Deskripsi & Penjelasan Teknis *'}
                   </label>
                   <textarea
                     rows={4}
                     required
-                    placeholder={
-                      language === 'en'
-                        ? 'Describe what you are trying to achieve, what happens, and what errors you receive...'
-                        : 'Jelaskan apa yang ingin dicapai, kendala yang dialami, serta konteks masalah...'
-                    }
                     value={newDescription}
                     onChange={e => setNewDescription(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                    placeholder={
+                      language === 'en'
+                        ? 'Describe what you are trying to achieve, code behavior, and specific questions...'
+                        : 'Jelaskan masalah, konteks kode, dan pertanyaan spesifik yang ingin dipecahkan...'
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                   />
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-200 dark:border-zinc-800">
+                <div className="pt-2 flex justify-end gap-3">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 text-xs font-medium rounded-xl text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800"
+                    className="px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 text-stone-700 dark:text-zinc-300 font-semibold hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
                   >
                     {language === 'en' ? 'Cancel' : 'Batal'}
                   </button>
+
                   <button
                     type="submit"
-                    className="px-4 py-2 text-xs font-medium rounded-xl bg-rose-600 hover:bg-rose-700 text-white"
+                    disabled={submitting}
+                    className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
                   >
-                    {language === 'en' ? 'Publish Question' : 'Terbitkan Pertanyaan'}
+                    <Send size={14} />
+                    <span>{submitting ? (language === 'en' ? 'Publishing...' : 'Menerbitkan...') : (language === 'en' ? 'Submit Question' : 'Terbitkan Pertanyaan')}</span>
                   </button>
                 </div>
               </form>

@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == 'vanviolet.js@gmail.com');
+    }
+
+    function isOwner(authorId) {
+      return isAuthenticated() && request.auth.uid == authorId;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Articles
+    match /articles/{articleId} {
+      allow read: if resource.data.status == 'approved' || isAdmin() || (isAuthenticated() && resource.data.authorId == request.auth.uid);
+      allow create: if isAuthenticated() && 
+        request.resource.data.authorId == request.auth.uid &&
+        (isAdmin() || request.resource.data.status == 'pending');
+      allow update: if isAdmin() || (isOwner(resource.data.authorId) && request.resource.data.status == resource.data.status);
+      allow delete: if isAdmin() || isOwner(resource.data.authorId);
+    }
+
+    // Vanpedia Terms
+    match /vanpedia/{termId} {
+      allow read: if resource.data.status == 'approved' || isAdmin() || (isAuthenticated() && resource.data.authorId == request.auth.uid);
+      allow create: if isAuthenticated() &&
+        request.resource.data.authorId == request.auth.uid &&
+        (isAdmin() || request.resource.data.status == 'pending');
+      allow update: if isAdmin() || (isOwner(resource.data.authorId) && request.resource.data.status == resource.data.status);
+      allow delete: if isAdmin() || isOwner(resource.data.authorId);
+    }
+
+    // Technical Questions / Issues
+    match /questions/{questionId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin() || isOwner(resource.data.authorId);
+    }
+
+    // Answers to Questions
+    match /answers/{answerId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin() || isOwner(resource.data.authorId);
+    }
+
+    // Article Comments
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin() || isOwner(resource.data.authorId);
+    }
+  }
+}

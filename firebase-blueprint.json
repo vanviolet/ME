@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Application Database Schema",
+  "description": "Firestore database blueprint for Muchamad Irvan Portfolio, Articles, Vanpedia, and Q&A system with Admin verification workflow",
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "User profile with role, email, and authentication info",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "articles": {
+      "title": "Article",
+      "description": "Published and submitted articles requiring admin approval before publication",
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "authorName": { "type": "string" },
+        "authorEmail": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorId": { "type": "string" },
+        "readTime": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "views": { "type": "number" },
+        "likes": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "coverImage": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "verifiedAt": { "type": "string" },
+        "verifiedBy": { "type": "string" }
+      },
+      "required": ["title", "slug", "content", "authorEmail", "status"]
+    },
+    "vanpedia": {
+      "title": "VanpediaTerm",
+      "description": "Encyclopedia terms requiring admin approval by vanviolet.js@gmail.com",
+      "type": "object",
+      "properties": {
+        "slug": { "type": "string" },
+        "term": { "type": "string" },
+        "category": { "type": "string" },
+        "phonetic": { "type": "string" },
+        "definition": { "type": "string" },
+        "formula": { "type": "string" },
+        "examples": { "type": "array", "items": { "type": "string" } },
+        "authorName": { "type": "string" },
+        "authorEmail": { "type": "string" },
+        "authorId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string" },
+        "verifiedAt": { "type": "string" }
+      },
+      "required": ["term", "slug", "definition", "authorEmail", "status"]
+    },
+    "questions": {
+      "title": "Question",
+      "description": "Technical Q&A questions (instant published with notification to admin)",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "authorName": { "type": "string" },
+        "authorEmail": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorId": { "type": "string" },
+        "upvotes": { "type": "number" },
+        "upvotedBy": { "type": "array", "items": { "type": "string" } },
+        "answersCount": { "type": "number" },
+        "isResolved": { "type": "boolean" },
+        "acceptedAnswerId": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["title", "description", "authorEmail"]
+    },
+    "answers": {
+      "title": "Answer",
+      "description": "Answers posted to Q&A questions",
+      "type": "object",
+      "properties": {
+        "questionId": { "type": "string" },
+        "content": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorEmail": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorId": { "type": "string" },
+        "upvotes": { "type": "number" },
+        "isAccepted": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["questionId", "content", "authorEmail"]
+    },
+    "comments": {
+      "title": "ArticleComment",
+      "description": "Comments on articles",
+      "type": "object",
+      "properties": {
+        "articleSlug": { "type": "string" },
+        "content": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorEmail": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "authorId": { "type": "string" },
+        "likes": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["articleSlug", "content", "authorName"]
+    }
+  }
+}

@@ -4,6 +4,7 @@
  */
 
 import { PortfolioProvider } from './context/PortfolioContext';
+import { AuthProvider } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { About } from './components/About';
@@ -17,6 +18,7 @@ import { ArticlesPage } from './components/ArticlesPage';
 import { ArticlePage } from './components/ArticlePage';
 import { VanpediaPage, VanpediaIndexPage } from './components/VanpediaPage';
 import { IssuesPage } from './components/IssuesPage';
+import { AdminVerificationPage } from './components/AdminVerificationPage';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import React from 'react';
@@ -58,25 +60,30 @@ const ScrollHandler: React.FC = () => {
 
 export default function App() {
   return (
-    <PortfolioProvider>
-      <Router>
-        <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 selection:bg-rose-500/20 selection:text-rose-600 dark:selection:bg-rose-500/30 dark:selection:text-rose-400 font-sans">
-          <Navbar />
-          <ScrollHandler />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/articles" element={<ArticlesPage />} />
-            <Route path="/articles/:slug" element={<ArticlePage />} />
-            <Route path="/vanpedia" element={<VanpediaIndexPage />} />
-            <Route path="/vanpedia/:slug" element={<VanpediaPage />} />
-            <Route path="/issues" element={<IssuesPage />} />
-            {/* Fallback */}
-            <Route path="*" element={<HomePage />} />
-          </Routes>
-          <Footer />
-        </div>
-      </Router>
-    </PortfolioProvider>
+    <AuthProvider>
+      <PortfolioProvider>
+        <Router>
+          <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 selection:bg-rose-500/20 selection:text-rose-600 dark:selection:bg-rose-500/30 dark:selection:text-rose-400 font-sans">
+            <Navbar />
+            <ScrollHandler />
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/articles" element={<ArticlesPage />} />
+              <Route path="/articles/:slug" element={<ArticlePage />} />
+              <Route path="/vanpedia" element={<VanpediaIndexPage />} />
+              <Route path="/vanpedia/:slug" element={<VanpediaPage />} />
+              <Route path="/issues" element={<IssuesPage />} />
+              <Route path="/issues/:id" element={<IssuesPage />} />
+              <Route path="/issue" element={<IssuesPage />} />
+              <Route path="/admin" element={<AdminVerificationPage />} />
+              {/* Fallback */}
+              <Route path="*" element={<HomePage />} />
+            </Routes>
+            <Footer />
+          </div>
+        </Router>
+      </PortfolioProvider>
+    </AuthProvider>
   );
 }
 

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft } from 'lucide-react';
+import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { AuthButton } from './AuthButton';
+import { useAuth } from '../context/AuthContext';
 
 export const Navbar: React.FC = () => {
   const { language, setLanguage, theme, toggleTheme } = usePortfolio();
+  const { isAdmin } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
@@ -223,6 +226,9 @@ export const Navbar: React.FC = () => {
             {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
           </button>
 
+          {/* Google OAuth Profile & Auth Control */}
+          <AuthButton />
+
           {/* Let's Talk CTA (Desktop) */}
           <Link
             id="nav-cta-contact"
@@ -310,6 +316,22 @@ export const Navbar: React.FC = () => {
                   </div>
                 </div>
               </Link>
+
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-3 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-3 col-span-full"
+                >
+                  <ShieldCheck size={16} className="text-rose-500 shrink-0" />
+                  <div className="text-left">
+                    <div className="text-xs font-semibold">{language === 'en' ? 'Admin Verification Center' : 'Pusat Verifikasi Admin'}</div>
+                    <div className="text-[10px] text-rose-500/80 font-mono">
+                      Moderasi vanviolet.js@gmail.com
+                    </div>
+                  </div>
+                </Link>
+              )}
             </div>
           </div>
 
