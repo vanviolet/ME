@@ -342,7 +342,7 @@ export const ArticlePage: React.FC = () => {
   }
 
   // Raw markdown content and intelligent AI discussion prompts
-  const rawMarkdown = (post.content[language] || post.content.en) as string;
+  const rawMarkdown = t(post.content);
   const articleUrl = `https://vanviolet.my.id/articles/${post.slug}`;
   
   const aiLinks = useMemo(() => {
@@ -749,15 +749,15 @@ export const ArticlePage: React.FC = () => {
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2">
               <h3 className="text-base font-bold text-stone-900 dark:text-zinc-100">
-                {post.author ? post.author.name : 'Muchamad Irvan'}
+                {post.author ? t(post.author.name) : 'Muchamad Irvan'}
               </h3>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-100 dark:bg-zinc-800 text-stone-500 dark:text-zinc-400">
-                Author
+                {post.author && post.author.role ? t(post.author.role) : 'Author'}
               </span>
             </div>
             <p className="text-xs sm:text-sm text-stone-600 dark:text-zinc-400 leading-relaxed">
-              {post.author
-                ? post.author.bio[language]
+              {post.author && post.author.bio
+                ? t(post.author.bio)
                 : 'Software Engineer specializing in distributed web systems, algorithmic optimization, and modern UI engineering.'}
             </p>
           </div>

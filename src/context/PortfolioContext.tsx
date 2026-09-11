@@ -7,8 +7,8 @@ interface PortfolioContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
-  t: (val: LocalizedString | undefined) => string;
-  tArr: (val: LocalizedStringArray | undefined) => string[];
+  t: (val: LocalizedString | string | any) => string;
+  tArr: (val: LocalizedStringArray | string[] | any) => string[];
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -64,14 +64,28 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
-  const t = (val: LocalizedString | undefined): string => {
-    if (!val) return '';
-    return val[language] || val.en || '';
+  const t = (val: LocalizedString | string | any): string => {
+    if (val === undefined || val === null) return '';
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') return String(val);
+    if (typeof val === 'object') {
+      const localized = val[language] || val.en || val.id;
+      if (typeof localized === 'string') return localized;
+      if (typeof localized === 'number') return String(localized);
+      // Fallback if object has no en/id properties
+      return '';
+    }
+    return '';
   };
 
-  const tArr = (val: LocalizedStringArray | undefined): string[] => {
+  const tArr = (val: LocalizedStringArray | string[] | any): string[] => {
     if (!val) return [];
-    return val[language] || val.en || [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'object') {
+      const arr = val[language] || val.en || val.id;
+      if (Array.isArray(arr)) return arr;
+    }
+    return [];
   };
 
   return (

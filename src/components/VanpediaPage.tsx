@@ -52,7 +52,7 @@ import { ReportModal } from './ReportModal';
  */
 export const VanpediaPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { language, t } = usePortfolio();
+  const { language, t, tArr } = usePortfolio();
   const { user, isAdmin, adminEmail } = useAuth();
 
   const [term, setTerm] = useState<VanpediaTerm | null>(() => {
@@ -457,7 +457,7 @@ export const VanpediaPage: React.FC = () => {
               <span>{language === 'en' ? 'Real-World Examples & Applications' : 'Contoh Nyata & Penerapan'}</span>
             </h2>
             <ul className="space-y-2.5 text-xs sm:text-sm text-stone-700 dark:text-zinc-300">
-              {(term.examples[language] || term.examples.id || []).map((ex, idx) => (
+              {tArr(term.examples).map((ex, idx) => (
                 <li key={idx} className="flex items-start gap-2.5">
                   <span className="text-rose-500 font-bold shrink-0 mt-0.5">→</span>
                   <span
