@@ -120,10 +120,26 @@ export const ArticlesPage: React.FC = () => {
     });
   }, [articles, searchQuery, activeCategory, activeTag, t]);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
+
+  // Reset to first page on filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeCategory, activeTag]);
+
+  const totalPages = Math.ceil(filteredArticles.length / ITEMS_PER_PAGE) || 1;
+  const paginatedArticles = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredArticles.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredArticles, currentPage, ITEMS_PER_PAGE]);
+
   const clearFilters = () => {
     setSearchQuery('');
     setActiveCategory('');
     setActiveTag('');
+    setCurrentPage(1);
   };
 
   const hasActiveFilters = searchQuery !== '' || activeCategory !== '' || activeTag !== '';
@@ -391,18 +407,23 @@ export const ArticlesPage: React.FC = () => {
           )}
         </div>
 
-        {/* Results Count */}
-        <div className="flex items-center justify-between mb-6">
+        {/* Results Count & Current Page Indicator */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
           <p className="text-xs font-mono text-stone-500 dark:text-zinc-400">
             {language === 'en'
-              ? `${filteredArticles.length} article${filteredArticles.length !== 1 ? 's' : ''} available`
-              : `${filteredArticles.length} artikel tersedia`}
+              ? `Showing ${filteredArticles.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, filteredArticles.length)} of ${filteredArticles.length} articles`
+              : `Menampilkan ${filteredArticles.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, filteredArticles.length)} dari ${filteredArticles.length} artikel`}
           </p>
+          {totalPages > 1 && (
+            <p className="text-xs font-mono text-stone-400 dark:text-zinc-500">
+              {language === 'en' ? `Page ${currentPage} of ${totalPages}` : `Halaman ${currentPage} dari ${totalPages}`}
+            </p>
+          )}
         </div>
 
         {/* Articles Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {filteredArticles.map(post => {
+          {paginatedArticles.map(post => {
             const isPending = post.status === 'pending';
             return (
               <div
@@ -514,6 +535,52 @@ export const ArticlesPage: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 font-mono text-xs">
+            <button
+              onClick={() => {
+                setCurrentPage(prev => Math.max(1, prev - 1));
+                window.scrollTo({ top: 400, behavior: 'smooth' });
+              }}
+              disabled={currentPage === 1}
+              className="px-4 py-2 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              ← {language === 'en' ? 'Previous' : 'Sebelumnya'}
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                <button
+                  key={pageNum}
+                  onClick={() => {
+                    setCurrentPage(pageNum);
+                    window.scrollTo({ top: 400, behavior: 'smooth' });
+                  }}
+                  className={`w-9 h-9 rounded-xl font-bold transition-all ${
+                    currentPage === pageNum
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                window.scrollTo({ top: 400, behavior: 'smooth' });
+              }}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {language === 'en' ? 'Next' : 'Berikutnya'} →
+            </button>
+          </div>
+        )}
 
         {/* Empty State */}
         {filteredArticles.length === 0 && (

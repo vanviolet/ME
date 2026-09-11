@@ -69,7 +69,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async (): Promise<AuthUser | null> => {
     try {
-      setLoading(true);
       const result = await signInWithPopup(auth, googleProvider);
       const fbUser = result.user;
       const isAdmin = isUserAdmin(fbUser.email);
@@ -83,10 +82,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(mappedUser);
       return mappedUser;
     } catch (error: any) {
+      if (error?.code === 'auth/popup-closed-by-user' || error?.code === 'auth/cancelled-popup-request') {
+        console.info('Google sign-in popup was closed by user');
+        return null;
+      }
       console.error('Google OAuth sign-in error:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 

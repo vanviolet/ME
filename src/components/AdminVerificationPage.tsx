@@ -120,7 +120,7 @@ export const AdminVerificationPage: React.FC = () => {
 
   if (!user || !isAdmin) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center px-4 py-16">
+      <div className="min-h-[80vh] flex items-center justify-center px-4 pt-28 pb-16">
         <Seo title="Admin Verification Center" description="Restricted verification dashboard for content moderation." />
         <div className="max-w-md w-full p-8 rounded-3xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl text-center space-y-6">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center">
@@ -140,7 +140,7 @@ export const AdminVerificationPage: React.FC = () => {
           {!user ? (
             <button
               onClick={signInWithGoogle}
-              className="w-full py-3 px-4 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 font-mono text-xs font-semibold hover:bg-stone-800 dark:hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 font-mono text-xs font-semibold hover:bg-stone-800 dark:hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <UserCheck size={16} />
               <span>{language === 'en' ? 'Sign in with Google' : 'Masuk dengan Google'}</span>
@@ -166,11 +166,11 @@ export const AdminVerificationPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto space-y-8">
+    <div className="min-h-screen pt-28 sm:pt-32 pb-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-8">
       <Seo title="Admin Verification Portal" description="Review and approve submitted articles and Vanpedia terms." />
 
       {/* Header */}
-      <div className="border-b border-stone-200 dark:border-zinc-800 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="border-b border-stone-200 dark:border-zinc-800 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-5">
         <div>
           <div className="flex items-center gap-2 text-rose-500 text-xs font-mono font-semibold uppercase tracking-wider">
             <ShieldCheck size={16} />
@@ -186,11 +186,11 @@ export const AdminVerificationPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <button
             onClick={handleSeedFirestore}
             disabled={seedLoading}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-mono font-semibold transition-colors shadow-xs"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-mono font-semibold transition-all shadow-md shadow-rose-500/20 cursor-pointer"
             title="Upload data awal Artikel & Vanpedia ke Firestore"
           >
             <Database size={14} className={seedLoading ? 'animate-bounce' : ''} />
@@ -200,7 +200,7 @@ export const AdminVerificationPage: React.FC = () => {
           <button
             onClick={loadData}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors shadow-xs"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors shadow-xs cursor-pointer"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             <span>{language === 'en' ? 'Refresh Submissions' : 'Muat Ulang Data'}</span>

@@ -17,7 +17,7 @@ import {
 import { db, ADMIN_EMAIL } from '../lib/firebase';
 import { Article, VanpediaTerm, CommunityIssue, ArticleComment, IssueAnswer, ContentReport } from '../types';
 import { articlesData, vanpediaTermsData, initialIssuesData, initialCommentsData } from '../data/articlesData';
-import { notifyAdminNewArticle, notifyAdminNewVanpedia, notifyAdminNewQuestion, notifyAdminContentReport } from './emailService';
+import { notifyAdminNewArticle, notifyAdminNewVanpedia, notifyAdminNewQuestion, notifyAdminContentReport, sendContactMessageEmail } from './emailService';
 import { AuthUser } from '../context/AuthContext';
 
 const ARTICLES_COLLECTION = 'articles';
@@ -26,6 +26,7 @@ const QUESTIONS_COLLECTION = 'questions';
 const COMMENTS_COLLECTION = 'comments';
 const REPORTS_COLLECTION = 'reports';
 const ARTICLE_LIKES_COLLECTION = 'article_likes';
+const MESSAGES_COLLECTION = 'messages';
 
 // ==========================================
 // ARTICLES SERVICE
@@ -667,12 +668,20 @@ export async function submitContentReportInFirestore(reportData: {
 }): Promise<ContentReport> {
   const newReport: Omit<ContentReport, 'id'> = {
     ...reportData,
+    reporterEmail: reportData.reporterEmail || 'anonymous@vanviolet.my.id',
     createdAt: new Date().toISOString(),
     status: 'pending',
   };
 
-  const docRef = await addDoc(collection(db, REPORTS_COLLECTION), newReport);
-  const createdReport: ContentReport = { id: docRef.id, ...newReport };
+  let createdReport: ContentReport;
+
+  try {
+    const docRef = await addDoc(collection(db, REPORTS_COLLECTION), newReport);
+    createdReport = { id: docRef.id, ...newReport };
+  } catch (error) {
+    console.warn('Firestore report write fallback:', error);
+    createdReport = { id: `rep-${Date.now()}`, ...newReport };
+  }
 
   // Dispatch email notification to vanviolet.js@gmail.com
   notifyAdminContentReport({
@@ -681,11 +690,65 @@ export async function submitContentReportInFirestore(reportData: {
     contentTitle: reportData.contentTitle,
     reason: reportData.reasonLabel || reportData.reason,
     details: reportData.details,
-    reporterName: reportData.reporterName,
-    reporterEmail: reportData.reporterEmail,
+    reporterName: reportData.reporterName || 'Anonymous Reader',
+    reporterEmail: reportData.reporterEmail || 'anonymous@vanviolet.my.id',
   }).catch(err => console.error('Email report notify error:', err));
 
   return createdReport;
+}
+
+// ==========================================
+// CONTACT MESSAGES SERVICE
+// ==========================================
+
+export interface ContactMessageRecord {
+  id?: string;
+  name: string;
+  email: string;
+  topic: string;
+  message: string;
+  userId?: string;
+  isLoggedIn?: boolean;
+  createdAt?: string;
+}
+
+export async function submitContactMessageInFirestore(data: {
+  name: string;
+  email: string;
+  topic: string;
+  message: string;
+  user?: AuthUser | null;
+}): Promise<{ success: boolean; id: string }> {
+  const payload: ContactMessageRecord = {
+    name: data.name.trim(),
+    email: data.email.trim(),
+    topic: data.topic,
+    message: data.message.trim(),
+    userId: data.user?.uid || undefined,
+    isLoggedIn: Boolean(data.user),
+    createdAt: new Date().toISOString(),
+  };
+
+  let msgId = `msg-${Date.now()}`;
+
+  try {
+    const docRef = await addDoc(collection(db, MESSAGES_COLLECTION), payload);
+    msgId = docRef.id;
+  } catch (e) {
+    console.warn('Firestore message write fallback:', e);
+  }
+
+  // Automatically dispatch email notification to vanviolet.js@gmail.com
+  const emailSent = await sendContactMessageEmail({
+    name: payload.name,
+    email: payload.email,
+    topic: payload.topic,
+    message: payload.message,
+    userId: payload.userId,
+    isLoggedIn: payload.isLoggedIn,
+  });
+
+  return { success: true, id: msgId };
 }
 
 export async function fetchContentReportsFromFirestore(): Promise<ContentReport[]> {

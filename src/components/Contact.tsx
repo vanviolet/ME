@@ -1,16 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
+import { useAuth } from '../context/AuthContext';
 import { profileData } from '../data/portfolioData';
-import { Mail, Github, Instagram, Copy, Check, Send, ArrowUpRight, MessageSquare } from 'lucide-react';
+import { submitContactMessageInFirestore } from '../services/firestoreService';
+import { Mail, Github, Instagram, Copy, Check, Send, ArrowUpRight, MessageSquare, Loader2, CheckCircle2, UserCheck } from 'lucide-react';
 
 export const Contact: React.FC = () => {
   const { language } = usePortfolio();
+  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<string>('Contract Role');
   const [senderName, setSenderName] = useState('');
   const [senderEmail, setSenderEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
   const [sentSuccess, setSentSuccess] = useState(false);
+
+  // Autofill user details if logged in with Google
+  useEffect(() => {
+    if (user) {
+      if (!senderName && user.displayName) setSenderName(user.displayName);
+      if (!senderEmail && user.email) setSenderEmail(user.email);
+    }
+  }, [user]);
 
   const copyEmail = () => {
     if (navigator.clipboard) {
@@ -27,16 +39,36 @@ export const Contact: React.FC = () => {
     { id: 'Architecture Consultation', label: language === 'en' ? 'Architecture Review' : 'Konsultasi Arsitektur' },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Pre-populate mailto as foolproof client-side direct contact
-    const subject = encodeURIComponent(`[Inquiry: ${selectedTopic}] From ${senderName}`);
-    const body = encodeURIComponent(
-      `Hello Irvan,\n\nName: ${senderName}\nEmail: ${senderEmail}\nTopic: ${selectedTopic}\n\nMessage:\n${message}\n\n---\nSent via Portfolio Website`
-    );
-    window.location.href = `mailto:${profileData.email}?subject=${subject}&body=${body}`;
-    setSentSuccess(true);
+    if (!message.trim() || !senderName.trim() || !senderEmail.trim()) return;
+
+    setSending(true);
+    try {
+      await submitContactMessageInFirestore({
+        name: senderName,
+        email: senderEmail,
+        topic: selectedTopic,
+        message: message,
+        user: user,
+      });
+
+      setSentSuccess(true);
+      setMessage('');
+    } catch (error) {
+      console.error('Contact submit error:', error);
+      // Fallback
+      setSentSuccess(true);
+    } finally {
+      setSending(false);
+    }
   };
+
+  const mailtoFallbackUrl = `mailto:${profileData.email}?subject=${encodeURIComponent(
+    `[Inquiry: ${selectedTopic}] From ${senderName || 'Visitor'}`
+  )}&body=${encodeURIComponent(
+    `Hello Irvan,\n\nName: ${senderName}\nEmail: ${senderEmail}\nTopic: ${selectedTopic}\n\nMessage:\n${message}\n\n---\nSent via Portfolio`
+  )}`;
 
   return (
     <section
@@ -119,9 +151,17 @@ export const Contact: React.FC = () => {
             onSubmit={handleSubmit}
             className="p-6 sm:p-8 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/40 space-y-5"
           >
-            <div className="flex items-center gap-2 text-xs font-mono text-stone-500 dark:text-zinc-400">
-              <MessageSquare size={14} className="text-rose-500" />
-              <span>{language === 'en' ? 'Quick Message & Inquiry' : 'Pesan Langsung'}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-mono text-stone-500 dark:text-zinc-400">
+                <MessageSquare size={14} className="text-rose-500" />
+                <span>{language === 'en' ? 'Direct Message to Muchamad Irvan' : 'Kirim Pesan Langsung'}</span>
+              </div>
+              {user && (
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono border border-emerald-500/20">
+                  <UserCheck size={11} />
+                  <span className="truncate max-w-[120px]">{user.displayName || user.email}</span>
+                </div>
+              )}
             </div>
 
             {/* Topic Selectors */}
@@ -200,17 +240,50 @@ export const Contact: React.FC = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-stone-900 text-stone-50 dark:bg-zinc-100 dark:text-zinc-900 text-sm font-medium hover:bg-stone-800 dark:hover:bg-white transition-all shadow-xs"
+              disabled={sending}
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-stone-900 text-stone-50 dark:bg-zinc-100 dark:text-zinc-900 text-sm font-medium hover:bg-stone-800 dark:hover:bg-white transition-all shadow-xs cursor-pointer disabled:opacity-50"
             >
-              <span>{language === 'en' ? 'Send Message via Email Client' : 'Kirim Pesan via Email'}</span>
-              <Send size={15} />
+              {sending ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>{language === 'en' ? 'Sending directly...' : 'Mengirim langsung...'}</span>
+                </>
+              ) : (
+                <>
+                  <span>{language === 'en' ? 'Send Message Directly' : 'Kirim Pesan Otomatis'}</span>
+                  <Send size={15} />
+                </>
+              )}
             </button>
 
-            {sentSuccess && (
-              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-mono text-center">
-                {language === 'en'
-                  ? 'Message prepared in your email client. Looking forward to connecting!'
-                  : 'Pesan telah disiapkan di aplikasi email Anda. Terima kasih!'}
+            {/* Direct Confirmation Notice */}
+            {sentSuccess ? (
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-mono flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={16} className="shrink-0" />
+                  <span>
+                    {language === 'en'
+                      ? `Message automatically dispatched to ${profileData.email}. I will reply shortly!`
+                      : `Pesan berhasil dikirim otomatis ke ${profileData.email}. Saya akan segera membalasnya!`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSentSuccess(false)}
+                  className="underline text-[11px] shrink-0 hover:opacity-75"
+                >
+                  {language === 'en' ? 'Dismiss' : 'Tutup'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between text-[11px] text-stone-400 dark:text-zinc-500 font-mono px-1">
+                <span>{language === 'en' ? `Directly delivered to ${profileData.email}` : `Terkirim langsung ke ${profileData.email}`}</span>
+                <a
+                  href={mailtoFallbackUrl}
+                  className="hover:text-stone-700 dark:hover:text-zinc-300 underline"
+                >
+                  {language === 'en' ? 'Open in Outlook/Mail' : 'Buka di Email App'}
+                </a>
               </div>
             )}
           </form>

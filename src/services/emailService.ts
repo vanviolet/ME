@@ -47,12 +47,21 @@ export interface ReportNotifyPayload {
   url?: string;
 }
 
+export interface ContactMessageNotifyPayload {
+  name: string;
+  email: string;
+  topic: string;
+  message: string;
+  userId?: string;
+  isLoggedIn?: boolean;
+}
+
 /**
  * Dispatch free notification email to vanviolet.js@gmail.com
  */
 async function sendNotificationEmail(data: {
   subject: string;
-  type: 'ARTICLE_VERIFICATION' | 'VANPEDIA_VERIFICATION' | 'QA_NOTIFICATION' | 'CONTENT_REPORT';
+  type: 'ARTICLE_VERIFICATION' | 'VANPEDIA_VERIFICATION' | 'QA_NOTIFICATION' | 'CONTENT_REPORT' | 'CONTACT_MESSAGE';
   payload: Record<string, string | number | boolean | string[]>;
 }): Promise<boolean> {
   try {
@@ -189,3 +198,22 @@ export async function notifyAdminContentReport(payload: ReportNotifyPayload): Pr
     }
   });
 }
+
+/**
+ * Dispatch automated direct contact message to vanviolet.js@gmail.com
+ */
+export async function sendContactMessageEmail(payload: ContactMessageNotifyPayload): Promise<boolean> {
+  return sendNotificationEmail({
+    subject: `[Muchamad Irvan Hub] Pesan Masuk dari ${payload.name}: "${payload.topic}"`,
+    type: 'CONTACT_MESSAGE',
+    payload: {
+      sender_name: payload.name,
+      sender_email: payload.email,
+      inquiry_topic: payload.topic,
+      message_body: payload.message,
+      auth_status: payload.isLoggedIn ? `Authenticated User (${payload.email})` : 'Guest / Visitor',
+      sent_at: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+    }
+  });
+}
+

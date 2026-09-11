@@ -575,6 +575,8 @@ export const VanpediaIndexPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 9;
 
   // New Term Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -639,6 +641,17 @@ export const VanpediaIndexPage: React.FC = () => {
       return matchesSearch && matchesCategory;
     });
   }, [terms, searchQuery, activeCategory, t]);
+
+  // Reset page when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeCategory]);
+
+  const totalPages = Math.ceil(filteredTerms.length / ITEMS_PER_PAGE) || 1;
+  const paginatedTerms = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredTerms.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredTerms, currentPage, ITEMS_PER_PAGE]);
 
   const handleOpenAddTerm = () => {
     if (!user) {
@@ -848,9 +861,23 @@ export const VanpediaIndexPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Count and Pagination Summary */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <p className="text-xs font-mono text-stone-500 dark:text-zinc-400">
+            {language === 'en'
+              ? `Showing ${filteredTerms.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, filteredTerms.length)} of ${filteredTerms.length} terms`
+              : `Menampilkan ${filteredTerms.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, filteredTerms.length)} dari ${filteredTerms.length} istilah`}
+          </p>
+          {totalPages > 1 && (
+            <p className="text-xs font-mono text-stone-400 dark:text-zinc-500">
+              {language === 'en' ? `Page ${currentPage} of ${totalPages}` : `Halaman ${currentPage} dari ${totalPages}`}
+            </p>
+          )}
+        </div>
+
         {/* Terms Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTerms.map(term => {
+          {paginatedTerms.map(term => {
             const isPending = term.status === 'pending';
             return (
               <Link
@@ -901,6 +928,52 @@ export const VanpediaIndexPage: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 font-mono text-xs">
+            <button
+              onClick={() => {
+                setCurrentPage(prev => Math.max(1, prev - 1));
+                window.scrollTo({ top: 350, behavior: 'smooth' });
+              }}
+              disabled={currentPage === 1}
+              className="px-4 py-2 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              ← {language === 'en' ? 'Previous' : 'Sebelumnya'}
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                <button
+                  key={pageNum}
+                  onClick={() => {
+                    setCurrentPage(pageNum);
+                    window.scrollTo({ top: 350, behavior: 'smooth' });
+                  }}
+                  className={`w-9 h-9 rounded-xl font-bold transition-all ${
+                    currentPage === pageNum
+                      ? 'bg-rose-600 text-white shadow-xs'
+                      : 'border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                window.scrollTo({ top: 350, behavior: 'smooth' });
+              }}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {language === 'en' ? 'Next' : 'Berikutnya'} →
+            </button>
+          </div>
+        )}
 
         {filteredTerms.length === 0 && (
           <div className="py-16 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl font-mono text-xs">

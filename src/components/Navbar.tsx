@@ -187,8 +187,8 @@ export const Navbar: React.FC = () => {
 
         {/* Right Controls: Language, Theme, Contact CTA & Mobile Hamburger */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          {/* Language Switcher */}
-          <div className="flex items-center bg-stone-200/70 dark:bg-zinc-800/80 p-0.5 rounded-lg border border-stone-300/60 dark:border-zinc-700/60">
+          {/* Language Switcher (Desktop / Tablet only) */}
+          <div className="hidden sm:flex items-center bg-stone-200/70 dark:bg-zinc-800/80 p-0.5 rounded-lg border border-stone-300/60 dark:border-zinc-700/60">
             <button
               id="lang-toggle-en"
               onClick={() => setLanguage('en')}
@@ -215,13 +215,13 @@ export const Navbar: React.FC = () => {
             </button>
           </div>
 
-          {/* Theme Toggle Button */}
+          {/* Theme Toggle Button (Desktop / Tablet only) */}
           <button
             id="theme-toggle-btn"
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            className="p-2 rounded-lg border border-stone-300/60 dark:border-zinc-700/60 bg-stone-200/70 dark:bg-zinc-800/80 text-stone-700 dark:text-zinc-300 hover:text-stone-950 dark:hover:text-white transition-colors"
+            className="hidden sm:inline-flex p-2 rounded-lg border border-stone-300/60 dark:border-zinc-700/60 bg-stone-200/70 dark:bg-zinc-800/80 text-stone-700 dark:text-zinc-300 hover:text-stone-950 dark:hover:text-white transition-colors"
           >
             {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
           </button>
@@ -257,6 +257,55 @@ export const Navbar: React.FC = () => {
           id="mobile-nav-drawer"
           className="lg:hidden border-b border-stone-200 dark:border-zinc-800 bg-stone-50/98 dark:bg-zinc-950/98 px-5 py-5 shadow-xl max-h-[85vh] overflow-y-auto space-y-6"
         >
+          {/* Mobile Preferences: Language & Theme Switcher */}
+          <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 space-y-3">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-stone-500 dark:text-zinc-400 font-semibold block px-0.5">
+              {language === 'en' ? 'Quick Preferences' : 'Pengaturan Cepat'}
+            </span>
+            <div className="grid grid-cols-2 gap-2.5">
+              {/* Language Selector */}
+              <div className="flex items-center bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl border border-stone-200 dark:border-zinc-700">
+                <button
+                  onClick={() => setLanguage('en')}
+                  className={`flex-1 py-1.5 text-xs font-mono font-medium rounded-lg transition-all text-center ${
+                    language === 'en'
+                      ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
+                      : 'text-stone-500 dark:text-zinc-400'
+                  }`}
+                >
+                  English
+                </button>
+                <button
+                  onClick={() => setLanguage('id')}
+                  className={`flex-1 py-1.5 text-xs font-mono font-medium rounded-lg transition-all text-center ${
+                    language === 'id'
+                      ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
+                      : 'text-stone-500 dark:text-zinc-400'
+                  }`}
+                >
+                  Bahasa
+                </button>
+              </div>
+
+              {/* Theme Toggle Button */}
+              <button
+                onClick={toggleTheme}
+                className="flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 text-xs font-mono text-stone-800 dark:text-zinc-200 font-medium hover:bg-stone-200 dark:hover:bg-zinc-700 transition-colors"
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Sun size={14} className="text-amber-400" />
+                    <span>Mode Terang</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon size={14} className="text-stone-700" />
+                    <span>Mode Gelap</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
           {/* Knowledge & Community Section */}
           <div>
             <span className="text-[11px] font-mono uppercase tracking-wider text-rose-600 dark:text-rose-400 font-semibold block mb-2 px-1">
