@@ -6,6 +6,7 @@ import { articlesData, initialCommentsData } from '../data/articlesData';
 import { Article, ArticleComment } from '../types';
 import {
   fetchArticleBySlugFromFirestore,
+  fetchArticlesFromFirestore,
   fetchCommentsForArticle,
   addArticleCommentInFirestore,
   updateArticleStatusInFirestore,
@@ -102,6 +103,7 @@ export const ArticlePage: React.FC = () => {
   const [post, setPost] = useState<Article | null>(() => {
     return articlesData.find(a => a.slug === slug) || null;
   });
+  const [allArticles, setAllArticles] = useState<Article[]>([]);
   const [loadingArticle, setLoadingArticle] = useState(true);
 
   // Likes state backed by Firestore database (1 like per account)
@@ -139,15 +141,23 @@ export const ArticlePage: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       if (!slug) return;
+      setLoadingArticle(true);
       try {
-        const [firestorePost, firestoreComments, likeStats] = await Promise.all([
-          fetchArticleBySlugFromFirestore(slug),
+        const [firestorePost, firestoreComments, likeStats, articleList] = await Promise.all([
+          fetchArticleBySlugFromFirestore(slug, isAdmin, user?.uid),
           fetchCommentsForArticle(slug),
           fetchArticleLikeStats(slug, currentUserId),
+          fetchArticlesFromFirestore(isAdmin, user?.uid),
         ]);
 
         if (firestorePost) {
           setPost(firestorePost);
+        } else {
+          setPost(null);
+        }
+
+        if (articleList && articleList.length > 0) {
+          setAllArticles(articleList);
         }
 
         if (likeStats) {
@@ -166,7 +176,7 @@ export const ArticlePage: React.FC = () => {
       }
     };
     loadData();
-  }, [slug, currentUserId]);
+  }, [slug, currentUserId, isAdmin, user?.uid]);
 
   // Persist comments when updated
   useEffect(() => {
@@ -174,6 +184,36 @@ export const ArticlePage: React.FC = () => {
       localStorage.setItem(`article_comments_${slug}`, JSON.stringify(comments));
     }
   }, [comments, slug]);
+
+  const articleUrl = `https://vanviolet.my.id/articles/${slug || ''}`;
+
+  const aiLinks = useMemo(() => {
+    if (!post) return null;
+    return buildAiDiscussionLinks({
+      title: t(post.title),
+      summary: t(post.summary),
+      category: post.category,
+      language,
+      isVanpedia: false,
+      url: articleUrl,
+    });
+  }, [post, language, t, articleUrl]);
+
+  // Related articles
+  const relatedArticles = useMemo(() => {
+    if (!post) return [];
+    if (post.relatedArticleSlugs && post.relatedArticleSlugs.length > 0) {
+      return allArticles.filter(a => post.relatedArticleSlugs?.includes(a.slug) && a.slug !== post.slug);
+    }
+    return allArticles.filter(a => a.category === post.category && a.slug !== post.slug).slice(0, 2);
+  }, [post, allArticles]);
+
+  const handleCopyAiPrompt = () => {
+    if (!aiLinks) return;
+    navigator.clipboard.writeText(aiLinks.chatGptPrompt);
+    setAiCopied(true);
+    setTimeout(() => setAiCopied(false), 2500);
+  };
 
   const handleApproveArticle = async () => {
     if (!post) return;
@@ -312,6 +352,17 @@ export const ArticlePage: React.FC = () => {
 
   const quickEmojis = ['👍', '❤️', '🔥', '💡', '🚀', '👏', '🎉', '✨', '💯', '🤝', '🧠', '💻'];
 
+  if (loadingArticle && !post) {
+    return (
+      <section className="py-24 px-6 sm:px-8 max-w-4xl mx-auto min-h-screen flex flex-col items-center justify-center">
+        <div className="w-8 h-8 border-2 border-rose-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm font-mono text-stone-500 dark:text-zinc-400">
+          {language === 'en' ? 'Loading article details...' : 'Memuat artikel...'}
+        </p>
+      </section>
+    );
+  }
+
   if (!post) {
     return (
       <section className="py-24 px-6 sm:px-8 max-w-4xl mx-auto min-h-screen">
@@ -343,29 +394,6 @@ export const ArticlePage: React.FC = () => {
 
   // Raw markdown content and intelligent AI discussion prompts
   const rawMarkdown = t(post.content);
-  const articleUrl = `https://vanviolet.my.id/articles/${post.slug}`;
-  
-  const aiLinks = useMemo(() => {
-    return buildAiDiscussionLinks({
-      title: t(post.title),
-      summary: t(post.summary),
-      category: post.category,
-      language,
-      isVanpedia: false,
-      url: articleUrl,
-    });
-  }, [post, language, t, articleUrl]);
-
-  const handleCopyAiPrompt = () => {
-    navigator.clipboard.writeText(aiLinks.chatGptPrompt);
-    setAiCopied(true);
-    setTimeout(() => setAiCopied(false), 2500);
-  };
-
-  // Related articles
-  const relatedArticles = (post.relatedArticleSlugs || [])
-    .map(s => articlesData.find(a => a.slug === s))
-    .filter(Boolean) as typeof articlesData;
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
