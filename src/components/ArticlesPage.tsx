@@ -22,8 +22,14 @@ import {
   Clock3,
   UserCheck,
   Send,
+  Bot,
+  Sparkles,
 } from 'lucide-react';
 import { Seo } from './Seo';
+import { RichEditor } from './RichEditor';
+import { TemplateUploadZone } from './TemplateUploadZone';
+import { AiPromptModal } from './AiPromptModal';
+import { ParsedArticleFile } from '../utils/fileParser';
 
 /**
  * Articles listing page — shows all articles in a responsive grid with
@@ -43,6 +49,7 @@ export const ArticlesPage: React.FC = () => {
 
   // Submit Article Modal
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [newTitleId, setNewTitleId] = useState('');
   const [newTitleEn, setNewTitleEn] = useState('');
   const [newCategory, setNewCategory] = useState('Learning (AI)');
@@ -53,6 +60,14 @@ export const ArticlesPage: React.FC = () => {
   const [newContentEn, setNewContentEn] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
+
+  const handleArticleTemplateLoaded = (parsed: ParsedArticleFile) => {
+    if (parsed.title) setNewTitleId(parsed.title);
+    if (parsed.category) setNewCategory(parsed.category);
+    if (parsed.summary) setNewSummaryId(parsed.summary);
+    if (parsed.content) setNewContentId(parsed.content);
+    if (parsed.tags && parsed.tags.length > 0) setNewTags(parsed.tags.join(', '));
+  };
 
   // Load from Firestore
   const loadArticles = async () => {
@@ -498,6 +513,12 @@ export const ArticlesPage: React.FC = () => {
                 </button>
               </div>
 
+              <TemplateUploadZone
+                mode="article"
+                onArticleLoaded={handleArticleTemplateLoaded}
+                onOpenAiHelper={() => setIsAiModalOpen(true)}
+              />
+
               <form onSubmit={handleSubmitArticle} className="space-y-4 text-xs font-mono">
                 {/* Indonesian Title */}
                 <div>
@@ -577,23 +598,21 @@ export const ArticlesPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Content (Markdown) */}
+                {/* Content (Rich Markdown Editor) */}
                 <div>
                   <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
                     {language === 'en' ? 'Full Content (Markdown format) *' : 'Isi Lengkap Artikel (Format Markdown) *'}
                   </label>
-                  <p className="text-[10px] text-stone-400 dark:text-zinc-500 mb-1">
+                  <p className="text-[10px] text-stone-400 dark:text-zinc-500 mb-2">
                     {language === 'en'
-                      ? 'Tip: You can use [[slug]] to auto-link terms like [[tritone]] or [[backpropagation]] directly to Vanpedia!'
-                      : 'Tips: Anda bisa menggunakan [[slug]] untuk menghubungkan kata asing seperti [[tritone]] langsung ke Vanpedia!'}
+                      ? 'Rich Editor supports Headings, Code Blocks, Tables, Math, and [[slug]] for Vanpedia backlinks.'
+                      : 'Editor kaya mendukung Heading, Blok Kode, Tabel, Formula, serta [[slug]] untuk menghubungkan istilah ke Vanpedia.'}
                   </p>
-                  <textarea
-                    rows={8}
-                    required
+                  <RichEditor
                     value={newContentId}
-                    onChange={e => setNewContentId(e.target.value)}
+                    onChange={setNewContentId}
                     placeholder="Tulis artikel dengan heading (##), penjelasan, contoh kode, atau tautan istilah [[tritone]]..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 font-mono"
+                    height="380px"
                   />
                 </div>
 
@@ -625,6 +644,14 @@ export const ArticlesPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* AI ChatGPT Outline Prompt Modal */}
+        <AiPromptModal
+          isOpen={isAiModalOpen}
+          onClose={() => setIsAiModalOpen(false)}
+          mode="article"
+          defaultCategory={newCategory}
+        />
       </section>
     </>
   );

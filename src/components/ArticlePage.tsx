@@ -37,9 +37,9 @@ import {
 } from 'lucide-react';
 import { ArticleContent } from './ArticleContent';
 import { Seo } from './Seo';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import { marked } from 'marked';
+import { exportToPdf } from '../utils/pdfExport';
+import { buildAiDiscussionLinks } from '../utils/aiPrompts';
 
 export const ArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -48,6 +48,7 @@ export const ArticlePage: React.FC = () => {
   const { user, isAdmin, adminEmail, signInWithGoogle } = useAuth();
 
   const [copied, setCopied] = useState(false);
+  const [aiCopied, setAiCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -172,13 +173,26 @@ export const ArticlePage: React.FC = () => {
     );
   }
 
-  // Raw markdown content and external urls
+  // Raw markdown content and intelligent AI discussion prompts
   const rawMarkdown = (post.content[language] || post.content.en) as string;
   const articleUrl = `https://vanviolet.my.id/articles/${post.slug}`;
-  const chatGptUrl = `https://chatgpt.com/?q=${encodeURIComponent(rawMarkdown)}`;
-  const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(rawMarkdown)}`;
-  const v0Url = `https://v0.dev?q=${encodeURIComponent(rawMarkdown)}`;
-  const sciraUrl = `https://scira.ai/?q=${encodeURIComponent(rawMarkdown)}`;
+  
+  const aiLinks = useMemo(() => {
+    return buildAiDiscussionLinks({
+      title: t(post.title),
+      summary: t(post.summary),
+      category: post.category,
+      language,
+      isVanpedia: false,
+      url: articleUrl,
+    });
+  }, [post, language, t, articleUrl]);
+
+  const handleCopyAiPrompt = () => {
+    navigator.clipboard.writeText(aiLinks.chatGptPrompt);
+    setAiCopied(true);
+    setTimeout(() => setAiCopied(false), 2500);
+  };
 
   // Related articles
   const relatedArticles = (post.relatedArticleSlugs || [])
@@ -256,104 +270,21 @@ export const ArticlePage: React.FC = () => {
     setDownloading(true);
     try {
       const markdownContent = t(post.content);
-      const htmlContent = marked.parse(markdownContent, { gfm: true, breaks: true, async: false });
-
-      const printStyles = `
-        .article-pdf-root {
-          background: #ffffff;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          color: #1e293b;
-          line-height: 1.75;
-          font-size: 15px;
-          margin: 0;
-          padding: 40px;
-          box-sizing: border-box;
-        }
-        .article-pdf-root * { box-sizing: border-box; }
-        .article-title { font-size: 2em; font-weight: 700; color: #111827; margin: 0 0 1em 0; }
-        .article-summary { font-style: italic; color: #6b7280; border-left: 4px solid #dc2626; padding-left: 16px; margin: 0 0 2em 0; }
-        .article-meta { font-size: 0.85em; color: #9ca3af; margin-bottom: 2em; padding-bottom: 1em; border-bottom: 1px solid #e5e7eb; }
-        .article-meta span { margin-right: 1em; }
-        .article-meta .category { display: inline-block; padding: 2px 8px; background: #fecaca; color: #991b1b; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75em; }
-        .article-content h1 { font-size: 2em; margin: 1.5em 0 0.75em; color: #111827; }
-        .article-content h2 { font-size: 1.5em; margin: 1.5em 0 0.75em; color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.3em; }
-        .article-content h3 { font-size: 1.25em; margin: 1.5em 0 0.75em; color: #111827; }
-        .article-content p { margin: 0 0 1em 0; }
-        .article-content code { background: #f1f5f9; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
-        .article-content pre { background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 1.5em 0; font-family: monospace; font-size: 0.85em; line-height: 1.6; }
-        .article-content pre code { background: transparent; color: inherit; padding: 0; }
-        .article-content ul, .article-content ol { margin: 0 0 1.5em 0; padding-left: 2em; }
-        .article-content li { margin-bottom: 0.5em; }
-        .article-content blockquote { border-left: 4px solid #e2e8f0; margin: 1.5em 0; padding: 0.5em 0 0.5em 1.5em; color: #64748b; font-style: italic; }
-        .article-content table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.9em; }
-        .article-content th, .article-content td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
-        .article-content th { background: #f8fafc; font-weight: 600; }
-      `;
-
-      const container = document.createElement('div');
-      container.style.position = 'fixed';
-      container.style.top = '-99999px';
-      container.style.left = '-99999px';
-      container.style.width = '800px';
-      container.style.zIndex = '-9999';
-
-      const styleEl = document.createElement('style');
-      styleEl.textContent = printStyles;
-      container.appendChild(styleEl);
-
-      const root = document.createElement('div');
-      root.className = 'article-pdf-root';
-      root.innerHTML = `
-        <div class="article-meta">
-          <span class="category">${post.category}</span>
-          <span>${post.date}</span>
-          <span>${post.readTime}</span>
-          <span>Muchamad Irvan</span>
-        </div>
-        <h1 class="article-title">${t(post.title)}</h1>
-        <p class="article-summary">${t(post.summary)}</p>
-        <div class="article-content">${htmlContent}</div>
-      `;
-      container.appendChild(root);
-      document.body.appendChild(container);
-
-      const canvas = await html2canvas(root, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
+      const htmlContent = marked.parse(markdownContent, { gfm: true, breaks: true, async: false }) as string;
+      await exportToPdf({
+        title: t(post.title),
+        category: post.category,
+        date: post.date,
+        readTime: post.readTime,
+        authorName: post.author?.name || 'Muchamad Irvan',
+        summary: t(post.summary),
+        htmlContent,
+        filename: `${post.slug}.pdf`,
+        sourceUrl: articleUrl,
       });
-
-      document.body.removeChild(container);
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-      }
-
-      pdf.save(`${post.slug}.pdf`);
     } catch (error) {
       console.error('Failed to generate PDF:', error);
+      window.print();
     } finally {
       setDownloading(false);
     }
@@ -492,43 +423,50 @@ export const ArticlePage: React.FC = () => {
                       </button>
                       <button
                         onClick={() => {
-                          handleOpenIn(chatGptUrl);
+                          handleOpenIn(aiLinks.chatGptUrl);
                           setDropdownOpen(false);
                         }}
                         className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
                       >
                         <Bot size={13} />
-                        <span>Open in ChatGPT</span>
+                        <span>Diskusikan di ChatGPT</span>
                       </button>
                       <button
                         onClick={() => {
-                          handleOpenIn(claudeUrl);
+                          handleOpenIn(aiLinks.claudeUrl);
                           setDropdownOpen(false);
                         }}
                         className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
                       >
                         <Bot size={13} />
-                        <span>Open in Claude</span>
+                        <span>Diskusikan di Claude</span>
                       </button>
                       <button
                         onClick={() => {
-                          handleOpenIn(v0Url);
+                          handleOpenIn(aiLinks.v0Url);
                           setDropdownOpen(false);
                         }}
                         className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
                       >
                         <Code size={13} />
-                        <span>Open in V0</span>
+                        <span>Buat UI Prototype (V0)</span>
                       </button>
                       <button
                         onClick={() => {
-                          handleOpenIn(sciraUrl);
+                          handleOpenIn(aiLinks.sciraUrl);
                           setDropdownOpen(false);
                         }}
                         className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
                       >
                         <ExternalLink size={13} />
-                        <span>Open in Scira</span>
+                        <span>Riset Web di Scira</span>
+                      </button>
+                      <button
+                        onClick={handleCopyAiPrompt}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-left font-semibold"
+                      >
+                        {aiCopied ? <Check size={13} className="text-emerald-500" /> : <Bot size={13} />}
+                        <span>{aiCopied ? 'Prompt AI Tersalin!' : 'Salin Pertanyaan AI'}</span>
                       </button>
                       <div className="h-px bg-stone-200 dark:bg-zinc-800 my-1" />
                       <button

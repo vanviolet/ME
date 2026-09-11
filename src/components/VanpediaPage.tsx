@@ -30,8 +30,20 @@ import {
   Clock3,
   X,
   Send,
+  Download,
+  Bot,
+  Code,
+  ExternalLink,
+  Menu,
+  FileText,
 } from 'lucide-react';
 import { Seo } from './Seo';
+import { exportToPdf } from '../utils/pdfExport';
+import { buildAiDiscussionLinks } from '../utils/aiPrompts';
+import { RichEditor } from './RichEditor';
+import { TemplateUploadZone } from './TemplateUploadZone';
+import { AiPromptModal } from './AiPromptModal';
+import { ParsedVanpediaFile } from '../utils/fileParser';
 
 /**
  * Vanpedia term page — each term (e.g. /vanpedia/tritone) gets its own SEO-optimized page.
@@ -47,8 +59,54 @@ export const VanpediaPage: React.FC = () => {
   const [allTerms, setAllTerms] = useState<VanpediaTerm[]>(vanpediaTermsData);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [aiCopied, setAiCopied] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  const aiLinks = useMemo(() => {
+    if (!term) return null;
+    return buildAiDiscussionLinks({
+      title: t(term.title),
+      summary: t(term.definition),
+      category: term.category,
+      language,
+      isVanpedia: true,
+      url: window.location.href,
+    });
+  }, [term, language, t]);
+
+  const handleCopyAiPrompt = () => {
+    if (!aiLinks) return;
+    navigator.clipboard.writeText(aiLinks.chatGptPrompt);
+    setAiCopied(true);
+    setTimeout(() => setAiCopied(false), 2500);
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!term) return;
+    setDownloading(true);
+    try {
+      const htmlContent = marked.parse(t(term.content) || t(term.definition), { gfm: true, breaks: true, async: false }) as string;
+      await exportToPdf({
+        title: `${t(term.title)} - Vanpedia`,
+        category: term.category,
+        date: new Date().toLocaleDateString('en-CA'),
+        readTime: '3 min read',
+        authorName: 'Muchamad Irvan (Vanpedia)',
+        summary: t(term.definition),
+        htmlContent,
+        filename: `vanpedia-${term.slug}.pdf`,
+        sourceUrl: `https://vanviolet.my.id/vanpedia/${term.slug}`,
+      });
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      window.print();
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -211,13 +269,105 @@ export const VanpediaPage: React.FC = () => {
               </span>
             </div>
 
-            <button
-              onClick={handleShare}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              {copied ? <Check size={13} className="text-emerald-500" /> : <Share2 size={13} />}
-              <span>{copied ? (language === 'en' ? 'Copied Link' : 'Tersalin') : (language === 'en' ? 'Share' : 'Bagikan')}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleShare}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                {copied ? <Check size={13} className="text-emerald-500" /> : <Share2 size={13} />}
+                <span>{copied ? (language === 'en' ? 'Copied' : 'Tersalin') : (language === 'en' ? 'Share' : 'Bagikan')}</span>
+              </button>
+
+              <button
+                onClick={handleDownloadPdf}
+                disabled={downloading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                <Download size={13} />
+                <span>{downloading ? (language === 'en' ? 'Exporting...' : 'Mengunduh...') : 'PDF'}</span>
+              </button>
+
+              {/* AI & Export Options Dropdown */}
+              <div className="relative inline-block">
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="inline-flex items-center justify-center w-8 h-8 text-xs rounded-lg border border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+                  aria-label="AI and Export tools"
+                >
+                  <Menu size={14} />
+                </button>
+
+                {dropdownOpen && aiLinks && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+                    <div className="absolute right-0 z-20 mt-1 w-56 origin-top-right rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl py-1.5 text-xs font-mono">
+                      <a
+                        href={aiLinks.chatGptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
+                      >
+                        <Bot size={13} />
+                        <span>Diskusikan di ChatGPT</span>
+                      </a>
+                      <a
+                        href={aiLinks.claudeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
+                      >
+                        <Bot size={13} />
+                        <span>Diskusikan di Claude</span>
+                      </a>
+                      <a
+                        href={aiLinks.v0Url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
+                      >
+                        <Code size={13} />
+                        <span>Buat UI Prototype (V0)</span>
+                      </a>
+                      <a
+                        href={aiLinks.sciraUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
+                      >
+                        <ExternalLink size={13} />
+                        <span>Riset Web di Scira</span>
+                      </a>
+                      <button
+                        onClick={() => {
+                          handleCopyAiPrompt();
+                          setDropdownOpen(false);
+                        }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-left font-semibold"
+                      >
+                        {aiCopied ? <Check size={13} className="text-emerald-500" /> : <Bot size={13} />}
+                        <span>{aiCopied ? 'Prompt AI Tersalin!' : 'Salin Pertanyaan AI'}</span>
+                      </button>
+                      <div className="h-px bg-stone-200 dark:bg-zinc-800 my-1" />
+                      <button
+                        onClick={() => {
+                          handleDownloadPdf();
+                          setDropdownOpen(false);
+                        }}
+                        disabled={downloading}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left disabled:opacity-50"
+                      >
+                        <Download size={13} />
+                        <span>{language === 'en' ? 'Download PDF' : 'Unduh Dokumen PDF'}</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-stone-900 dark:text-zinc-100 mb-4">
@@ -363,6 +513,7 @@ export const VanpediaIndexPage: React.FC = () => {
 
   // New Term Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [newTitleId, setNewTitleId] = useState('');
   const [newTitleEn, setNewTitleEn] = useState('');
   const [newSlug, setNewSlug] = useState('');
@@ -373,6 +524,17 @@ export const VanpediaIndexPage: React.FC = () => {
   const [newFormula, setNewFormula] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  const handleVanpediaTemplateLoaded = (parsed: ParsedVanpediaFile) => {
+    if (parsed.title) setNewTitleId(parsed.title);
+    if (parsed.slug) setNewSlug(parsed.slug);
+    if (parsed.category) setNewCategory(parsed.category);
+    if (parsed.definition) setNewDefinitionId(parsed.definition);
+    if (parsed.formula) setNewFormula(parsed.formula);
+    if (parsed.examples && parsed.examples.length > 0) {
+      setNewExamples(parsed.examples.join('\n'));
+    }
+  };
 
   const loadTerms = async () => {
     try {
@@ -703,6 +865,12 @@ export const VanpediaIndexPage: React.FC = () => {
                 </button>
               </div>
 
+              <TemplateUploadZone
+                mode="vanpedia"
+                onVanpediaLoaded={handleVanpediaTemplateLoaded}
+                onOpenAiHelper={() => setIsAiModalOpen(true)}
+              />
+
               <form onSubmit={handleAddTermSubmit} className="space-y-4 text-xs font-mono">
                 <div>
                   <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
@@ -766,15 +934,18 @@ export const VanpediaIndexPage: React.FC = () => {
 
                 <div>
                   <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
-                    {language === 'en' ? 'Definition (Indonesian) *' : 'Definisi Lengkap (Bahasa Indonesia) *'}
+                    {language === 'en' ? 'Definition / Content (Rich Markdown) *' : 'Definisi & Konten (Rich Markdown) *'}
                   </label>
-                  <textarea
-                    rows={3}
-                    required
+                  <p className="text-[10px] text-stone-400 dark:text-zinc-500 mb-2">
+                    {language === 'en'
+                      ? 'Rich Editor supports headings, code, latex formulas, tables, and [[backlinks]].'
+                      : 'Editor kaya mendukung heading, blok kode, rumus matematika, tabel, dan [[backlinks]].'}
+                  </p>
+                  <RichEditor
                     value={newDefinitionId}
-                    onChange={e => setNewDefinitionId(e.target.value)}
-                    placeholder="Contoh: Interval 6 semitone dengan disonansi tinggi yang membagi oktaf tepat di tengah."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
+                    onChange={setNewDefinitionId}
+                    placeholder="Tulis definisi komprehensif, analogi teknis, atau rincian konsep..."
+                    height="280px"
                   />
                 </div>
 
@@ -826,6 +997,14 @@ export const VanpediaIndexPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* AI ChatGPT Outline Prompt Modal */}
+        <AiPromptModal
+          isOpen={isAiModalOpen}
+          onClose={() => setIsAiModalOpen(false)}
+          mode="vanpedia"
+          defaultCategory={newCategory}
+        />
       </section>
     </>
   );
