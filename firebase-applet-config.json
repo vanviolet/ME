@@ -1,12 +1,12 @@
 {
-  "projectId": "evident-ensign-ncjpc",
-  "appId": "1:566353092767:web:397ae6ac7114e7f43b42aa",
-  "apiKey": "AIzaSyB6_oHFfmR6uA79lJDBlQ0r_3g_EInml24",
-  "authDomain": "evident-ensign-ncjpc.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-muchamadirvansof-e1724a70-a200-4334-b84b-e37b5ec4db62",
-  "storageBucket": "evident-ensign-ncjpc.firebasestorage.app",
-  "messagingSenderId": "566353092767",
-  "measurementId": "",
-  "oAuthClientId": "566353092767-oa8rjeuo2p3oo12gme7nlmcb50q8li68.apps.googleusercontent.com",
+  "projectId": "vanviolet-115bb",
+  "appId": "1:581907669568:web:81185fdb7a6112478775a5",
+  "apiKey": "AIzaSyDAGT3r-B3aHMhvBe7g_hhwQCnRz96opAY",
+  "authDomain": "vanviolet-115bb.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "vanviolet-115bb.firebasestorage.app",
+  "messagingSenderId": "581907669568",
+  "measurementId": "G-QX59PP81PD",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }
