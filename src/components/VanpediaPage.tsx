@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
 import { vanpediaTermsData, articlesData } from '../data/articlesData';
@@ -9,6 +9,7 @@ import {
   fetchVanpediaTermBySlugFromFirestore,
   createVanpediaTermInFirestore,
   updateVanpediaStatusInFirestore,
+  deleteVanpediaTermInFirestore,
 } from '../services/firestoreService';
 import { VanpediaTerm } from '../types';
 import {
@@ -37,6 +38,8 @@ import {
   Menu,
   FileText,
   Flag,
+  Trash2,
+  User,
 } from 'lucide-react';
 import { Seo } from './Seo';
 import { exportToPdf } from '../utils/pdfExport';
@@ -52,6 +55,7 @@ import { ReportModal } from './ReportModal';
  */
 export const VanpediaPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { language, t, tArr } = usePortfolio();
   const { user, isAdmin, adminEmail } = useAuth();
 
@@ -161,6 +165,25 @@ export const VanpediaPage: React.FC = () => {
     }
   };
 
+  const handleDeleteTerm = async () => {
+    if (!term) return;
+    const confirmText = language === 'en'
+      ? `Are you sure you want to delete term "${t(term.title)}"? This action cannot be undone.`
+      : `Apakah Anda yakin ingin menghapus istilah "${t(term.title)}"? Tindakan ini tidak dapat dibatalkan.`;
+    if (!confirm(confirmText)) return;
+
+    setActionLoading(true);
+    try {
+      await deleteVanpediaTermInFirestore(term.id);
+      alert(language === 'en' ? 'Term deleted.' : 'Istilah telah dihapus.');
+      navigate('/vanpedia');
+    } catch (err: any) {
+      alert('Error deleting term: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (!term && !loading) {
     return (
       <section className="py-24 px-6 sm:px-8 max-w-4xl mx-auto min-h-screen">
@@ -264,18 +287,29 @@ export const VanpediaPage: React.FC = () => {
         {/* Term Header Banner */}
         <header className="mb-10 border-b border-stone-200 dark:border-zinc-800 pb-8">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold uppercase text-[10px] tracking-wider border border-rose-500/20">
                 {term.category}
               </span>
               <span className="text-stone-400 dark:text-zinc-600">•</span>
-              <span className="text-xs font-mono text-stone-500 dark:text-zinc-400 flex items-center gap-1">
-                <Compass size={13} />
-                <span>Vanpedia Knowledge Entry</span>
+              <span className="text-xs font-mono text-stone-600 dark:text-zinc-300 font-semibold flex items-center gap-1">
+                <User size={13} className="text-rose-600 dark:text-rose-400" />
+                <span>{term.authorName || term.authorEmail?.split('@')[0] || 'Contributor'}</span>
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {(isAdmin || (user?.uid && user.uid === term.authorId)) && (
+                <button
+                  onClick={handleDeleteTerm}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/40 bg-red-50/50 dark:bg-red-950/30 text-xs font-mono font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                  title={language === 'en' ? 'Delete term' : 'Hapus istilah'}
+                >
+                  <Trash2 size={13} />
+                  <span>{language === 'en' ? 'Delete' : 'Hapus'}</span>
+                </button>
+              )}
               <button
                 onClick={handleShare}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
@@ -568,6 +602,7 @@ export const VanpediaPage: React.FC = () => {
  * and user contribution modal with automated email notification to vanviolet.js@gmail.com.
  */
 export const VanpediaIndexPage: React.FC = () => {
+  const navigate = useNavigate();
   const { language, t } = usePortfolio();
   const { user, isAdmin, adminEmail, signInWithGoogle } = useAuth();
 
@@ -660,7 +695,7 @@ export const VanpediaIndexPage: React.FC = () => {
       }
       return;
     }
-    setIsModalOpen(true);
+    navigate('/vanpedia/create');
   };
 
   const handleAddTermSubmit = async (e: React.FormEvent) => {

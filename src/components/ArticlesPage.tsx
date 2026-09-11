@@ -151,8 +151,7 @@ export const ArticlesPage: React.FC = () => {
       }
       return;
     }
-    setNewAuthorName(user.email || user.displayName || '');
-    setIsSubmitModalOpen(true);
+    navigate('/articles/create');
   };
 
   const handleSubmitArticle = async (e: React.FormEvent) => {
@@ -475,6 +474,15 @@ export const ArticlesPage: React.FC = () => {
                       <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold uppercase text-[10px] tracking-wider border border-rose-500/20 shrink-0">
                         {post.category}
                       </span>
+                      {post.visibility === 'private' ? (
+                        <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">
+                          🔒 Privat
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold">
+                          🌐 Publik
+                        </span>
+                      )}
                       {post.isAiAssisted && (
                         <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] border border-blue-500/20 flex items-center gap-1">
                           <Bot size={11} />
@@ -482,15 +490,14 @@ export const ArticlesPage: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2.5 text-xs text-stone-500 dark:text-zinc-400">
-                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                        <Calendar size={13} className="text-stone-400 dark:text-zinc-500" />
-                        <span>{post.date}</span>
+                    <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-400 flex-wrap">
+                      <span className="font-semibold text-stone-700 dark:text-zinc-300">
+                        {post.author?.name || post.authorEmail?.split('@')[0] || 'Contributor'}
                       </span>
                       <span className="text-stone-300 dark:text-zinc-700">•</span>
-                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                        <Clock size={13} className="text-stone-400 dark:text-zinc-500" />
-                        <span>{post.readTime}</span>
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                        <Calendar size={13} className="text-stone-400 dark:text-zinc-500" />
+                        <span>{post.date}</span>
                       </span>
                     </div>
                   </div>

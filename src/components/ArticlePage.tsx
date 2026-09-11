@@ -10,6 +10,7 @@ import {
   fetchCommentsForArticle,
   addArticleCommentInFirestore,
   updateArticleStatusInFirestore,
+  deleteArticleInFirestore,
   fetchArticleLikeStats,
   toggleArticleLikeInFirestore,
   toggleCommentLikeInFirestore,
@@ -43,6 +44,10 @@ import {
   Sparkles,
   Reply,
   Smile,
+  Edit3,
+  Trash2,
+  Globe,
+  Lock,
 } from 'lucide-react';
 import { ArticleContent } from './ArticleContent';
 import { Seo } from './Seo';
@@ -408,6 +413,25 @@ export const ArticlePage: React.FC = () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  const handleDeleteArticle = async () => {
+    if (!post) return;
+    const confirmText = language === 'en'
+      ? `Are you sure you want to delete "${t(post.title)}"? This action cannot be undone.`
+      : `Apakah Anda yakin ingin menghapus artikel "${t(post.title)}"? Tindakan ini tidak dapat dibatalkan.`;
+    if (!confirm(confirmText)) return;
+
+    setActionLoading(true);
+    try {
+      await deleteArticleInFirestore(post.id);
+      alert(language === 'en' ? 'Article deleted.' : 'Artikel telah dihapus.');
+      navigate('/articles');
+    } catch (err: any) {
+      alert('Error deleting article: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleOpenIn = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -512,10 +536,31 @@ export const ArticlePage: React.FC = () => {
               <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold uppercase text-[10px] tracking-wider border border-rose-500/20">
                 {post.category}
               </span>
+
+              {post.visibility === 'private' ? (
+                <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-[10px] font-semibold flex items-center gap-1">
+                  <Lock size={11} /> 🔒 Privat
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold flex items-center gap-1">
+                  <Globe size={11} /> 🌐 Publik
+                </span>
+              )}
+
+              <span className="text-stone-400 dark:text-zinc-600">•</span>
+              <span className="flex items-center gap-1 text-stone-600 dark:text-zinc-300 font-semibold">
+                <User size={13} className="text-rose-600 dark:text-rose-400" />
+                <span>{post.author?.name || post.authorEmail?.split('@')[0] || 'Contributor'}</span>
+              </span>
               <span className="text-stone-400 dark:text-zinc-600">•</span>
               <span className="flex items-center gap-1.5 text-stone-500 dark:text-zinc-400">
                 <Calendar size={13} />
                 <span>{post.date}</span>
+                {post.updatedAt && (
+                  <span className="text-[10px] text-stone-400 dark:text-zinc-500">
+                    ({language === 'en' ? 'Updated: ' : 'Diperbarui: '}{new Date(post.updatedAt).toLocaleDateString()})
+                  </span>
+                )}
               </span>
               <span className="text-stone-400 dark:text-zinc-600">•</span>
               <span className="flex items-center gap-1.5 text-stone-500 dark:text-zinc-400">
@@ -524,8 +569,29 @@ export const ArticlePage: React.FC = () => {
               </span>
             </div>
 
-            {/* Quick Action Tools */}
+            {/* Quick Action Tools & Admin / Author Controls */}
             <div className="flex flex-wrap items-center gap-2">
+              {(isAdmin || (user?.uid && user.uid === post.authorId)) && (
+                <>
+                  <Link
+                    to={`/articles/edit/${post.slug}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded-lg border border-rose-500/40 bg-rose-50/50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors font-semibold"
+                  >
+                    <Edit3 size={13} />
+                    <span>{language === 'en' ? 'Edit' : 'Edit'}</span>
+                  </Link>
+
+                  <button
+                    onClick={handleDeleteArticle}
+                    disabled={actionLoading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded-lg border border-red-500/40 bg-red-50/50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors font-semibold"
+                    title={language === 'en' ? 'Delete article' : 'Hapus artikel'}
+                  >
+                    <Trash2 size={13} />
+                    <span>{language === 'en' ? 'Delete' : 'Hapus'}</span>
+                  </button>
+                </>
+              )}
               {/* Reading Font & Size Controls */}
               <div className="hidden sm:flex items-center rounded-lg border border-stone-200 dark:border-zinc-800 p-0.5 bg-stone-100/60 dark:bg-zinc-800/60 text-xs font-mono">
                 <button

@@ -6,6 +6,7 @@ import {
   setDoc,
   addDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -75,8 +76,15 @@ export async function fetchArticlesFromFirestore(isAdmin = false, authorId?: str
       return firestoreArticles;
     }
 
-    // Public view: only approved or user's own pending submissions
-    return firestoreArticles.filter(a => a.status === 'approved' || (authorId && a.authorId === authorId));
+    // Filter view:
+    // If visibility is private: only show if authorId === currentUserId or isAdmin
+    // If status is pending: only show if authorId === currentUserId or isAdmin
+    return firestoreArticles.filter(a => {
+      const isOwner = Boolean(authorId && a.authorId === authorId);
+      if (isOwner) return true;
+      if (a.visibility === 'private') return false;
+      return a.status === 'approved';
+    });
   } catch (error) {
     console.warn('Firestore fetchArticles error:', error);
     return [];
@@ -92,7 +100,14 @@ export async function fetchArticleBySlug(slug: string, isAdmin = false, authorId
     if (!snap.empty) {
       const docData = snap.docs[0].data();
       const article = { id: snap.docs[0].id, ...docData } as Article;
-      if (article.status === 'approved' || isAdmin || (authorId && article.authorId === authorId)) {
+      const isOwner = Boolean(authorId && article.authorId === authorId);
+      if (isAdmin || isOwner) {
+        return article;
+      }
+      if (article.visibility === 'private') {
+        return null;
+      }
+      if (article.status === 'approved') {
         return article;
       }
       return null;
@@ -155,6 +170,7 @@ export async function createArticleInFirestore(
     tags: Array.isArray(articleData.tags) && articleData.tags.length ? articleData.tags : ['Engineering'],
     readTime: articleData.readTime || '5 min read',
     date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    visibility: articleData.visibility || 'public',
     isAiAssisted: Boolean(articleData.isAiAssisted ?? (articleData.aiModel ? true : false)),
     aiModel: articleData.aiModel || (articleData.isAiAssisted ? 'ChatGPT (GPT-4o)' : undefined),
     aiPromptUsed: articleData.aiPromptUsed,
@@ -198,6 +214,28 @@ export async function createArticleInFirestore(
   }
 
   return created;
+}
+
+export async function updateArticleInFirestore(
+  articleId: string,
+  updatedData: Partial<Article>
+): Promise<void> {
+  const docRef = doc(db, ARTICLES_COLLECTION, articleId);
+  const now = new Date().toISOString();
+  await updateDoc(docRef, cleanUndefined({
+    ...updatedData,
+    updatedAt: now,
+  }));
+}
+
+export async function deleteArticleInFirestore(articleId: string): Promise<void> {
+  const docRef = doc(db, ARTICLES_COLLECTION, articleId);
+  await deleteDoc(docRef);
+}
+
+export async function deleteVanpediaTermInFirestore(termId: string): Promise<void> {
+  const docRef = doc(db, VANPEDIA_COLLECTION, termId);
+  await deleteDoc(docRef);
 }
 
 export async function updateArticleStatusInFirestore(

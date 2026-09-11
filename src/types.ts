@@ -106,6 +106,9 @@ export interface Article {
   vanpediaTerms?: string[]; // slugs referenced in content via [[slug]]
   vanpediaSlugs?: string[]; // alias for vanpediaTerms
   relatedArticleSlugs?: string[]; // relational slugs to other articles
+  visibility?: 'public' | 'private';
+  createdAt?: string;
+  updatedAt?: string;
   views?: number;
   likes?: number;
   likedBy?: string[];
@@ -133,6 +136,7 @@ export interface VanpediaTerm {
   authorId?: string;
   verifiedAt?: string;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ContentReport {

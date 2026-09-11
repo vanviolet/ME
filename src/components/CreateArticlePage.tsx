@@ -1,0 +1,440 @@
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { usePortfolio } from '../context/PortfolioContext';
+import { useAuth } from '../context/AuthContext';
+import { createArticleInFirestore } from '../services/firestoreService';
+import { ArrowLeft, Send, Sparkles, Globe, Lock, User, FileText, CheckCircle2 } from 'lucide-react';
+import { Seo } from './Seo';
+import { RichEditor } from './RichEditor';
+import { TemplateUploadZone } from './TemplateUploadZone';
+import { AiPromptModal } from './AiPromptModal';
+import { ParsedArticleFile } from '../utils/fileParser';
+
+export const CreateArticlePage: React.FC = () => {
+  const navigate = useNavigate();
+  const { language, t } = usePortfolio();
+  const { user, isAdmin, adminEmail, signInWithGoogle } = useAuth();
+
+  const [titleId, setTitleId] = useState('');
+  const [titleEn, setTitleEn] = useState('');
+  const [slugInput, setSlugInput] = useState('');
+  const [category, setCategory] = useState('Learning (AI)');
+  const [tags, setTags] = useState('AI, Software Engineering');
+  const [summaryId, setSummaryId] = useState('');
+  const [summaryEn, setSummaryEn] = useState('');
+  const [contentId, setContentId] = useState('');
+  const [contentEn, setContentEn] = useState('');
+  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
+
+  const [isAiAssisted, setIsAiAssisted] = useState(false);
+  const [aiModel, setAiModel] = useState('ChatGPT (GPT-4o)');
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const handleTemplateLoaded = (parsed: ParsedArticleFile) => {
+    if (parsed.title) setTitleId(parsed.title);
+    if (parsed.category) setCategory(parsed.category);
+    if (parsed.summary) setSummaryId(parsed.summary);
+    if (parsed.content) setContentId(parsed.content);
+    if (parsed.tags && parsed.tags.length > 0) setTags(parsed.tags.join(', '));
+    if (parsed.isAiAssisted !== undefined) setIsAiAssisted(parsed.isAiAssisted);
+    if (parsed.aiModel) {
+      setIsAiAssisted(true);
+      setAiModel(parsed.aiModel);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      if (confirm(language === 'en' ? 'Please sign in with Google to publish an article.' : 'Silakan masuk dengan Google untuk mempublikasikan artikel.')) {
+        signInWithGoogle();
+      }
+      return;
+    }
+
+    if (!titleId.trim()) {
+      alert(language === 'en' ? 'Please enter a title.' : 'Mohon masukkan judul artikel.');
+      return;
+    }
+    if (!contentId.trim()) {
+      alert(language === 'en' ? 'Please enter article content.' : 'Mohon isi konten artikel.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const parsedTags = tags
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      const generatedSlug = (slugInput.trim() || titleEn.trim() || titleId.trim())
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '');
+
+      const isSubmittingAdmin = user.email === adminEmail;
+      const authorName = user.displayName || user.email?.split('@')[0] || 'Contributor';
+
+      const created = await createArticleInFirestore(
+        {
+          slug: generatedSlug,
+          titleId: titleId.trim(),
+          titleEn: titleEn.trim() || titleId.trim(),
+          summaryId: summaryId.trim(),
+          summaryEn: summaryEn.trim() || summaryId.trim(),
+          contentId: contentId.trim(),
+          contentEn: contentEn.trim() || contentId.trim(),
+          category,
+          tags: parsedTags.length > 0 ? parsedTags : ['Engineering'],
+          visibility,
+          isAiAssisted,
+          aiModel: isAiAssisted ? aiModel : undefined,
+          authorName,
+          authorEmail: user.email || undefined,
+        },
+        user,
+        user.uid,
+        isSubmittingAdmin
+      );
+
+      setFeedback(
+        isSubmittingAdmin
+          ? (language === 'en' ? 'Article published successfully!' : 'Artikel berhasil dipublikasikan!')
+          : (language === 'en' ? 'Article submitted! Awaiting approval.' : 'Artikel berhasil diajukan! Menunggu persetujuan admin.')
+      );
+
+      setTimeout(() => {
+        navigate('/articles');
+      }, 1500);
+    } catch (err: any) {
+      alert('Error saving article: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <section className="py-24 px-6 sm:px-8 max-w-3xl mx-auto min-h-screen text-center flex flex-col items-center justify-center">
+        <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-6">
+          <User className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold font-serif text-stone-900 dark:text-zinc-100 mb-3">
+          {language === 'en' ? 'Authentication Required' : 'Autentikasi Diperlukan'}
+        </h1>
+        <p className="text-stone-600 dark:text-zinc-400 mb-8 max-w-md text-sm leading-relaxed">
+          {language === 'en'
+            ? 'You need to sign in with your Google account to create and publish articles.'
+            : 'Anda perlu masuk dengan akun Google untuk membuat dan mempublikasikan artikel.'}
+        </p>
+        <button
+          onClick={signInWithGoogle}
+          className="px-6 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-rose-600/20"
+        >
+          <User className="w-4 h-4" />
+          <span>{language === 'en' ? 'Sign In with Google' : 'Masuk dengan Google'}</span>
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto min-h-screen">
+      <Seo
+        title={language === 'en' ? 'Create Article | Muchamad Irvan' : 'Tulis Artikel | Muchamad Irvan'}
+        description="Create and publish a technical article or research note."
+      />
+
+      {/* Header & Back Link */}
+      <div className="mb-8 flex items-center justify-between">
+        <Link
+          to="/articles"
+          className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-stone-600 hover:text-rose-600 dark:text-zinc-400 dark:hover:text-rose-400 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>{language === 'en' ? 'Back to Articles' : 'Kembali ke Artikel'}</span>
+        </Link>
+        <button
+          onClick={() => setIsAiModalOpen(true)}
+          className="px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-zinc-800 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>{language === 'en' ? 'AI Prompt Helper' : 'Bantuan Prompt AI'}</span>
+        </button>
+      </div>
+
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-xl overflow-hidden p-6 sm:p-8">
+        <div className="border-b border-stone-100 dark:border-zinc-800 pb-6 mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold font-serif text-stone-900 dark:text-zinc-100 flex items-center gap-3">
+            <FileText className="w-7 h-7 text-rose-600 dark:text-rose-500 shrink-0" />
+            <span>{language === 'en' ? 'Create New Article' : 'Buat Artikel Baru'}</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 mt-1">
+            {language === 'en'
+              ? 'Share your research, code walkthroughs, or architectural insights.'
+              : 'Bagikan riset, panduan kode, atau wawasan arsitektur Anda.'}
+          </p>
+        </div>
+
+        {feedback && (
+          <div className="mb-6 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-sm flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{feedback}</span>
+          </div>
+        )}
+
+        {/* File Template Upload Dropzone */}
+        <div className="mb-8">
+          <TemplateUploadZone onArticleLoaded={handleTemplateLoaded} type="article" />
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Automatic Author Badge (No manual input field needed!) */}
+          <div className="p-4 rounded-xl bg-stone-50 dark:bg-zinc-800/60 border border-stone-200 dark:border-zinc-700/60 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-bold flex items-center justify-center text-sm">
+                {(user.displayName || user.email || 'A')[0].toUpperCase()}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-stone-400 dark:text-zinc-400 uppercase tracking-wider">
+                  {language === 'en' ? 'Author (Auto-Assigned)' : 'Penulis (Otomatis)'}
+                </p>
+                <p className="text-sm font-bold text-stone-900 dark:text-zinc-100">
+                  {user.displayName || user.email?.split('@')[0]}
+                  {isAdmin && (
+                    <span className="ml-2 text-[10px] bg-rose-500 text-white font-mono px-2 py-0.5 rounded-full">
+                      ADMIN
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-mono text-stone-500 dark:text-zinc-400">{user.email}</span>
+          </div>
+
+          {/* Visibility Toggle */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-zinc-400 mb-2">
+              {language === 'en' ? 'Visibility Setting' : 'Pengaturan Visibilitas'}
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setVisibility('public')}
+                className={`p-4 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                  visibility === 'public'
+                    ? 'border-rose-600 bg-rose-50/50 dark:bg-rose-950/20 text-rose-900 dark:text-rose-200 ring-2 ring-rose-600/20'
+                    : 'border-stone-200 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700 text-stone-700 dark:text-zinc-300'
+                }`}
+              >
+                <Globe className={`w-5 h-5 shrink-0 mt-0.5 ${visibility === 'public' ? 'text-rose-600 dark:text-rose-400' : 'text-stone-400'}`} />
+                <div>
+                  <div className="font-bold text-sm flex items-center gap-2">
+                    <span>{language === 'en' ? 'Public Article' : 'Artikel Publik'}</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                      🌐 Public
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-500 dark:text-zinc-400 mt-1">
+                    {language === 'en'
+                      ? 'Visible to everyone on the web (including guests who are not logged in).'
+                      : 'Dapat dilihat oleh semua pengguna di internet (termasuk yang tidak login).'}
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setVisibility('private')}
+                className={`p-4 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                  visibility === 'private'
+                    ? 'border-amber-600 bg-amber-50/50 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200 ring-2 ring-amber-600/20'
+                    : 'border-stone-200 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700 text-stone-700 dark:text-zinc-300'
+                }`}
+              >
+                <Lock className={`w-5 h-5 shrink-0 mt-0.5 ${visibility === 'private' ? 'text-amber-600 dark:text-amber-400' : 'text-stone-400'}`} />
+                <div>
+                  <div className="font-bold text-sm flex items-center gap-2">
+                    <span>{language === 'en' ? 'Private Article' : 'Artikel Privat'}</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+                      🔒 Private
+                    </span>
+                  </div>
+                  <p className="text-xs text-stone-500 dark:text-zinc-400 mt-1">
+                    {language === 'en'
+                      ? 'Only visible to you (and Administrator). Hidden from public feeds.'
+                      : 'Hanya dapat dilihat oleh Anda (dan Administrator). Tersembunyi dari publik.'}
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Title Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-zinc-400 mb-1">
+                {language === 'en' ? 'Title (Indonesian)' : 'Judul Artikel (Bahasa Indonesia)'} *
+              </label>
+              <input
+                type="text"
+                value={titleId}
+                onChange={e => setTitleId(e.target.value)}
+                placeholder="misal: Memahami Algoritma Pencarian Vektor"
+                required
+                className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-zinc-400 mb-1">
+                {language === 'en' ? 'Title (English - Optional)' : 'Judul Artikel (Bahasa Inggris)'}
+              </label>
+              <input
+                type="text"
+                value={titleEn}
+                onChange={e => setTitleEn(e.target.value)}
+                placeholder="e.g. Understanding Vector Search Algorithms"
+                className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+              />
+            </div>
+          </div>
+
+          {/* Category & Custom Slug */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-zinc-400 mb-1">
+                {language === 'en' ? 'Category' : 'Kategori'}
+              </label>
+              <select
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+              >
+                <option value="Learning (AI)">Learning (AI)</option>
+                <option value="Software Engineering">Software Engineering</option>
+                <option value="System Architecture">System Architecture</option>
+                <option value="Database Systems">Database Systems</option>
+                <option value="Security & Auth">Security & Auth</option>
+                <option value="Music Theory">Music Theory</option>
+                <option value="General">General</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-zinc-400 mb-1">
+                {language === 'en' ? 'Custom Slug (URL)' : 'Slug URL Kustom (Opsional)'}
+              </label>
+              <input
+                type="text"
+                value={slugInput}
+                onChange={e => setSlugInput(e.target.value)}
+                placeholder="misal: memahami-algoritma-vektor"
+                className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-zinc-400 mb-1">
+              {language === 'en' ? 'Tags (comma separated)' : 'Tag (pisahkan dengan koma)'}
+            </label>
+            <input
+              type="text"
+              value={tags}
+              onChange={e => setTags(e.target.value)}
+              placeholder="AI, Vector, Algorithm, Firestore"
+              className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+            />
+          </div>
+
+          {/* Summary */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-zinc-400 mb-1">
+              {language === 'en' ? 'Summary / Excerpt' : 'Ringkasan Artikel'}
+            </label>
+            <textarea
+              value={summaryId}
+              onChange={e => setSummaryId(e.target.value)}
+              rows={2}
+              placeholder="Penjelasan singkat mengenai artikel..."
+              className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+            />
+          </div>
+
+          {/* Article Content with RichEditor */}
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-zinc-400 mb-1">
+              {language === 'en' ? 'Article Content (Markdown & Latex supported)' : 'Isi Artikel (Mendukung Markdown & LaTeX)'} *
+            </label>
+            <RichEditor
+              value={contentId}
+              onChange={setContentId}
+              placeholder="Tulis artikel lengkap di sini... Anda bisa menggunakan format Markdown seperti # Judul, **teks tebal**, $$rumus matematika$$, atau [[slug-vanpedia]]..."
+              minHeight="350px"
+            />
+          </div>
+
+          {/* AI Assistance Toggle */}
+          <div className="p-4 rounded-xl bg-stone-50 dark:bg-zinc-800/40 border border-stone-200 dark:border-zinc-700/50 space-y-3">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="aiAssistedCheck"
+                checked={isAiAssisted}
+                onChange={e => setIsAiAssisted(e.target.checked)}
+                className="w-4 h-4 text-rose-600 rounded border-stone-300 dark:border-zinc-700 focus:ring-rose-500"
+              />
+              <label htmlFor="aiAssistedCheck" className="text-sm font-semibold text-stone-900 dark:text-zinc-100 cursor-pointer flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>{language === 'en' ? 'Written / Researched with AI Assistance' : 'Ditulis / Diriset dengan Bantuan AI'}</span>
+              </label>
+            </div>
+
+            {isAiAssisted && (
+              <div className="pl-7">
+                <label className="block text-xs font-semibold text-stone-500 dark:text-zinc-400 mb-1">
+                  {language === 'en' ? 'AI Model Used' : 'Model AI yang Digunakan'}
+                </label>
+                <input
+                  type="text"
+                  value={aiModel}
+                  onChange={e => setAiModel(e.target.value)}
+                  placeholder="misal: Gemini 3.7 Flash, ChatGPT (GPT-4o), Claude 3.7 Sonnet"
+                  className="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Submit Buttons */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100 dark:border-zinc-800">
+            <Link
+              to="/articles"
+              className="px-5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:bg-stone-50 dark:hover:bg-zinc-800 text-sm font-semibold transition-colors"
+            >
+              {language === 'en' ? 'Cancel' : 'Batal'}
+            </Link>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-rose-600/20"
+            >
+              <Send className="w-4 h-4" />
+              <span>
+                {submitting
+                  ? (language === 'en' ? 'Publishing...' : 'Menerbitkan...')
+                  : (language === 'en' ? 'Publish Article' : 'Terbitkan Artikel')}
+              </span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <AiPromptModal isOpen={isAiModalOpen} onClose={() => setIsAiModalOpen(false)} />
+    </section>
+  );
+};

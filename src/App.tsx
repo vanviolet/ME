@@ -16,7 +16,10 @@ import { Contact } from './components/Contact';
 import { Footer } from './components/Footer';
 import { ArticlesPage } from './components/ArticlesPage';
 import { ArticlePage } from './components/ArticlePage';
+import { CreateArticlePage } from './components/CreateArticlePage';
+import { EditArticlePage } from './components/EditArticlePage';
 import { VanpediaPage, VanpediaIndexPage } from './components/VanpediaPage';
+import { CreateVanpediaPage } from './components/CreateVanpediaPage';
 import { IssuesPage } from './components/IssuesPage';
 import { AdminVerificationPage } from './components/AdminVerificationPage';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
@@ -70,9 +73,13 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/articles" element={<ArticlesPage />} />
               <Route path="/article" element={<ArticlesPage />} />
+              <Route path="/articles/create" element={<CreateArticlePage />} />
+              <Route path="/articles/edit/:slug" element={<EditArticlePage />} />
+              <Route path="/articles/:slug/edit" element={<EditArticlePage />} />
               <Route path="/articles/:slug" element={<ArticlePage />} />
               <Route path="/article/:slug" element={<ArticlePage />} />
               <Route path="/vanpedia" element={<VanpediaIndexPage />} />
+              <Route path="/vanpedia/create" element={<CreateVanpediaPage />} />
               <Route path="/vanpedia/:slug" element={<VanpediaPage />} />
               <Route path="/issues" element={<IssuesPage />} />
               <Route path="/issues/:id" element={<IssuesPage />} />
