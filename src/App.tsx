@@ -16,6 +16,7 @@ import { Footer } from './components/Footer';
 import { ArticlesPage } from './components/ArticlesPage';
 import { ArticlePage } from './components/ArticlePage';
 import { VanpediaPage, VanpediaIndexPage } from './components/VanpediaPage';
+import { IssuesPage } from './components/IssuesPage';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import React from 'react';
@@ -68,6 +69,7 @@ export default function App() {
             <Route path="/articles/:slug" element={<ArticlePage />} />
             <Route path="/vanpedia" element={<VanpediaIndexPage />} />
             <Route path="/vanpedia/:slug" element={<VanpediaPage />} />
+            <Route path="/issues" element={<IssuesPage />} />
             {/* Fallback */}
             <Route path="*" element={<HomePage />} />
           </Routes>

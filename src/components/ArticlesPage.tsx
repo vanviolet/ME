@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { articlesData } from '../data/articlesData';
-import { ArrowUpRight, Calendar, Clock, BookOpen, Search, Filter, Tag, X } from 'lucide-react';
+import { ArrowUpRight, Calendar, Clock, BookOpen, Search, Filter, Tag, X, Compass, MessageSquare, Sparkles } from 'lucide-react';
 import { Seo } from './Seo';
 
 /**
@@ -77,6 +77,25 @@ export const ArticlesPage: React.FC = () => {
               ? 'Reflections on system design, Web Audio math, biometric security, and scaling university infrastructure.'
               : 'Tulisan teknis mengenai arsitektur sistem, Web Audio API, keamanan biometrik, dan skalabilitas kampus.'}
           </p>
+
+          {/* Vanpedia Cross-Link Banner */}
+          <div className="mt-6 p-4 rounded-2xl border border-rose-500/20 bg-rose-50/50 dark:bg-rose-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Compass size={18} className="text-rose-500 shrink-0" />
+              <p className="text-xs sm:text-sm text-stone-700 dark:text-zinc-300">
+                {language === 'en'
+                  ? 'Encounter unfamiliar technical terms like Tritone, Backpropagation, or Sub-40ms Concurrency? Explore our glossary.'
+                  : 'Menemukan istilah seperti Tritone, Backpropagation, atau Konkurensi Sub-40ms? Temukan definisinya di kamus.'}
+              </p>
+            </div>
+            <Link
+              to="/vanpedia"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-mono font-semibold hover:bg-rose-50 dark:hover:bg-zinc-800 transition-colors shrink-0 shadow-xs"
+            >
+              <span>{language === 'en' ? 'Explore Vanpedia' : 'Buka Vanpedia'}</span>
+              <ArrowUpRight size={13} />
+            </Link>
+          </div>
         </div>
 
         {/* Search & Filters */}
@@ -216,6 +235,11 @@ export const ArticlesPage: React.FC = () => {
                     <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                       <Clock size={13} className="text-stone-400 dark:text-zinc-500" />
                       <span>{post.readTime}</span>
+                    </span>
+                    <span className="text-stone-300 dark:text-zinc-700">•</span>
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                      <MessageSquare size={13} className="text-stone-400 dark:text-zinc-500" />
+                      <span>{post.commentsCount || 0}</span>
                     </span>
                   </div>
                 </div>

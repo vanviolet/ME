@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
-import { articlesData } from '../data/articlesData';
+import { articlesData, initialCommentsData } from '../data/articlesData';
+import { ArticleComment } from '../types';
 import {
   Calendar,
   Clock,
@@ -15,6 +16,14 @@ import {
   FileText,
   Bot,
   Code,
+  Heart,
+  MessageSquare,
+  Send,
+  User,
+  ShieldCheck,
+  ChevronRight,
+  BookOpen,
+  ArrowUpRight,
 } from 'lucide-react';
 import { ArticleContent } from './ArticleContent';
 import { Seo } from './Seo';
@@ -22,42 +31,55 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { marked } from 'marked';
 
-/**
- * Individual article page — each article has its own URL for SEO.
- */
 export const ArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { language, t } = usePortfolio();
-  const [copied, setCopied] = React.useState(false);
+
+  const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
+  // Article data
   const post = articlesData.find(a => a.slug === slug);
 
-  // Build the full markdown raw content for "View as Markdown" and external opens
-  const rawMarkdown = (post.content[language] || post.content.en) as string;
-  const articleUrl = `https://vanviolet.my.id/articles/${post.slug}`;
-  const chatGptUrl = `https://chatgpt.com/?q=${encodeURIComponent(rawMarkdown)}`;
-  const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(rawMarkdown)}`;
-  const v0Url = `https://v0.dev?q=${encodeURIComponent(rawMarkdown)}`;
-  const sciraUrl = `https://scira.ai/?q=${encodeURIComponent(rawMarkdown)}`;
+  // Likes state persisted in localStorage
+  const [likes, setLikes] = useState<number>(() => {
+    if (!slug) return 12;
+    const saved = localStorage.getItem(`article_likes_${slug}`);
+    return saved ? parseInt(saved, 10) : 12;
+  });
+  const [hasLiked, setHasLiked] = useState(false);
 
-  const handleViewMarkdown = () => {
-    const blob = new Blob([rawMarkdown], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+  // Comments state persisted in localStorage
+  const [comments, setComments] = useState<ArticleComment[]>(() => {
+    if (!slug) return [];
+    const saved = localStorage.getItem(`article_comments_${slug}`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse local comments', e);
+      }
+    }
+    return initialCommentsData.filter(c => c.articleSlug === slug);
+  });
 
-  const handleOpenIn = (url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
+  // New comment input form
+  const [commenterName, setCommenterName] = useState('');
+  const [commentText, setCommentText] = useState('');
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [slug]);
+
+  // Persist comments when updated
+  useEffect(() => {
+    if (slug) {
+      localStorage.setItem(`article_comments_${slug}`, JSON.stringify(comments));
+    }
+  }, [comments, slug]);
 
   if (!post) {
     return (
@@ -88,28 +110,80 @@ export const ArticlePage: React.FC = () => {
     );
   }
 
+  // Raw markdown content and external urls
+  const rawMarkdown = (post.content[language] || post.content.en) as string;
+  const articleUrl = `https://vanviolet.my.id/articles/${post.slug}`;
+  const chatGptUrl = `https://chatgpt.com/?q=${encodeURIComponent(rawMarkdown)}`;
+  const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(rawMarkdown)}`;
+  const v0Url = `https://v0.dev?q=${encodeURIComponent(rawMarkdown)}`;
+  const sciraUrl = `https://scira.ai/?q=${encodeURIComponent(rawMarkdown)}`;
+
+  // Related articles
+  const relatedArticles = (post.relatedArticleSlugs || [])
+    .map(s => articlesData.find(a => a.slug === s))
+    .filter(Boolean) as typeof articlesData;
+
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleLike = () => {
+    if (!hasLiked && slug) {
+      const nextLikes = likes + 1;
+      setLikes(nextLikes);
+      setHasLiked(true);
+      localStorage.setItem(`article_likes_${slug}`, nextLikes.toString());
+    }
+  };
+
+  const handleAddComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+
+    const newComment: ArticleComment = {
+      id: `comment-${Date.now()}`,
+      articleSlug: post.slug,
+      authorName: commenterName.trim() || (language === 'en' ? 'Guest Reader' : 'Pembaca Tamu'),
+      authorAvatar: '',
+      content: commentText.trim(),
+      createdAt: new Date().toISOString(),
+      likes: 0,
+    };
+
+    setComments(prev => [newComment, ...prev]);
+    setCommentText('');
+    setCommenterName('');
+  };
+
+  const handleLikeComment = (commentId: string) => {
+    setComments(prev =>
+      prev.map(c => (c.id === commentId ? { ...c, likes: c.likes + 1 } : c)),
+    );
+  };
+
+  const handleViewMarkdown = () => {
+    const blob = new Blob([rawMarkdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleOpenIn = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const handleDownloadPdf = async () => {
     setDownloading(true);
     try {
-      // Build a clean standalone HTML for the article content using marked
-      // directly (NOT the React-rendered element which inherits Tailwind v4
-      // oklch() stylesheets that html2canvas cannot parse).
       const markdownContent = t(post.content);
       const htmlContent = marked.parse(markdownContent, { gfm: true, breaks: true, async: false });
 
-      // Inject only hex-only CSS (no oklch) so html2canvas can parse everything.
-      // NOTE: `body` tags are stripped by innerHTML, so all styles must target
-      // the actual rendered elements (.article-pdf-root, etc.).
       const printStyles = `
         .article-pdf-root {
           background: #ffffff;
-          font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           color: #1e293b;
           line-height: 1.75;
           font-size: 15px;
@@ -117,349 +191,476 @@ export const ArticlePage: React.FC = () => {
           padding: 40px;
           box-sizing: border-box;
         }
-        .article-pdf-root * {
-          box-sizing: border-box;
-        }
-        .article-title {
-          font-size: 2em;
-          font-weight: 700;
-          color: #111827;
-          margin: 0 0 1em 0;
-        }
-        .article-summary {
-          font-style: italic;
-          color: #6b7280;
-          border-left: 4px solid #dc2626;
-          padding-left: 16px;
-          margin: 0 0 2em 0;
-        }
-        .article-meta {
-          font-size: 0.85em;
-          color: #9ca3af;
-          margin-bottom: 2em;
-          padding-bottom: 1em;
-          border-bottom: 1px solid #e5e7eb;
-        }
+        .article-pdf-root * { box-sizing: border-box; }
+        .article-title { font-size: 2em; font-weight: 700; color: #111827; margin: 0 0 1em 0; }
+        .article-summary { font-style: italic; color: #6b7280; border-left: 4px solid #dc2626; padding-left: 16px; margin: 0 0 2em 0; }
+        .article-meta { font-size: 0.85em; color: #9ca3af; margin-bottom: 2em; padding-bottom: 1em; border-bottom: 1px solid #e5e7eb; }
         .article-meta span { margin-right: 1em; }
-        .article-meta .category {
-          display: inline-block;
-          padding: 2px 8px;
-          background: #fecaca;
-          color: #991b1b;
-          border-radius: 4px;
-          font-weight: 600;
-          text-transform: uppercase;
-          font-size: 0.75em;
-        }
-        .article-content h1 { font-size: 2em; margin: 1.5em 0 0.75em; color: #111827; border-bottom: none; }
+        .article-meta .category { display: inline-block; padding: 2px 8px; background: #fecaca; color: #991b1b; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 0.75em; }
+        .article-content h1 { font-size: 2em; margin: 1.5em 0 0.75em; color: #111827; }
         .article-content h2 { font-size: 1.5em; margin: 1.5em 0 0.75em; color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.3em; }
         .article-content h3 { font-size: 1.25em; margin: 1.5em 0 0.75em; color: #111827; }
-        .article-content h4 { font-size: 1.1em; margin: 1.25em 0 0.6em; color: #1f2937; }
-        .article-content h5 { font-size: 1em; margin: 1em 0 0.5em; color: #1f2937; }
-        .article-content h6 { font-size: 0.9em; margin: 1em 0 0.5em; color: #374151; }
         .article-content p { margin: 0 0 1em 0; }
-        .article-content ul, .article-content ol { margin: 0 0 1em 0; padding-left: 1.5em; }
-        .article-content li { margin: 0.25em 0; }
-        .article-content a { color: #dc2626; text-decoration: underline; }
-        .article-content strong { font-weight: 700; }
-        .article-content em { font-style: italic; }
-        .article-content del { text-decoration: line-through; }
-        .article-content code {
-          font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-          font-size: 0.85em;
-          background: #f1f5f9;
-          border-radius: 0.3em;
-          padding: 0.1em 0.35em;
-          color: #dc2626;
-        }
-        .article-content pre {
-          background: #1f2937;
-          border-radius: 0.75em;
-          padding: 1em;
-          overflow-x: auto;
-          border: 1px solid #374151;
-          margin: 1em 0;
-        }
-        .article-content pre code {
-          background: transparent;
-          padding: 0;
-          font-size: 0.8em;
-          color: #f8fafc;
-          border-radius: 0;
-        }
-        .article-content blockquote {
-          border-left: 3px solid #dc2626;
-          padding-left: 1em;
-          margin: 1em 0;
-          color: #6b7280;
-          font-style: italic;
-        }
-        .article-content table { width: 100%; border-collapse: collapse; margin: 1em 0; }
-        .article-content th, .article-content td { border: 1px solid #d1d5db; padding: 0.5em 0.75em; text-align: left; }
-        .article-content th { background: #f3f4f6; }
-        .article-content hr { border: 0; border-top: 1px solid #e5e7eb; margin: 2em 0; }
-        .tags { margin-top: 2em; padding-top: 1em; border-top: 1px solid #e5e7eb; }
-        .tags span {
-          display: inline-block;
-          font-size: 0.8em;
-          margin-right: 0.5em;
-          color: #6b7280;
-        }
+        .article-content code { background: #f1f5f9; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+        .article-content pre { background: #1e293b; color: #f8fafc; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 1.5em 0; font-family: monospace; font-size: 0.85em; line-height: 1.6; }
+        .article-content pre code { background: transparent; color: inherit; padding: 0; }
+        .article-content ul, .article-content ol { margin: 0 0 1.5em 0; padding-left: 2em; }
+        .article-content li { margin-bottom: 0.5em; }
+        .article-content blockquote { border-left: 4px solid #e2e8f0; margin: 1.5em 0; padding: 0.5em 0 0.5em 1.5em; color: #64748b; font-style: italic; }
+        .article-content table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.9em; }
+        .article-content th, .article-content td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; }
+        .article-content th { background: #f8fafc; font-weight: 600; }
       `;
 
-      // Create a detached DOM element with the article HTML.
-      // Use a flat div structure (no html/head/body) because setting innerHTML
-      // with those tags inside a div causes the browser to strip them.
       const container = document.createElement('div');
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
+      container.style.position = 'fixed';
+      container.style.top = '-99999px';
+      container.style.left = '-99999px';
       container.style.width = '800px';
-      container.innerHTML = `
-        <div class="article-pdf-root">
-          <style>${printStyles}</style>
-          <div class="article-meta">
-            <span class="category">${post.category}</span>
-            <span>${post.date}</span>
-            <span>${post.readTime}</span>
-          </div>
-          <h1 class="article-title">${t(post.title)}</h1>
-          <p class="article-summary">${t(post.summary)}</p>
-          <div class="article-content">${htmlContent}</div>
-          <div class="tags">${post.tags.map(tag => `<span>#${tag}</span>`).join('')}</div>
+      container.style.zIndex = '-9999';
+
+      const styleEl = document.createElement('style');
+      styleEl.textContent = printStyles;
+      container.appendChild(styleEl);
+
+      const root = document.createElement('div');
+      root.className = 'article-pdf-root';
+      root.innerHTML = `
+        <div class="article-meta">
+          <span class="category">${post.category}</span>
+          <span>${post.date}</span>
+          <span>${post.readTime}</span>
+          <span>Muchamad Irvan</span>
         </div>
+        <h1 class="article-title">${t(post.title)}</h1>
+        <p class="article-summary">${t(post.summary)}</p>
+        <div class="article-content">${htmlContent}</div>
       `;
+      container.appendChild(root);
       document.body.appendChild(container);
 
-      // Wait for any images to load
-      const images = container.querySelectorAll('img');
-      await Promise.all(Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise<void>(resolve => {
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-        });
-      }));
-
-      // Capture the root content div
-      const captureEl = container.querySelector('.article-pdf-root') as HTMLElement;
-      const canvas = await html2canvas(captureEl, {
+      const canvas = await html2canvas(root, {
         scale: 2,
         useCORS: true,
-        allowTaint: false,
-        backgroundColor: '#ffffff',
         logging: false,
-        windowWidth: captureEl.scrollWidth,
+        backgroundColor: '#ffffff',
       });
 
+      document.body.removeChild(container);
+
       const imgData = canvas.toDataURL('image/png');
-      const pdfWidth = 595.28; // A4 width in pt at 72dpi
-      const pdfHeight = 841.89; // A4 height in pt at 72dpi
-      const pageHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
 
-      const pdf = new jsPDF('p', 'pt', 'a4');
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pageHeight);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      let remainingHeight = pageHeight - pdfHeight;
-      let position = -pdfHeight;
+      let heightLeft = imgHeight;
+      let position = 0;
 
-      while (remainingHeight > 0) {
-        position -= pdfHeight;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pageHeight);
-        remainingHeight -= pdfHeight;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
       }
 
       pdf.save(`${post.slug}.pdf`);
-    } catch (err) {
-      console.error('PDF generation failed:', err);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
     } finally {
-      // Always clean up the temporary container
-      const temp = document.querySelector('.article-pdf-root');
-      if (temp && temp.parentNode) {
-        temp.parentNode.removeChild(temp);
-      }
       setDownloading(false);
     }
   };
-
-  const articleImage = '/images/irvan_photo_portrait.jpg';
 
   return (
     <>
       <Seo
         title={`${t(post.title)} | Muchamad Irvan`}
         description={t(post.summary)}
-        image={articleImage}
         url={articleUrl}
         type="article"
-        keywords={post.tags.join(', ')}
+        image="https://vanviolet.my.id/og-image.png"
+        article={{
+          publishedTime: post.date,
+          author: 'Muchamad Irvan',
+          tags: post.tags,
+        }}
       />
 
-      <article className="py-24 px-6 sm:px-8 max-w-4xl mx-auto min-h-screen">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          className="mb-8 inline-flex items-center gap-2 text-sm font-mono text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200 transition-colors"
-          aria-label={language === 'en' ? 'Go back' : 'Kembali'}
-        >
-          <ArrowLeft size={16} />
-          <span>{language === 'en' ? 'Back' : 'Kembali'}</span>
-        </button>
+      <article className="py-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto min-h-screen">
+        {/* Breadcrumb Navigation */}
+        <nav className="flex items-center gap-2 text-xs font-mono text-stone-500 dark:text-zinc-400 mb-8">
+          <Link to="/" className="hover:text-stone-900 dark:hover:text-zinc-100">
+            {language === 'en' ? 'Home' : 'Beranda'}
+          </Link>
+          <ChevronRight size={12} />
+          <Link to="/articles" className="hover:text-stone-900 dark:hover:text-zinc-100">
+            {language === 'en' ? 'Articles' : 'Artikel'}
+          </Link>
+          <ChevronRight size={12} />
+          <span className="text-rose-600 dark:text-rose-400 font-semibold truncate max-w-[200px]">
+            {t(post.title)}
+          </span>
+        </nav>
 
-        {/* Header */}
-        <header className="mb-12 border-b border-stone-200 dark:border-zinc-800 pb-8">
-          <div className="flex flex-wrap items-center gap-2 pb-2 text-xs font-mono">
-            <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold uppercase text-[10px] tracking-wider border border-rose-500/20">
-              {post.category}
-            </span>
-            <span className="text-stone-400 dark:text-zinc-500">•</span>
-            <span className="flex items-center gap-1 text-stone-500 dark:text-zinc-400">
-              <Calendar size={12} />
-              <span>{post.date}</span>
-            </span>
-            <span className="text-stone-300 dark:text-zinc-700">•</span>
-            <span className="flex items-center gap-1 text-stone-500 dark:text-zinc-400">
-              <Clock size={12} />
-              <span>{post.readTime}</span>
-            </span>
+        {/* Article Header */}
+        <header className="mb-10 border-b border-stone-200 dark:border-zinc-800 pb-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+              <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold uppercase text-[10px] tracking-wider border border-rose-500/20">
+                {post.category}
+              </span>
+              <span className="text-stone-400 dark:text-zinc-600">•</span>
+              <span className="flex items-center gap-1.5 text-stone-500 dark:text-zinc-400">
+                <Calendar size={13} />
+                <span>{post.date}</span>
+              </span>
+              <span className="text-stone-400 dark:text-zinc-600">•</span>
+              <span className="flex items-center gap-1.5 text-stone-500 dark:text-zinc-400">
+                <Clock size={13} />
+                <span>{post.readTime}</span>
+              </span>
+            </div>
+
+            {/* Quick Action Tools */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleLike}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded-lg border transition-all ${
+                  hasLiked
+                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
+                    : 'border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-rose-600 hover:border-rose-500/30'
+                }`}
+              >
+                <Heart size={13} className={hasLiked ? 'fill-current' : ''} />
+                <span>{likes}</span>
+              </button>
+
+              <button
+                onClick={handleShare}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded-lg border border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                {copied ? <Check size={13} className="text-emerald-500" /> : <Share2 size={13} />}
+                <span>{copied ? (language === 'en' ? 'Copied' : 'Tersalin') : (language === 'en' ? 'Share' : 'Bagikan')}</span>
+              </button>
+
+              {/* More Actions Dropdown */}
+              <div className="relative inline-block">
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="inline-flex items-center justify-center w-8 h-8 text-xs rounded-lg border border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+                  aria-label="Export tools"
+                >
+                  <Menu size={14} />
+                </button>
+
+                {dropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
+                    <div className="absolute right-0 z-20 mt-1 w-56 origin-top-right rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl py-1.5 text-xs font-mono">
+                      <button
+                        onClick={() => {
+                          handleViewMarkdown();
+                          setDropdownOpen(false);
+                        }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
+                      >
+                        <FileText size={13} />
+                        <span>{language === 'en' ? 'View as Markdown' : 'Lihat sebagai Markdown'}</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleOpenIn(chatGptUrl);
+                          setDropdownOpen(false);
+                        }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
+                      >
+                        <Bot size={13} />
+                        <span>Open in ChatGPT</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleOpenIn(claudeUrl);
+                          setDropdownOpen(false);
+                        }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
+                      >
+                        <Bot size={13} />
+                        <span>Open in Claude</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleOpenIn(v0Url);
+                          setDropdownOpen(false);
+                        }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
+                      >
+                        <Code size={13} />
+                        <span>Open in V0</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleOpenIn(sciraUrl);
+                          setDropdownOpen(false);
+                        }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left"
+                      >
+                        <ExternalLink size={13} />
+                        <span>Open in Scira</span>
+                      </button>
+                      <div className="h-px bg-stone-200 dark:bg-zinc-800 my-1" />
+                      <button
+                        onClick={() => {
+                          handleDownloadPdf();
+                          setDropdownOpen(false);
+                        }}
+                        disabled={downloading}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-left disabled:opacity-50"
+                      >
+                        <Download size={13} />
+                        <span>{language === 'en' ? 'Download PDF' : 'Unduh Dokumen PDF'}</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-stone-900 dark:text-zinc-100 mt-4 mb-2">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-stone-900 dark:text-zinc-100 mb-4 leading-tight">
             {t(post.title)}
           </h1>
 
-          <p className="text-stone-600 dark:text-zinc-400 leading-relaxed mt-4 italic border-l-4 border-rose-500 pl-4 py-2 bg-stone-100/40 dark:bg-zinc-950/40 rounded-r-lg">
+          <p className="text-base sm:text-lg text-stone-600 dark:text-zinc-300 leading-relaxed font-light border-l-2 border-rose-500 pl-4 py-1">
             {t(post.summary)}
           </p>
         </header>
 
-        {/* Content with [[term]] linking */}
-        <div className="mb-16" ref={contentRef}>
+        {/* Article Body with interactive Vanpedia sentinel links */}
+        <div ref={contentRef}>
           <ArticleContent
             content={t(post.content)}
-            vanpediaSlugs={post.vanpediaTerms}
+            vanpediaSlugs={post.vanpediaTerms || post.vanpediaSlugs || []}
           />
         </div>
 
-        {/* Tags & Share Footer */}
-        <footer className="pt-8 border-t border-stone-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Tag size={14} className="text-stone-400" />
-            {post.tags.map(tg => (
-              <span
-                key={tg}
-                className="px-2 py-0.5 text-[11px] font-mono rounded bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400"
-              >
-                #{tg}
-              </span>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Share Button */}
-            <button
-              onClick={handleShare}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-mono rounded-md border border-stone-200 dark:border-zinc-800 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
-              aria-label={language === 'en' ? 'Share article' : 'Bagikan artikel'}
+        {/* Tags */}
+        <div className="flex flex-wrap items-center gap-2 my-10 pt-6 border-t border-stone-200 dark:border-zinc-800">
+          <Tag size={14} className="text-stone-400 dark:text-zinc-500" />
+          {post.tags.map(tg => (
+            <span
+              key={tg}
+              className="px-2.5 py-1 text-xs font-mono rounded-lg bg-stone-100 dark:bg-zinc-800/80 text-stone-600 dark:text-zinc-400 border border-stone-200/60 dark:border-zinc-700/60"
             >
-              {copied ? <Check size={13} className="text-emerald-500" /> : <Share2 size={13} />}
-              <span>
-                {copied
-                  ? language === 'en'
-                    ? 'Link Copied'
-                    : 'Tersalin'
-                  : language === 'en'
-                    ? 'Share'
-                    : 'Bagikan'}
+              #{tg}
+            </span>
+          ))}
+        </div>
+
+        {/* Author Bio Card */}
+        <div className="my-10 p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 flex flex-col sm:flex-row sm:items-center gap-5">
+          <div className="w-14 h-14 rounded-2xl bg-rose-600 text-white flex items-center justify-center font-mono font-bold text-lg shrink-0 shadow-md">
+            MI
+          </div>
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-stone-900 dark:text-zinc-100">
+                {post.author ? post.author.name : 'Muchamad Irvan'}
+              </h3>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-stone-100 dark:bg-zinc-800 text-stone-500 dark:text-zinc-400">
+                Author
               </span>
-            </button>
+            </div>
+            <p className="text-xs sm:text-sm text-stone-600 dark:text-zinc-400 leading-relaxed">
+              {post.author
+                ? post.author.bio[language]
+                : 'Software Engineer specializing in distributed web systems, algorithmic optimization, and modern UI engineering.'}
+            </p>
+          </div>
+          <Link
+            to="/#contact"
+            className="self-start sm:self-center px-3.5 py-1.5 rounded-xl border border-stone-300 dark:border-zinc-700 text-xs font-mono text-stone-800 dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            {language === 'en' ? 'Get in Touch' : 'Kontak'}
+          </Link>
+        </div>
 
-            {/* Dropdown Menu */}
-            <div className="relative inline-block">
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="inline-flex items-center justify-center w-8 h-8 text-xs font-mono rounded-md border border-stone-200 dark:border-zinc-800 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
-                aria-label={language === 'en' ? 'More actions' : 'Aksi lainnya'}
-                aria-haspopup="true"
-                aria-expanded={dropdownOpen}
-              >
-                <Menu size={14} className="text-stone-600 dark:text-zinc-400" />
-              </button>
+        {/* Related Articles Section */}
+        {relatedArticles.length > 0 && (
+          <section className="my-12 pt-8 border-t border-stone-200 dark:border-zinc-800">
+            <div className="flex items-center gap-2 mb-6">
+              <BookOpen size={20} className="text-rose-500" />
+              <h3 className="text-xl font-bold text-stone-900 dark:text-zinc-100">
+                {language === 'en' ? 'Related Articles' : 'Artikel Terkait'}
+              </h3>
+            </div>
 
-              {dropdownOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setDropdownOpen(false)}
-                  />
-                  <div className="absolute z-20 mt-1 w-52 origin-top-right rounded-md border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg py-1">
-                    <button
-                      onClick={() => {
-                        handleViewMarkdown();
-                        setDropdownOpen(false);
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-xs font-mono text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors text-left"
-                    >
-                      <FileText size={13} />
-                      <span>{language === 'en' ? 'View as Markdown' : 'Lihat sebagai Markdown'}</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleOpenIn(chatGptUrl);
-                        setDropdownOpen(false);
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-xs font-mono text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors text-left"
-                    >
-                      <Bot size={13} />
-                      <span>Open in ChatGPT</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleOpenIn(claudeUrl);
-                        setDropdownOpen(false);
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-xs font-mono text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors text-left"
-                    >
-                      <Bot size={13} />
-                      <span>Open in Claude</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleOpenIn(v0Url);
-                        setDropdownOpen(false);
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-xs font-mono text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors text-left"
-                    >
-                      <Code size={13} />
-                      <span>Open in V0</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleOpenIn(sciraUrl);
-                        setDropdownOpen(false);
-                      }}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-xs font-mono text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors text-left"
-                    >
-                      <ExternalLink size={13} />
-                      <span>Open in Scira</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleDownloadPdf();
-                        setDropdownOpen(false);
-                      }}
-                      disabled={downloading}
-                      className="flex items-center gap-2 w-full px-3 py-2 text-xs font-mono text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors text-left disabled:opacity-50"
-                    >
-                      <Download size={13} />
-                      <span>{language === 'en' ? 'Download PDF' : 'Unduh PDF'}</span>
-                    </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {relatedArticles.map(rel => (
+                <Link
+                  key={rel.slug}
+                  to={`/articles/${rel.slug}`}
+                  className="p-5 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/40 hover:bg-white dark:hover:bg-zinc-900 hover:border-rose-500/30 transition-all duration-200 group flex flex-col justify-between"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs font-mono text-stone-400">
+                      <span className="text-rose-600 dark:text-rose-400 font-semibold">{rel.category}</span>
+                      <span>{rel.readTime}</span>
+                    </div>
+                    <h4 className="font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                      {t(rel.title)}
+                    </h4>
+                    <p className="text-xs text-stone-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                      {t(rel.summary)}
+                    </p>
                   </div>
-                </>
-              )}
+                  <div className="mt-4 pt-3 border-t border-stone-100 dark:border-zinc-800/80 text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center justify-between">
+                    <span>{language === 'en' ? 'Read' : 'Baca'}</span>
+                    <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Interactive Discussion & Comments Section */}
+        <section className="my-12 pt-8 border-t border-stone-200 dark:border-zinc-800">
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2">
+              <MessageSquare size={20} className="text-rose-500" />
+              <h3 className="text-xl font-bold text-stone-900 dark:text-zinc-100">
+                {language === 'en' ? 'Discussion & Comments' : 'Komentar & Diskusi'}
+              </h3>
+              <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400">
+                {comments.length}
+              </span>
             </div>
           </div>
-        </footer>
+
+          {/* Architecture notice */}
+          <div className="mb-6 p-3 rounded-xl border border-rose-500/20 bg-rose-50/40 dark:bg-rose-950/10 text-xs text-stone-600 dark:text-zinc-400 flex items-start gap-2">
+            <ShieldCheck size={16} className="text-rose-500 shrink-0 mt-0.5" />
+            <p>
+              {language === 'en'
+                ? 'Local comments active. Prepared for future Google OAuth sign-in and persistent Firebase Firestore synchronization.'
+                : 'Penyimpanan komentar aktif di browser. Arsitektur data siap dihubungkan ke login Google OAuth dan sinkronisasi Firebase Firestore.'}
+            </p>
+          </div>
+
+          {/* Comment Form */}
+          <form
+            onSubmit={handleAddComment}
+            className="mb-8 p-5 sm:p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 space-y-4"
+          >
+            <h4 className="text-sm font-semibold text-stone-900 dark:text-zinc-100">
+              {language === 'en' ? 'Leave a Comment' : 'Tulis Komentar'}
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                type="text"
+                placeholder={language === 'en' ? 'Your Name or Alias' : 'Nama atau Panggilan Anda'}
+                value={commenterName}
+                onChange={e => setCommenterName(e.target.value)}
+                className="px-3.5 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+              />
+            </div>
+            <textarea
+              rows={3}
+              required
+              placeholder={
+                language === 'en'
+                  ? 'Share your thoughts, questions, or alternative approaches...'
+                  : 'Tuliskan tanggapan, pertanyaan, atau saran Anda mengenai artikel ini...'
+              }
+              value={commentText}
+              onChange={e => setCommentText(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+            />
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 font-medium text-xs hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs"
+              >
+                <Send size={13} />
+                <span>{language === 'en' ? 'Submit Comment' : 'Kirim Komentar'}</span>
+              </button>
+            </div>
+          </form>
+
+          {/* Comments List */}
+          <div className="space-y-3">
+            {comments.map(c => (
+              <div
+                key={c.id}
+                className="p-5 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/40 space-y-2.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 font-mono text-xs font-bold flex items-center justify-center">
+                      {c.authorName.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="text-xs font-semibold text-stone-900 dark:text-zinc-100">
+                        {c.authorName}
+                      </span>
+                      <span className="block text-[10px] font-mono text-stone-400">
+                        {new Date(c.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleLikeComment(c.id)}
+                    className="inline-flex items-center gap-1 text-[11px] font-mono text-stone-500 dark:text-zinc-400 hover:text-rose-600 transition-colors p-1"
+                    title="Like comment"
+                  >
+                    <Heart size={12} />
+                    <span>{c.likes}</span>
+                  </button>
+                </div>
+
+                <p className="text-xs sm:text-sm text-stone-700 dark:text-zinc-300 leading-relaxed pl-9">
+                  {c.content}
+                </p>
+              </div>
+            ))}
+
+            {comments.length === 0 && (
+              <div className="py-10 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl">
+                <p className="text-xs text-stone-500 dark:text-zinc-400">
+                  {language === 'en'
+                    ? 'No comments yet. Start the conversation!'
+                    : 'Belum ada komentar. Jadilah yang pertama berkomentar!'}
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Back Link */}
+        <div className="pt-8 border-t border-stone-200 dark:border-zinc-800">
+          <Link
+            to="/articles"
+            className="inline-flex items-center gap-2 text-xs font-mono text-rose-600 dark:text-rose-400 hover:underline"
+          >
+            <ArrowLeft size={14} />
+            <span>{language === 'en' ? 'Back to All Articles' : 'Kembali ke Semua Artikel'}</span>
+          </Link>
+        </div>
       </article>
     </>
   );

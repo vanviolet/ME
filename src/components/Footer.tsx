@@ -1,7 +1,8 @@
 import React from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { profileData } from '../data/portfolioData';
-import { ArrowUp, Github, Instagram, Mail, Heart } from 'lucide-react';
+import { ArrowUp, Github, Instagram, Mail, BookOpen, Compass, MessageSquare } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export const Footer: React.FC = () => {
   const { language } = usePortfolio();
@@ -25,45 +26,63 @@ export const Footer: React.FC = () => {
           </div>
           <p className="text-[11px] text-stone-400 dark:text-zinc-500">
             {language === 'en'
-              ? 'Designed & built with intention · Fullstack Software Engineer'
-              : 'Dirancang & dibangun dengan presisi · Fullstack Software Engineer'}
+              ? 'Software Engineer · Web Systems, Audio Math & AI Architecture'
+              : 'Software Engineer · Rekayasa Web, Matematika Audio & Arsitektur AI'}
           </p>
         </div>
 
-        {/* Social Links */}
-        <div className="flex items-center gap-5">
-          <a
-            href={profileData.github}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
-            aria-label="GitHub"
-          >
-            <Github size={16} />
-          </a>
-          <a
-            href={profileData.instagram}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
-            aria-label="Instagram"
-          >
-            <Instagram size={16} />
-          </a>
-          <a
-            href={`mailto:${profileData.email}`}
-            className="hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
-            aria-label="Email"
-          >
-            <Mail size={16} />
-          </a>
+        {/* Quick Nav Links */}
+        <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-mono">
+          <Link to="/" className="hover:text-stone-900 dark:hover:text-zinc-100 transition-colors">
+            {language === 'en' ? 'Portfolio' : 'Portofolio'}
+          </Link>
+          <span className="text-stone-300 dark:text-zinc-700">•</span>
+          <Link to="/articles" className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex items-center gap-1">
+            <BookOpen size={12} />
+            <span>{language === 'en' ? 'Articles' : 'Artikel'}</span>
+          </Link>
+          <span className="text-stone-300 dark:text-zinc-700">•</span>
+          <Link to="/vanpedia" className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex items-center gap-1">
+            <Compass size={12} />
+            <span>Vanpedia</span>
+          </Link>
+          <span className="text-stone-300 dark:text-zinc-700">•</span>
+          <Link to="/issues" className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex items-center gap-1">
+            <MessageSquare size={12} />
+            <span>{language === 'en' ? 'Q&A' : 'Diskusi'}</span>
+          </Link>
         </div>
 
-        {/* Tech Credits & Scroll to top */}
-        <div className="flex items-center gap-4">
-          <span className="text-[11px]">
-            React 19 · TypeScript · Tailwind CSS
-          </span>
+        {/* Social Links & Scroll to top */}
+        <div className="flex items-center gap-5">
+          <div className="flex items-center gap-4">
+            <a
+              href={profileData.github}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
+              aria-label="GitHub"
+            >
+              <Github size={16} />
+            </a>
+            <a
+              href={profileData.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
+              aria-label="Instagram"
+            >
+              <Instagram size={16} />
+            </a>
+            <a
+              href={`mailto:${profileData.email}`}
+              className="hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
+              aria-label="Email"
+            >
+              <Mail size={16} />
+            </a>
+          </div>
+
           <button
             onClick={scrollToTop}
             aria-label="Scroll to top of page"

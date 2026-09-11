@@ -1,43 +1,75 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { marked } from 'marked';
 import { vanpediaTermsData } from '../data/articlesData';
 import { usePortfolio } from '../context/PortfolioContext';
 import { Link } from 'react-router-dom';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, ExternalLink, Sparkles } from 'lucide-react';
 
-/**
- * Renders article markdown content with:
- * - [[slug]] vanpedia term markers → clickable <Link> to /vanpedia/:slug
- * - Proper markdown via `marked` (headers, lists, code blocks, tables, emphasis)
- * - A "Related Vanpedia Terms" aside at the bottom.
- */
 interface ArticleContentProps {
   content: string;
   vanpediaSlugs?: string[];
 }
 
-// Returns a term object if a slug matches, otherwise null.
 function findVanpediaTerm(slug: string) {
   return vanpediaTermsData.find(t => t.slug === slug);
 }
 
-// Pre-render inline [[slug]] markers into an HTML-comment sentinel that marked
-// won't touch (unlike double-underscore tokens which get parsed as bold),
-// then post-process the rendered HTML to wrap sentinels in <Link> elements.
 // Sentinel format: <!--VP|<encodedSlug>|<label>-->
 const SENTINEL_PREFIX = '<!--VP|';
 const SENTINEL_SUFFIX = '-->';
 
 function placeholderFor(slug: string, label: string) {
   const safeSlug = encodeURIComponent(slug);
-  // Escape pipe so label with pipes stays valid in the comment format
   const safeLabel = label.replace(/\|/g, '&#124;');
   return `${SENTINEL_PREFIX}${safeSlug}|${safeLabel}${SENTINEL_SUFFIX}`;
 }
 
+const VanpediaInteractiveLink: React.FC<{ slug: string; label: string }> = ({ slug, label }) => {
+  const { t } = usePortfolio();
+  const [showTooltip, setShowTooltip] = useState(false);
+  const term = findVanpediaTerm(slug);
+
+  return (
+    <span
+      className="relative inline-block"
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <Link
+        to={`/vanpedia/${slug}`}
+        className="inline-flex items-center gap-0.5 text-rose-600 dark:text-rose-400 font-semibold underline decoration-rose-500/40 decoration-2 underline-offset-2 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-500/10 px-1 py-0.5 rounded transition-all"
+        aria-label={`Buka vanpedia: ${label}`}
+      >
+        <span>{label}</span>
+      </Link>
+
+      {/* Floating preview tooltip on hover */}
+      {showTooltip && term && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-xl bg-stone-900 text-stone-100 dark:bg-zinc-800 dark:text-zinc-100 shadow-xl border border-stone-700 dark:border-zinc-700 text-xs z-50 pointer-events-none block animate-in fade-in zoom-in-95 duration-150">
+          <span className="flex items-center justify-between gap-1 mb-1 font-mono text-[10px] text-rose-400 font-bold uppercase">
+            <span>{term.category}</span>
+            <span className="text-stone-400 flex items-center gap-0.5">
+              <Sparkles size={10} />
+              <span>Vanpedia</span>
+            </span>
+          </span>
+          <span className="font-semibold block text-stone-100 dark:text-white mb-1">
+            {t(term.title)}
+          </span>
+          <span className="text-[11px] text-stone-300 dark:text-zinc-300 block line-clamp-3 leading-relaxed">
+            {t(term.definition)}
+          </span>
+          <span className="mt-1.5 pt-1.5 border-t border-stone-800 dark:border-zinc-700 flex items-center justify-between text-[9px] font-mono text-stone-400">
+            <span>Klik untuk detail lengkap</span>
+            <ExternalLink size={10} />
+          </span>
+        </span>
+      )}
+    </span>
+  );
+};
+
 function parseSentinels(html: string): React.ReactNode[] {
-  // Splits HTML string on sentinel HTML comments, returning React nodes.
-  // Sentinel format: <!--VP|<encodedSlug>|<label>-->
   const regex = /<!--VP\|([^|]+)\|([^-->]+)-->/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -52,14 +84,11 @@ function parseSentinels(html: string): React.ReactNode[] {
     const slug = decodeURIComponent(match[1]);
     const label = match[2].replace(/&#124;/g, '|');
     parts.push(
-      <Link
-        key={`link-${keyCounter++}`}
-        to={`/vanpedia/${slug}`}
-        className="text-rose-600 dark:text-rose-400 font-medium underline decoration-rose-500/40 underline-offset-2 hover:text-rose-700 dark:hover:text-rose-300 transition-colors"
-        aria-label={`Buka vanpedia ${label}`}
-      >
-        {label}
-      </Link>,
+      <VanpediaInteractiveLink
+        key={`link-${keyCounter++}-${slug}`}
+        slug={slug}
+        label={label}
+      />,
     );
     lastIndex = match.index + match[0].length;
   }
@@ -74,26 +103,29 @@ function parseSentinels(html: string): React.ReactNode[] {
 export const ArticleContent: React.FC<ArticleContentProps> = ({ content, vanpediaSlugs = [] }) => {
   const { language, t } = usePortfolio();
 
-  // Collect unique valid slugs referenced in content + explicit prop
+  // Collect unique valid slugs referenced in content (supports [[slug]] and [[slug|label]])
   const referencedSlugs: string[] = [];
-  const slugRegex = /\[\[([^\]]+)\]\]/g;
+  const slugRegex = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
   let match: RegExpExecArray | null;
+
   while ((match = slugRegex.exec(content)) !== null) {
-    if (!referencedSlugs.includes(match[1])) referencedSlugs.push(match[1]);
+    const slug = match[1].trim();
+    if (!referencedSlugs.includes(slug)) referencedSlugs.push(slug);
   }
+
   vanpediaSlugs.forEach(s => {
     if (!referencedSlugs.includes(s)) referencedSlugs.push(s);
   });
 
-  // Replace [[slug]] markers with sentinel placeholders (label derived from term data)
-  const withPlaceholders = content.replace(/\[\[([^\]]+)\]\]/g, (_m, slug: string) => {
+  // Replace [[slug]] and [[slug|label]] markers with sentinel placeholders
+  const withPlaceholders = content.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, slugRaw: string, labelRaw?: string) => {
+    const slug = slugRaw.trim();
     const term = findVanpediaTerm(slug);
-    const label = term ? t(term.title) : slug;
+    const label = labelRaw ? labelRaw.trim() : (term ? t(term.title) : slug);
     return placeholderFor(slug, label);
   });
 
-  // Render markdown to HTML using marked, then split into React nodes so
-  // <Link> placeholders don't get mangled by the markdown parser.
+  // Render markdown to HTML using marked, then split into React nodes
   const html = marked.parse(withPlaceholders, {
     gfm: true,
     breaks: true,
@@ -119,7 +151,7 @@ export const ArticleContent: React.FC<ArticleContentProps> = ({ content, vanpedi
           <div className="flex items-center gap-2 mb-4">
             <BookOpen size={18} className="text-rose-500 dark:text-rose-400" />
             <h3 className="text-base font-semibold text-stone-900 dark:text-zinc-100">
-              {language === 'en' ? 'Related Vanpedia Terms' : 'Istilah Vanpedia Terkait'}
+              {language === 'en' ? 'Related Vanpedia Terms in this Article' : 'Istilah Vanpedia Terkait dalam Artikel Ini'}
             </h3>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -127,13 +159,13 @@ export const ArticleContent: React.FC<ArticleContentProps> = ({ content, vanpedi
               <Link
                 key={term.slug}
                 to={`/vanpedia/${term.slug}`}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-stone-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 hover:bg-rose-500/10 hover:border-rose-500/30 transition-colors group"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 hover:bg-rose-500/10 hover:border-rose-500/30 transition-all group"
               >
-                <span className="font-medium text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400">
+                <span className="font-medium text-xs sm:text-sm text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400">
                   {t(term.title)}
                 </span>
                 {term.category && (
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-stone-500 dark:text-zinc-400 bg-stone-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
                     {term.category}
                   </span>
                 )}

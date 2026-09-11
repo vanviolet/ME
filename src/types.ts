@@ -58,6 +58,25 @@ export interface SkillGroup {
   skills: SkillItem[];
 }
 
+export interface Author {
+  id: string;
+  name: string;
+  avatar: string;
+  role: LocalizedString;
+  bio?: LocalizedString;
+}
+
+export interface ArticleComment {
+  id: string;
+  articleId?: string;
+  articleSlug?: string;
+  authorName: string;
+  authorAvatar?: string;
+  content: string;
+  createdAt: string;
+  likes: number;
+}
+
 export interface Article {
   id: string;
   slug: string;
@@ -68,7 +87,14 @@ export interface Article {
   readTime: string;
   category: string;
   tags: string[];
+  author?: Author;
+  coverImage?: string;
+  featured?: boolean;
   vanpediaTerms?: string[]; // slugs referenced in content via [[slug]]
+  vanpediaSlugs?: string[]; // alias for vanpediaTerms
+  relatedArticleSlugs?: string[]; // relational slugs to other articles
+  views?: number;
+  commentsCount?: number;
 }
 
 export interface VanpediaTerm {
@@ -78,9 +104,34 @@ export interface VanpediaTerm {
   definition: LocalizedString;
   category: string;
   examples?: LocalizedStringArray;
+  formula?: string;
   relatedTerms?: string[]; // slugs of related vanpedia terms
   articleIds?: string[]; // article IDs that reference this term
   content?: LocalizedString; // full markdown content for term page
+}
+
+export interface CommunityIssue {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  authorName: string;
+  authorAvatar?: string;
+  createdAt: string;
+  votes: number;
+  answersCount: number;
+  status: 'open' | 'solved';
+  solvedAnswerId?: string;
+  answers?: {
+    id: string;
+    authorName: string;
+    authorAvatar?: string;
+    content: string;
+    createdAt: string;
+    votes: number;
+    isAccepted?: boolean;
+  }[];
 }
 
 export interface PhilosophyItem {
