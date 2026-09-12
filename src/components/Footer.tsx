@@ -1,7 +1,7 @@
 import React from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { profileData } from '../data/portfolioData';
-import { ArrowUp, Github, Instagram, Mail, BookOpen, Compass, MessageSquare } from 'lucide-react';
+import { ArrowUp, Github, Instagram, Mail, BookOpen, Compass, MessageSquare, Wrench } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const Footer: React.FC = () => {
@@ -50,6 +50,11 @@ export const Footer: React.FC = () => {
           <Link to="/forum" className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex items-center gap-1">
             <MessageSquare size={12} />
             <span>Forum</span>
+          </Link>
+          <span className="text-stone-300 dark:text-zinc-700">•</span>
+          <Link to="/tools" className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex items-center gap-1">
+            <Wrench size={12} />
+            <span>Tool</span>
           </Link>
         </div>
 

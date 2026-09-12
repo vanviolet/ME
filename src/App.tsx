@@ -22,6 +22,8 @@ import { VanpediaPage, VanpediaIndexPage } from './components/VanpediaPage';
 import { CreateVanpediaPage } from './components/CreateVanpediaPage';
 import { IssuesPage } from './components/IssuesPage';
 import { AdminVerificationPage } from './components/AdminVerificationPage';
+import { ToolsIndexPage } from './components/ToolsIndexPage';
+import { LoremIpsumPage } from './components/LoremIpsumPage';
 import { AiChatFloating } from './components/AiChatFloating';
 import { TextSelectionPopover } from './components/TextSelectionPopover';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
@@ -90,6 +92,8 @@ export default function App() {
               <Route path="/issue" element={<IssuesPage />} />
               <Route path="/issue/:id" element={<IssuesPage />} />
               <Route path="/admin" element={<AdminVerificationPage />} />
+              <Route path="/tools" element={<ToolsIndexPage />} />
+              <Route path="/tools/lorem-ipsum" element={<LoremIpsumPage />} />
               {/* Fallback */}
               <Route path="*" element={<HomePage />} />
             </Routes>

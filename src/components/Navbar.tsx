@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft, ShieldCheck, Wrench, ChevronDown, Type } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthButton } from './AuthButton';
 import { useAuth } from '../context/AuthContext';
@@ -10,8 +10,21 @@ export const Navbar: React.FC = () => {
   const { isAdmin } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
   const location = useLocation();
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(event.target as Node)) {
+        setToolsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Track active section via scroll (only on home page)
   useEffect(() => {
@@ -49,6 +62,7 @@ export const Navbar: React.FC = () => {
   const isArticlesPage = location.pathname.startsWith('/articles');
   const isVanpediaPage = location.pathname.startsWith('/vanpedia');
   const isForumPage = location.pathname.startsWith('/forum') || location.pathname.startsWith('/issues');
+  const isToolsPage = location.pathname.startsWith('/tools');
 
   // Key home anchors for desktop
   const homeNavAnchors = [
@@ -183,6 +197,70 @@ export const Navbar: React.FC = () => {
             <MessageSquare size={13} />
             <span>Forum</span>
           </Link>
+
+          {/* Primary Hub: Tools Dropdown */}
+          <div className="relative" ref={toolsMenuRef}>
+            <button
+              id="nav-link-tools"
+              type="button"
+              onClick={() => setToolsDropdownOpen(!toolsDropdownOpen)}
+              onMouseEnter={() => setToolsDropdownOpen(true)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-150 cursor-pointer ${
+                isToolsPage || toolsDropdownOpen
+                  ? 'bg-rose-600 text-white shadow-xs font-semibold'
+                  : 'text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400'
+              }`}
+            >
+              <Wrench size={13} />
+              <span>Tool</span>
+              <ChevronDown size={12} className={`transition-transform duration-200 ${toolsDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {toolsDropdownOpen && (
+              <div
+                className="absolute top-full right-0 mt-2 w-64 p-2 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                onMouseLeave={() => setToolsDropdownOpen(false)}
+              >
+                <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-stone-400 dark:text-zinc-500 border-b border-stone-100 dark:border-zinc-800 mb-1">
+                  {language === 'en' ? 'Available Tools' : 'Perkakas Tool Tersedia'}
+                </div>
+
+                <Link
+                  to="/tools/lorem-ipsum"
+                  onClick={() => setToolsDropdownOpen(false)}
+                  className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800/80 transition-colors group"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform mt-0.5">
+                    <Type size={14} />
+                  </div>
+                  <div className="space-y-0.5 text-left">
+                    <div className="text-xs font-bold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 flex items-center gap-1.5">
+                      <span>Lorem Ipsum Generator</span>
+                      <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold">New</span>
+                    </div>
+                    <div className="text-[10px] text-stone-500 dark:text-zinc-400 leading-snug">
+                      {language === 'en' ? 'Generate clean dummy text & HTML tags' : 'Generator teks dummy & tag HTML'}
+                    </div>
+                  </div>
+                </Link>
+
+                <div className="my-1 border-t border-stone-100 dark:border-zinc-800" />
+
+                <Link
+                  to="/tools"
+                  onClick={() => setToolsDropdownOpen(false)}
+                  className="flex items-center justify-between p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs font-semibold text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <Wrench size={13} className="text-rose-500" />
+                    <span>{language === 'en' ? 'View All Tools' : 'Lihat Semua Tool'}</span>
+                  </span>
+                  <ArrowUpRight size={13} />
+                </Link>
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Right Controls: Language, Theme, Contact CTA & Mobile Hamburger */}
@@ -362,6 +440,27 @@ export const Navbar: React.FC = () => {
                   <div className="text-xs font-semibold">{language === 'en' ? 'Forum' : 'Forum Komunitas'}</div>
                   <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
                     Public & Private Threads
+                  </div>
+                </div>
+              </Link>
+
+              <Link
+                to="/tools/lorem-ipsum"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${
+                  isToolsPage
+                    ? 'border-rose-500/50 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
+                    : 'border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200'
+                }`}
+              >
+                <Wrench size={16} className="text-rose-500 shrink-0" />
+                <div className="text-left">
+                  <div className="text-xs font-semibold flex items-center gap-1.5">
+                    <span>Lorem Ipsum Generator</span>
+                    <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold">New</span>
+                  </div>
+                  <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
+                    {language === 'en' ? 'Developer & Designer Tools' : 'Tool Teks Placeholder'}
                   </div>
                 </div>
               </Link>
