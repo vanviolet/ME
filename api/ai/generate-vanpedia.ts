@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from '@google/genai';
+import { getCleanModelName } from '../../src/lib/models';
 
 function extractAndParseJson<T = any>(rawText: string): T {
   const trimmed = rawText.trim();
