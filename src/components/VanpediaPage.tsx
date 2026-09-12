@@ -427,8 +427,13 @@ export const VanpediaPage: React.FC = () => {
 
           {/* Core Definition Callout */}
           <div
-            className="p-5 sm:p-6 rounded-2xl bg-rose-50/70 dark:bg-rose-950/25 border border-rose-500/20 text-stone-800 dark:text-zinc-100 text-base sm:text-lg leading-relaxed font-reading-sans"
-            dangerouslySetInnerHTML={{ __html: renderTextWithMath(t(term.definition)) }}
+            className="p-5 sm:p-6 rounded-2xl bg-rose-50/70 dark:bg-rose-950/25 border border-rose-500/20 text-stone-800 dark:text-zinc-100 text-base sm:text-lg leading-relaxed font-reading-sans markdown-body"
+            dangerouslySetInnerHTML={{
+              __html: renderMarkdownWithMath(t(term.definition), {
+                getTerm: (s) => allTerms.find(item => item.slug === s),
+                language,
+              }),
+            }}
           />
 
           {/* Mathematical / Technical Formula (if present) */}

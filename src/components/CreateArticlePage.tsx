@@ -27,6 +27,7 @@ import { RichEditor } from './RichEditor';
 import { CategoryFreetextInput } from './CategoryFreetextInput';
 import { TemplateUploadZone } from './TemplateUploadZone';
 import { ParsedArticleFile } from '../utils/fileParser';
+import { AiModelSelect } from './AiModelSelect';
 
 export const CreateArticlePage: React.FC = () => {
   const navigate = useNavigate();
@@ -317,23 +318,11 @@ export const CreateArticlePage: React.FC = () => {
 
               {/* Model Selector */}
               <div className="sm:col-span-5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
-                  {language === 'en' ? 'AI Model' : 'Pilihan Model AI'}
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="w-full appearance-none px-4 py-2.5 pr-10 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30 font-medium"
-                  >
-                    {AI_MODELS_LIST.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} {m.badge ? `(${m.badge})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                </div>
+                <AiModelSelect
+                  value={selectedModel}
+                  onChange={setSelectedModel}
+                  label={language === 'en' ? 'AI Model Engine' : 'Pilihan Model AI Engine'}
+                />
               </div>
             </div>
 

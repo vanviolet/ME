@@ -18,12 +18,14 @@ import {
   Loader2,
   UploadCloud,
   FileCode,
+  FileText,
 } from 'lucide-react';
 import { Seo } from './Seo';
 import { RichEditor } from './RichEditor';
 import { CategoryFreetextInput } from './CategoryFreetextInput';
 import { TemplateUploadZone } from './TemplateUploadZone';
 import { ParsedVanpediaFile } from '../utils/fileParser';
+import { AiModelSelect } from './AiModelSelect';
 
 export const CreateVanpediaPage: React.FC = () => {
   const navigate = useNavigate();
@@ -33,7 +35,7 @@ export const CreateVanpediaPage: React.FC = () => {
   // Fast-Track AI Generation States
   const [aiTermName, setAiTermName] = useState('');
   const [aiDetails, setAiDetails] = useState('');
-  const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash');
+  const [selectedModel, setSelectedModel] = useState('nemotron-3-ultra');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
 
@@ -45,12 +47,14 @@ export const CreateVanpediaPage: React.FC = () => {
   const [phonetic, setPhonetic] = useState('');
   const [definitionId, setDefinitionId] = useState('');
   const [definitionEn, setDefinitionEn] = useState('');
+  const [contentId, setContentId] = useState('');
+  const [contentEn, setContentEn] = useState('');
   const [formula, setFormula] = useState('');
   const [examples, setExamples] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
 
   const [isAiAssisted, setIsAiAssisted] = useState(false);
-  const [aiModel, setAiModel] = useState('Gemini 3.8 Flash');
+  const [aiModel, setAiModel] = useState('Nemotron 3 Ultra');
 
   const [showTemplateUpload, setShowTemplateUpload] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -71,6 +75,7 @@ export const CreateVanpediaPage: React.FC = () => {
     setGenerationError(null);
 
     try {
+      const chosenModelName = getCleanModelName(selectedModel);
       const result = await generateVanpediaWithAi({
         termName: aiTermName.trim(),
         category: category !== 'Learning (AI)' && category ? category : undefined,
@@ -90,8 +95,14 @@ export const CreateVanpediaPage: React.FC = () => {
         if (result.phonetic) {
           setPhonetic(result.phonetic);
         }
-        setDefinitionId(result.content || result.definitionId || '');
+        // Strict definition separation: definition is 1-2 sentence core meaning
+        setDefinitionId(result.definitionId || '');
         setDefinitionEn(result.definitionEn || result.definitionId || '');
+        // Detailed explanation markdown stored in content
+        if (result.content) {
+          setContentId(result.content);
+          setContentEn(result.content);
+        }
         if (result.formula) {
           setFormula(result.formula);
         }
@@ -99,12 +110,13 @@ export const CreateVanpediaPage: React.FC = () => {
           setExamples(result.examples.join('\n'));
         }
         setIsAiAssisted(true);
-        setAiModel(getCleanModelName(result.aiModel || selectedModel));
+        const resolvedModelName = getCleanModelName(result.aiModel || selectedModel);
+        setAiModel(resolvedModelName);
 
         setFeedback(
           language === 'en'
-            ? `Vanpedia term generated successfully with ${getCleanModelName(result.aiModel || selectedModel)}! Category: "${result.category}". You can review, edit, and publish.`
-            : `Istilah Vanpedia berhasil digenerate dengan ${getCleanModelName(result.aiModel || selectedModel)}! Kategori otomatis: "${result.category}". Anda dapat meninjau, mengedit, atau langsung menyimpan.`
+            ? `Vanpedia term generated successfully with ${resolvedModelName}! Category: "${result.category}". You can review, edit, and publish.`
+            : `Istilah Vanpedia berhasil digenerate dengan ${resolvedModelName}! Kategori otomatis: "${result.category}". Anda dapat meninjau, mengedit, atau langsung menyimpan.`
         );
       }
     } catch (err: any) {
@@ -181,6 +193,12 @@ export const CreateVanpediaPage: React.FC = () => {
             id: definitionId.trim(),
             en: definitionEn.trim() || definitionId.trim(),
           },
+          content: contentId.trim()
+            ? {
+                id: contentId.trim(),
+                en: contentEn.trim() || contentId.trim(),
+              }
+            : undefined,
           formula: formula.trim() || undefined,
           examples: {
             id: parsedExamples.length > 0 ? parsedExamples : ['Contoh penerapan istilah ini.'],
@@ -337,23 +355,11 @@ export const CreateVanpediaPage: React.FC = () => {
 
               {/* Model Selector */}
               <div className="sm:col-span-5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
-                  {language === 'en' ? 'AI Model' : 'Pilihan Model AI'}
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="w-full appearance-none px-4 py-2.5 pr-10 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30 font-medium"
-                  >
-                    {AI_MODELS_LIST.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} {m.badge ? `(${m.badge})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                </div>
+                <AiModelSelect
+                  value={selectedModel}
+                  onChange={setSelectedModel}
+                  label={language === 'en' ? 'AI Model Engine' : 'Pilihan Model AI Engine'}
+                />
               </div>
             </div>
 
@@ -538,15 +544,33 @@ export const CreateVanpediaPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Definition with RichEditor */}
+          {/* Core Definition */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
-              {language === 'en' ? 'Definition & Content (Markdown supported)' : 'Definisi & Penjelasan (Mendukung Markdown)'} *
+              {language === 'en' ? 'Core Definition (1-2 Sentences)' : 'Definisi Inti Ringkas (1-2 Kalimat)'} *
             </label>
-            <RichEditor
+            <textarea
               value={definitionId}
-              onChange={setDefinitionId}
-              placeholder="Jelaskan definisi istilah ini secara ringkas, padat, dan jelas..."
+              onChange={(e) => setDefinitionId(e.target.value)}
+              required
+              rows={3}
+              placeholder="Definisi formal dan ringkas istilah ini..."
+              className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30 font-reading-sans"
+            />
+          </div>
+
+          {/* Full Detailed Content with RichEditor */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300">
+                {language === 'en' ? 'Detailed Explanation & Sections (Markdown & Math)' : 'Penjelasan Lengkap & Sub-Bab (Mendukung Markdown & Rumus)'}
+              </label>
+              <span className="text-[10px] text-stone-400 dark:text-zinc-500">Opsional / Lengkap</span>
+            </div>
+            <RichEditor
+              value={contentId}
+              onChange={setContentId}
+              placeholder="Uraian mendalam, sub-bab, intuisi matematis, perbandingan, atau kode contoh..."
               minHeight="280px"
             />
           </div>

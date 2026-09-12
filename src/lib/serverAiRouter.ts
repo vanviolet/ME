@@ -226,7 +226,7 @@ export async function executeSmartAiRouting(options: SmartAiRequestOptions): Pro
       return {
         text: gResult,
         parsedJson: parsed,
-        usedModel: isGeminiRequested ? getCleanModelName(gModel) : cleanName,
+        usedModel: cleanName,
         provider: isGeminiRequested ? 'Google Gemini Engine' : `${cleanName} (Hybrid Engine)`,
         executionPath,
       };

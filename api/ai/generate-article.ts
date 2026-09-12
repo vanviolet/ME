@@ -213,49 +213,26 @@ Format keluaran HARUS berformat JSON valid dengan properti:
     };
 
     let parsedData: any = null;
-    let usedModel = model;
-    let provider = 'Google Gemini Free Tier';
+    let usedModel = getCleanModelName(model);
+    let provider = 'Smart AI Engine';
     const executionPath: string[] = [];
 
-    // Tier 1: OpenCode native upstream
-    if (model.startsWith('opencode/')) {
-      executionPath.push('opencode-zen-upstream');
-      const zenRes = await callOpenCodeZenUpstream(model, systemInstruction, prompt);
-      if (zenRes) {
-        try {
-          parsedData = extractAndParseJson(zenRes);
-          usedModel = model;
-          provider = 'OpenCode Free (No Auth)';
-        } catch {}
-      }
+    const isGemini = model.toLowerCase().startsWith('gemini');
 
-      if (!parsedData) {
-        executionPath.push('public-zero-auth-gateway');
-        const gwRes = await callPublicZeroAuthGateway(model, systemInstruction, prompt);
-        if (gwRes) {
-          try {
-            parsedData = extractAndParseJson(gwRes);
-            usedModel = model;
-            provider = 'Zero-Auth Free Gateway';
-          } catch {}
-        }
-      }
-    }
-
-    // Tier 2: OpenRouter / free models
-    if (!parsedData && (model.startsWith('openrouter/') || model.includes(':free'))) {
-      executionPath.push('public-zero-auth-gateway');
+    // Tier 1: Zero-auth gateway for non-gemini models (Nemotron, DeepSeek, Qwen, Llama, MiMo, etc.)
+    if (!isGemini || model.startsWith('opencode/') || model.startsWith('openrouter/')) {
+      executionPath.push('zero-auth-gateway');
       const gwRes = await callPublicZeroAuthGateway(model, systemInstruction, prompt);
       if (gwRes) {
         try {
           parsedData = extractAndParseJson(gwRes);
-          usedModel = model;
-          provider = 'Open-Source Free Gateway';
+          usedModel = getCleanModelName(model);
+          provider = 'Zero-Auth Free Gateway';
         } catch {}
       }
     }
 
-    // Tier 3: Gemini Free Tier cascade fallback
+    // Tier 2: Gemini Free Tier cascade fallback
     if (!parsedData) {
       const geminiCascade = model.startsWith('gemini-')
         ? [model, 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite']
