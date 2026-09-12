@@ -150,7 +150,7 @@ export const CreateVanpediaPage: React.FC = () => {
   }
 
   return (
-    <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto min-h-screen">
+    <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto min-h-screen">
       <Seo
         title={language === 'en' ? 'Add Term | Vanpedia' : 'Tambah Istilah | Vanpedia'}
         description="Add a technical term to Vanpedia knowledge base."
@@ -167,14 +167,14 @@ export const CreateVanpediaPage: React.FC = () => {
         </Link>
         <button
           onClick={() => setIsAiModalOpen(true)}
-          className="px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-zinc-800 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+          className="px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1.5 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors border border-rose-200/60 dark:border-rose-800/60"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          <span>{language === 'en' ? 'AI Prompt Helper' : 'Bantuan Prompt AI'}</span>
+          <span>{language === 'en' ? 'Firebase AI Logic' : 'Firebase AI Logic (Gemini)'}</span>
         </button>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-xl overflow-hidden p-6 sm:p-8">
+      <div className="mt-6">
         <div className="border-b border-stone-100 dark:border-zinc-800 pb-6 mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold font-serif text-stone-900 dark:text-zinc-100 flex items-center gap-3">
             <BookOpen className="w-7 h-7 text-rose-600 dark:text-rose-500 shrink-0" />
@@ -233,7 +233,7 @@ export const CreateVanpediaPage: React.FC = () => {
                 type="text"
                 value={titleId}
                 onChange={e => setTitleId(e.target.value)}
-                placeholder="misal: Tritonus (Tritone)"
+                placeholder="misal: Backpropagation"
                 required
                 className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30"
               />
@@ -246,7 +246,7 @@ export const CreateVanpediaPage: React.FC = () => {
                 type="text"
                 value={titleEn}
                 onChange={e => setTitleEn(e.target.value)}
-                placeholder="e.g. Tritone Interval"
+                placeholder="e.g. Backpropagation Algorithm"
                 className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30"
               />
             </div>
@@ -264,7 +264,6 @@ export const CreateVanpediaPage: React.FC = () => {
                 className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30"
               >
                 <option value="Learning (AI)">Learning (AI)</option>
-                <option value="Music Theory">Music Theory</option>
                 <option value="Computer Systems">Computer Systems</option>
                 <option value="Database Systems">Database Systems</option>
                 <option value="Biometric Security">Biometric Security</option>
@@ -291,7 +290,7 @@ export const CreateVanpediaPage: React.FC = () => {
                 type="text"
                 value={slugInput}
                 onChange={e => setSlugInput(e.target.value)}
-                placeholder="e.g. tritone"
+                placeholder="e.g. backpropagation"
                 className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-mono"
               />
             </div>
@@ -333,7 +332,7 @@ export const CreateVanpediaPage: React.FC = () => {
               value={examples}
               onChange={e => setExamples(e.target.value)}
               rows={3}
-              placeholder={'Misal:\nPenggunaan interval tritone pada aransemen jazz\nPenerapan inversi akord pada kadens'}
+              placeholder={'Misal:\nPenggunaan backpropagation pada jaringan saraf tiruan\nPenerapan load balancer pada microservices'}
               className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30"
             />
           </div>
@@ -394,7 +393,30 @@ export const CreateVanpediaPage: React.FC = () => {
         </form>
       </div>
 
-      <AiPromptModal isOpen={isAiModalOpen} onClose={() => setIsAiModalOpen(false)} />
+      <AiPromptModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        mode="vanpedia"
+        defaultCategory={category}
+        onApplyVanpedia={(van) => {
+          handleTemplateLoaded({
+            title: van.termId,
+            termId: van.termId,
+            category: van.category,
+            phonetic: van.phonetic,
+            definition: van.content || van.definitionId,
+            formula: van.formula,
+            examples: van.examples,
+            isAiAssisted: true,
+            aiModel: van.aiModel,
+          });
+          setFeedback(
+            language === 'en'
+              ? 'Vanpedia entry generated with Firebase AI Logic! You can review, edit, and publish.'
+              : 'Entri Vanpedia berhasil digenerate dengan Firebase AI Logic! Anda dapat meninjau, mengedit, dan mempublikasikan.'
+          );
+        }}
+      />
     </section>
   );
 };

@@ -44,11 +44,10 @@ export const RichEditor: React.FC<RichEditorProps> = ({
   label,
   required = false,
   vanpediaTerms = [
-    { slug: 'tritone', title: 'Tritone Interval' },
+    { slug: 'machine-learning', title: 'Machine Learning' },
     { slug: 'backpropagation', title: 'Backpropagation Algorithm' },
     { slug: 'floating-point', title: 'IEEE 754 Floating-Point' },
     { slug: 'bcrypt', title: 'Bcrypt Hash Function' },
-    { slug: 'web-audio-api', title: 'Web Audio API' },
     { slug: 'neural-networks', title: 'Neural Networks' },
   ],
 }) => {
@@ -382,18 +381,18 @@ export const RichEditor: React.FC<RichEditorProps> = ({
               onChange={e => onChange(e.target.value)}
               placeholder={placeholder}
               style={{ minHeight }}
-              className="w-full p-4 bg-transparent text-stone-900 dark:text-zinc-100 font-mono text-xs leading-relaxed focus:outline-none resize-y"
+              className="w-full p-6 bg-stone-50/30 dark:bg-zinc-950/20 text-stone-900 dark:text-zinc-100 font-mono text-sm leading-relaxed focus:outline-none resize-y"
             />
             <div
               style={{ minHeight }}
-              className="p-4 bg-stone-50/50 dark:bg-zinc-950/40 overflow-y-auto max-h-[550px] text-stone-800 dark:text-zinc-200 text-xs sm:text-sm leading-relaxed prose prose-stone dark:prose-invert max-w-none"
+              className="p-6 bg-stone-50 dark:bg-zinc-950 overflow-y-auto max-h-[550px] text-stone-800 dark:text-zinc-200 text-sm sm:text-base leading-relaxed prose prose-stone dark:prose-invert max-w-none"
               dangerouslySetInnerHTML={{ __html: previewHtml || '<p class="text-stone-400 italic">Pratinjau kosong...</p>' }}
             />
           </div>
         ) : viewMode === 'preview' ? (
           <div
             style={{ minHeight }}
-            className="p-6 overflow-y-auto max-h-[600px] text-stone-800 dark:text-zinc-200 text-sm leading-relaxed prose prose-stone dark:prose-invert max-w-none"
+            className="p-6 sm:p-8 bg-stone-50 dark:bg-zinc-950 overflow-y-auto max-h-[600px] text-stone-800 dark:text-zinc-200 text-base leading-relaxed prose prose-stone dark:prose-invert max-w-none"
             dangerouslySetInnerHTML={{ __html: previewHtml || '<p class="text-stone-400 italic">Belum ada konten untuk ditampilkan...</p>' }}
           />
         ) : (
@@ -404,7 +403,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
             onChange={e => onChange(e.target.value)}
             placeholder={placeholder}
             style={{ minHeight }}
-            className="w-full p-4 bg-transparent text-stone-900 dark:text-zinc-100 font-mono text-xs sm:text-sm leading-relaxed focus:outline-none resize-y"
+            className="w-full p-6 bg-stone-50/30 dark:bg-zinc-950/20 text-stone-900 dark:text-zinc-100 font-mono text-sm sm:text-base leading-relaxed focus:outline-none resize-y"
           />
         )}
       </div>

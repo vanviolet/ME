@@ -257,7 +257,7 @@ author_role: "Software Engineer"
 # Judul Utama Artikel
 
 ## 1. Pengantar & Motivasi
-Tuliskan latar belakang mengapa konsep ini penting. Anda dapat menghubungkan istilah teknis ke Vanpedia menggunakan format \`[[kata-kunci]]\`, contohnya \`[[tritone]]\` atau \`[[backpropagation]]\`.
+Tuliskan latar belakang mengapa konsep ini penting. Anda dapat menghubungkan istilah teknis ke Vanpedia menggunakan format \`[[kata-kunci]]\`, contohnya \`[[machine-learning]]\` atau \`[[backpropagation]]\`.
 
 ## 2. Arsitektur & Prinsip Kerja
 Jelaskan cara kerja sistem secara mendalam. Anda dapat menuliskan formula matematika:
@@ -301,19 +301,19 @@ Rangkuman kesimpulan dan arah pengembangan selanjutnya.
  */
 export function downloadVanpediaTemplate(): void {
   const content = `---
-term_id: "Tritone"
-term_en: "Tritone Interval"
-slug: "tritone"
-category: "Theory Music"
-phonetic: "/ˈtraɪtoʊn/"
-definition_id: "Interval musik yang terdiri dari tiga whole tone (6 semitone) yang membagi satu oktaf tepat menjadi dua bagian simetris, menghasilkan disonansi kuat yang memicu dorongan gerak harmonik."
-definition_en: "A musical interval spanning three whole tones (6 semitones), known for its high tension and harmonic instability."
-formula: "f2 = f1 * 2^(6/12)"
+term_id: "Machine Learning"
+term_en: "Machine Learning"
+slug: "machine-learning"
+category: "Learning (AI)"
+phonetic: "/məˈʃiːn ˈlɜːrnɪŋ/"
+definition_id: "Cabang dari kecerdasan buatan (AI) yang berfokus pada penggunaan data dan algoritma untuk meniru cara manusia belajar, dengan meningkatkan akurasi seiring waktu secara bertahap."
+definition_en: "A branch of artificial intelligence (AI) and computer science which focuses on the use of data and algorithms to imitate the way that humans learn, gradually improving its accuracy."
+formula: "y = wx + b"
 is_ai_assisted: true
 ai_model: "Gemini 3.7 Flash"
 examples:
-  - "Interval antara nada B dan F dalam akor Dominan 7 (G7) yang menyelesaikan ke akor C Major"
-  - "Penggunaan tritone substitution dalam progresi jazz ii-V-I"
+  - "Sistem rekomendasi pada e-commerce"
+  - "Pengenalan gambar pada aplikasi medis"
 ---
 
 # Penjelasan Mendalam Istilah
@@ -388,7 +388,7 @@ author_role: "Author / Engineer"
 [Jelaskan motivasi teknis mengapa topik ini penting, masalah yang dihadapi, dan solusi yang ditawarkan.]
 
 ## 2. Konsep Inti & Landasan Teoretis
-[Jelaskan arsitektur teknis secara gamblang. Jika relevan, sertakan formula matematis LaTeX seperti $$E=mc^2$$ atau analogi visual. Bila menyebutkan istilah teknis, hubungkan dengan format [[istilah-slug]] (misal: [[backpropagation]], [[tritone]], [[floating-point-arithmetic]], dll).]
+[Jelaskan arsitektur teknis secara gamblang. Jika relevan, sertakan formula matematis LaTeX atau analogi visual. Bila menyebutkan istilah teknis, hubungkan dengan format [[istilah-slug]] (misal: [[backpropagation]], [[floating-point-arithmetic]], dll).]
 
 ## 3. Implementasi Kode Nyata (Production-Ready)
 [Berikan contoh kode TypeScript/Python/Arsitektur yang bersih, memiliki tipe data, dan komentar instruktif.]
@@ -431,7 +431,7 @@ export function generateChatGptVanpediaPrompt(data: {
   targetModel?: string;
 }): AiPromptResult {
   const modelName = data.targetModel || 'Gemini 3.7 Flash';
-  const prompt = `Anda adalah seorang Leksikografer Teknis dan Arsitek Rekayasa Perangkat Lunak & Teori Musik.
+  const prompt = `Anda adalah seorang Leksikografer Teknis dan Arsitek Rekayasa Perangkat Lunak.
 Tolong buatkan entri kamus istilah teknis komprehensif untuk kamus "Vanpedia" berdasarkan istilah berikut:
 
 - Nama Istilah: "${data.termName}"
@@ -462,7 +462,7 @@ examples:
 [Jelaskan cara kerja, asal-usul teoretis, dan mekanismenya secara detail.]
 
 ## 2. Implementasi & Relevansi Industri
-[Bagaimana konsep ini digunakan di dunia nyata: di AI, software engineering, keamanan siber, atau musik.]
+[Bagaimana konsep ini digunakan di dunia nyata: di AI, software engineering, keamanan siber, dll.]
 
 ## 3. Kesalahan Konsep yang Sering Terjadi (Common Misconceptions)
 [Uraikan kekeliruan umum yang sering dipahami orang mengenai istilah ini.]`;

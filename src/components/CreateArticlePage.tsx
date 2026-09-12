@@ -143,7 +143,7 @@ export const CreateArticlePage: React.FC = () => {
   }
 
   return (
-    <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto min-h-screen">
+    <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto min-h-screen">
       <Seo
         title={language === 'en' ? 'Create Article | Muchamad Irvan' : 'Tulis Artikel | Muchamad Irvan'}
         description="Create and publish a technical article or research note."
@@ -160,14 +160,14 @@ export const CreateArticlePage: React.FC = () => {
         </Link>
         <button
           onClick={() => setIsAiModalOpen(true)}
-          className="px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-zinc-800 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+          className="px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1.5 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors border border-rose-200/60 dark:border-rose-800/60"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          <span>{language === 'en' ? 'AI Prompt Helper' : 'Bantuan Prompt AI'}</span>
+          <span>{language === 'en' ? 'Firebase AI Logic' : 'Firebase AI Logic (Gemini)'}</span>
         </button>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-xl overflow-hidden p-6 sm:p-8">
+      <div className="mt-6">
         <div className="border-b border-stone-100 dark:border-zinc-800 pb-6 mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold font-serif text-stone-900 dark:text-zinc-100 flex items-center gap-3">
             <FileText className="w-7 h-7 text-rose-600 dark:text-rose-500 shrink-0" />
@@ -319,7 +319,6 @@ export const CreateArticlePage: React.FC = () => {
                 <option value="System Architecture">System Architecture</option>
                 <option value="Database Systems">Database Systems</option>
                 <option value="Security & Auth">Security & Auth</option>
-                <option value="Music Theory">Music Theory</option>
                 <option value="General">General</option>
               </select>
             </div>
@@ -434,7 +433,31 @@ export const CreateArticlePage: React.FC = () => {
         </form>
       </div>
 
-      <AiPromptModal isOpen={isAiModalOpen} onClose={() => setIsAiModalOpen(false)} />
+      <AiPromptModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        mode="article"
+        defaultCategory={category}
+        onApplyArticle={(art) => {
+          setTitleId(art.titleId);
+          setTitleEn(art.titleEn || art.titleId);
+          setCategory(art.category);
+          setSummaryId(art.summaryId);
+          setSummaryEn(art.summaryEn || art.summaryId);
+          setContentId(art.content);
+          setContentEn(art.content);
+          if (art.tags && art.tags.length > 0) {
+            setTags(art.tags.join(', '));
+          }
+          setIsAiAssisted(true);
+          setAiModel(art.aiModel);
+          setFeedback(
+            language === 'en'
+              ? 'Draft generated with Firebase AI Logic! You can review, edit, and publish.'
+              : 'Draf berhasil digenerate dengan Firebase AI Logic! Anda dapat meninjau, mengedit, dan mempublikasikan.'
+          );
+        }}
+      />
     </section>
   );
 };

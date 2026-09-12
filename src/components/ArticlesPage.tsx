@@ -263,10 +263,10 @@ export const ArticlesPage: React.FC = () => {
         title={language === 'id' ? 'Artikel | Muchamad Irvan' : 'Articles | Muchamad Irvan'}
         description={
           language === 'id'
-            ? 'Kumpulan artikel teknis tentang arsitektur sistem, AI, keamanan biometrik, Web Audio API, dan teori musik.'
-            : 'Technical articles on system architecture, AI, biometric security, Web Audio API, and music theory.'
+            ? 'Kumpulan artikel teknis tentang arsitektur sistem, AI, dan keamanan biometrik.'
+            : 'Technical articles on system architecture, AI, and biometric security.'
         }
-        keywords="articles, blog, technical writing, software engineering, architecture, ai, music theory"
+        keywords="articles, blog, technical writing, software engineering, architecture, ai"
         url="https://vanviolet.my.id/articles"
         type="website"
       />
@@ -679,7 +679,6 @@ export const ArticlesPage: React.FC = () => {
                     >
                       <option value="Learning (AI)">Learning (AI)</option>
                       <option value="Fakta Unik">Fakta Unik</option>
-                      <option value="Hobby (Music)">Hobby (Music)</option>
                       <option value="Architecture">Architecture</option>
                       <option value="Security">Security</option>
                       <option value="General">General</option>
@@ -824,6 +823,18 @@ export const ArticlesPage: React.FC = () => {
           onClose={() => setIsAiModalOpen(false)}
           mode="article"
           defaultCategory={newCategory}
+          onApplyArticle={(art) => {
+            handleArticleTemplateLoaded({
+              title: art.titleId,
+              category: art.category,
+              summary: art.summaryId,
+              content: art.content,
+              tags: art.tags,
+              isAiAssisted: true,
+              aiModel: art.aiModel,
+            });
+            setIsSubmitModalOpen(true);
+          }}
         />
       </section>
     </>

@@ -77,12 +77,12 @@ export async function fetchArticlesFromFirestore(isAdmin = false, authorId?: str
     }
 
     // Filter view:
+    // If visibility is public, show it immediately.
     // If visibility is private: only show if authorId === currentUserId or isAdmin
-    // If status is pending: only show if authorId === currentUserId or isAdmin
     return firestoreArticles.filter(a => {
+      if (a.visibility === 'public') return true;
       const isOwner = Boolean(authorId && a.authorId === authorId);
       if (isOwner) return true;
-      if (a.visibility === 'private') return false;
       return a.status === 'approved';
     });
   } catch (error) {

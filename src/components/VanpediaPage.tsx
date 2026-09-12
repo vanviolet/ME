@@ -1230,6 +1230,20 @@ export const VanpediaIndexPage: React.FC = () => {
           onClose={() => setIsAiModalOpen(false)}
           mode="vanpedia"
           defaultCategory={newCategory}
+          onApplyVanpedia={(van) => {
+            handleVanpediaTemplateLoaded({
+              title: van.termId,
+              slug: van.slug,
+              category: van.category,
+              phonetic: van.phonetic,
+              definition: van.content || van.definitionId,
+              formula: van.formula,
+              examples: van.examples,
+              isAiAssisted: true,
+              aiModel: van.aiModel,
+            });
+            setIsModalOpen(true);
+          }}
         />
       </section>
     </>
