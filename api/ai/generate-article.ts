@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { Type } from '@google/genai';
-import { executeSmartAiRouting } from '../../src/lib/serverAiRouter';
+import { executeSmartAiRouting } from '../_lib/serverAiRouter';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
