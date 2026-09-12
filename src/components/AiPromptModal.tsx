@@ -294,10 +294,10 @@ export const AiPromptModal: React.FC<AiPromptModalProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block font-semibold text-stone-700 dark:text-zinc-300">
-                    Model Gemini (Free Tier)
+                    Model AI (Free Tier & No Auth)
                   </label>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-medium">
-                    100% Free
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-medium">
+                    {GEMINI_FREE_MODELS.find(m => m.id === directModel)?.isNoAuth ? '⚡ No Auth' : '100% Free'}
                   </span>
                 </div>
                 <div className="relative">
@@ -306,11 +306,27 @@ export const AiPromptModal: React.FC<AiPromptModalProps> = ({
                     onChange={e => setDirectModel(e.target.value)}
                     className="w-full appearance-none px-3.5 py-2.5 pr-8 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600 focus:outline-none"
                   >
-                    {GEMINI_FREE_MODELS.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} — {m.badge}
-                      </option>
-                    ))}
+                    <optgroup label="🌟 OpenCode Free (9Router / No Auth)">
+                      {GEMINI_FREE_MODELS.filter(m => m.provider === 'OpenCode Free (No Auth)').map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.badge})
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="⚡ Google Gemini Free Tier">
+                      {GEMINI_FREE_MODELS.filter(m => m.provider === 'Google Gemini Free').map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.badge})
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🌐 OpenRouter Free Tier">
+                      {GEMINI_FREE_MODELS.filter(m => m.provider === 'OpenRouter Free').map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.badge})
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-stone-500 dark:text-zinc-400">
                     <ChevronDown className="w-3.5 h-3.5" />

@@ -1,12 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI } from '@google/genai';
-
-const ALLOWED_FREE_MODELS = [
-  'gemini-3.8-flash',
-  'gemini-3.6-flash',
-  'gemini-3.1-flash-lite',
-  'gemini-flash-latest',
-];
+import { executeSmartAiRouting } from '../../src/lib/serverAiRouter';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -35,28 +28,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      res.status(500).json({
-        error:
-          'GEMINI_API_KEY belum diset. Silakan tambahkan GEMINI_API_KEY di pengaturan Vercel (Project Settings -> Environment Variables).',
-      });
-      return;
-    }
-
-    const ai = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
-
-    const targetModel = ALLOWED_FREE_MODELS.includes(model) ? model : 'gemini-3.8-flash';
-
     let systemInstruction =
-      'Anda adalah asisten AI cerdas (Firebase AI Logic) untuk portal Muchamad Irvan yang memberikan jawaban teknis yang tepat, padat, dan elegan.';
+      'Anda adalah asisten AI cerdas untuk portal Muchamad Irvan yang memberikan jawaban teknis yang tepat, padat, dan elegan.';
 
     if (task === 'qa_answer') {
       systemInstruction =
@@ -67,33 +40,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const fullContents = context ? `Konteks:\n${context}\n\nPermintaan:\n${prompt}` : prompt;
 
-    let response;
-    let usedModel = targetModel;
-
-    try {
-      response = await ai.models.generateContent({
-        model: targetModel,
-        contents: fullContents,
-        config: {
-          systemInstruction,
-        },
-      });
-    } catch (primaryErr) {
-      console.warn(`[AI Logic] Model ${targetModel} error, trying fallback to gemini-3.6-flash...`, primaryErr);
-      usedModel = 'gemini-3.6-flash';
-      response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents: fullContents,
-        config: {
-          systemInstruction,
-        },
-      });
-    }
+    const aiResult = await executeSmartAiRouting({
+      model,
+      systemInstruction,
+      prompt: fullContents,
+      isJson: false,
+    });
 
     res.status(200).json({
       success: true,
-      result: response?.text || '',
-      aiModel: usedModel,
+      result: aiResult.text,
+      aiModel: aiResult.usedModel,
+      provider: aiResult.provider,
+      executionPath: aiResult.executionPath,
     });
   } catch (error: any) {
     console.error('Error in AI assist:', error);

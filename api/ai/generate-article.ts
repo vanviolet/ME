@@ -1,12 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Type } from '@google/genai';
-
-const ALLOWED_FREE_MODELS = [
-  'gemini-3.8-flash',
-  'gemini-3.6-flash',
-  'gemini-3.1-flash-lite',
-  'gemini-flash-latest',
-];
+import { Type } from '@google/genai';
+import { executeSmartAiRouting } from '../../src/lib/serverAiRouter';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -41,27 +35,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      res.status(500).json({
-        error:
-          'GEMINI_API_KEY belum diset. Silakan tambahkan GEMINI_API_KEY di pengaturan Vercel (Project Settings -> Environment Variables).',
-      });
-      return;
-    }
+    const systemInstruction =
+      'You are a technical AI writer that generates structured, publication-ready technical articles in JSON format.';
 
-    const ai = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
-
-    const targetModel = ALLOWED_FREE_MODELS.includes(model) ? model : 'gemini-3.8-flash';
-
-    const prompt = `Anda adalah Penulis Teknis dan Arsitek Sistem Senior (Firebase AI Logic).
+    const prompt = `Anda adalah Penulis Teknis dan Arsitek Sistem Senior.
 Tolong buatkan draf artikel teknis yang mendalam, terstruktur rapi, berbobot, dan aplikatif berdasarkan input berikut:
 - Topik / Judul: "${topic.trim()}"
 - Kategori: "${category}"
@@ -87,104 +64,57 @@ Format keluaran HARUS berformat JSON valid dengan properti:
 - readTime: Estimasi waktu baca (contoh: "5 min read")
 - content: Isi artikel Markdown lengkap sesuai struktur di atas.`;
 
-    let response;
-    let usedModel = targetModel;
-
-    try {
-      response = await ai.models.generateContent({
-        model: targetModel,
-        contents: prompt,
-        config: {
-          systemInstruction:
-            'You are a technical AI writer that generates structured, publication-ready technical articles.',
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              titleId: { type: Type.STRING },
-              titleEn: { type: Type.STRING },
-              category: { type: Type.STRING },
-              tags: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
-              summaryId: { type: Type.STRING },
-              summaryEn: { type: Type.STRING },
-              readTime: { type: Type.STRING },
-              content: { type: Type.STRING },
-            },
-            required: [
-              'titleId',
-              'titleEn',
-              'category',
-              'tags',
-              'summaryId',
-              'summaryEn',
-              'readTime',
-              'content',
-            ],
-          },
+    const jsonSchema = {
+      type: Type.OBJECT,
+      properties: {
+        titleId: { type: Type.STRING },
+        titleEn: { type: Type.STRING },
+        category: { type: Type.STRING },
+        tags: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
         },
-      });
-    } catch (primaryErr: any) {
-      console.warn(`[AI Logic] Model ${targetModel} error, trying fallback to gemini-3.6-flash...`, primaryErr);
-      usedModel = 'gemini-3.6-flash';
-      response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents: prompt,
-        config: {
-          systemInstruction:
-            'You are a technical AI writer that generates structured, publication-ready technical articles.',
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              titleId: { type: Type.STRING },
-              titleEn: { type: Type.STRING },
-              category: { type: Type.STRING },
-              tags: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
-              summaryId: { type: Type.STRING },
-              summaryEn: { type: Type.STRING },
-              readTime: { type: Type.STRING },
-              content: { type: Type.STRING },
-            },
-            required: [
-              'titleId',
-              'titleEn',
-              'category',
-              'tags',
-              'summaryId',
-              'summaryEn',
-              'readTime',
-              'content',
-            ],
-          },
-        },
-      });
-    }
+        summaryId: { type: Type.STRING },
+        summaryEn: { type: Type.STRING },
+        readTime: { type: Type.STRING },
+        content: { type: Type.STRING },
+      },
+      required: [
+        'titleId',
+        'titleEn',
+        'category',
+        'tags',
+        'summaryId',
+        'summaryEn',
+        'readTime',
+        'content',
+      ],
+    };
 
-    const text = response?.text;
-    if (!text) {
-      throw new Error('No response generated from Gemini model');
-    }
+    const aiResult = await executeSmartAiRouting({
+      model,
+      systemInstruction,
+      prompt,
+      isJson: true,
+      jsonSchema,
+    });
 
-    const parsedData = JSON.parse(text);
+    const parsedData = aiResult.parsedJson || JSON.parse(aiResult.text);
 
     res.status(200).json({
       success: true,
       data: {
         ...parsedData,
         isAiAssisted: true,
-        aiModel: usedModel,
+        aiModel: aiResult.usedModel,
+        provider: aiResult.provider,
+        executionPath: aiResult.executionPath,
       },
     });
   } catch (error: any) {
     console.error('Error generating article:', error);
     res.status(500).json({
-      error: error.message || 'Failed to generate article using AI Logic',
+      error: error.message || 'Failed to generate article using Smart AI Engine',
     });
   }
 }

@@ -1,12 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI, Type } from '@google/genai';
-
-const ALLOWED_FREE_MODELS = [
-  'gemini-3.8-flash',
-  'gemini-3.6-flash',
-  'gemini-3.1-flash-lite',
-  'gemini-flash-latest',
-];
+import { Type } from '@google/genai';
+import { executeSmartAiRouting } from '../../src/lib/serverAiRouter';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -35,28 +29,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      res.status(500).json({
-        error:
-          'GEMINI_API_KEY belum diset. Silakan tambahkan GEMINI_API_KEY di pengaturan Vercel (Project Settings -> Environment Variables).',
-      });
-      return;
-    }
+    const systemInstruction =
+      'You are an encyclopedic technical lexicographer creating authoritative glossary entries in JSON format.';
 
-    const ai = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
-
-    const targetModel = ALLOWED_FREE_MODELS.includes(model) ? model : 'gemini-3.8-flash';
-
-    const prompt = `Anda adalah Leksikografer Teknis Rekayasa Perangkat Lunak dan AI (Firebase AI Logic).
-Tolong buatkan entri kamus istilah teknis untuk "Vanpedia" yang RINGKAS, PADAT, AKURAT, dan SANGAT JELAS (tidak bertele-tele, tidak panjang-panjang, fokus pada esensi dan pemahaman praktis):
+    const prompt = `Anda adalah Leksikografer Teknis Rekayasa Perangkat Lunak dan AI.
+Tolong buatkan entri kamus istilah teknis untuk "Vanpedia" yang RINGKAS, PADAT, AKURAT, dan SANGAT JELAS:
 - Nama Istilah: "${termName.trim()}"
 - Kategori: "${category}"
 ${details ? `- Catatan Khusus: "${details}"` : ''}
@@ -68,7 +45,7 @@ Ketentuan Format:
 - phonetic: Notasi fonetik standar IPA (misal: "/ˈbækˌprɑːpəˈɡeɪʃən/").
 - formula: Rumus/notasi matematis singkat jika relevan (kosongkan string jika tidak relevan).
 - examples: Array 2-3 contoh penerapan nyata dan singkat di industri modern.
-- content: Penjelasan singkat yang jelas dan padat (maksimal 2 sub-bab ringkas: "## Konsep Inti" dan "## Contoh Penerapan Praktis"). Tidak perlu uraian panjang yang melelahkan, utamakan kejelasan konsep.
+- content: Penjelasan singkat yang jelas dan padat (maksimal 2 sub-bab ringkas: "## Konsep Inti" dan "## Contoh Penerapan Praktis").
 
 Keluaran HARUS berupa JSON dengan properti:
 - termId: Nama istilah dalam Bahasa Indonesia
@@ -82,110 +59,60 @@ Keluaran HARUS berupa JSON dengan properti:
 - examples: Array 2-3 string contoh nyata
 - content: Penjelasan ringkas dan jelas dalam format Markdown`;
 
-    let response;
-    let usedModel = targetModel;
-
-    try {
-      response = await ai.models.generateContent({
-        model: targetModel,
-        contents: prompt,
-        config: {
-          systemInstruction:
-            'You are an encyclopedic technical lexicographer creating authoritative glossary entries.',
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              termId: { type: Type.STRING },
-              termEn: { type: Type.STRING },
-              slug: { type: Type.STRING },
-              category: { type: Type.STRING },
-              phonetic: { type: Type.STRING },
-              definitionId: { type: Type.STRING },
-              definitionEn: { type: Type.STRING },
-              formula: { type: Type.STRING },
-              examples: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
-              content: { type: Type.STRING },
-            },
-            required: [
-              'termId',
-              'termEn',
-              'slug',
-              'category',
-              'phonetic',
-              'definitionId',
-              'definitionEn',
-              'examples',
-              'content',
-            ],
-          },
+    const jsonSchema = {
+      type: Type.OBJECT,
+      properties: {
+        termId: { type: Type.STRING },
+        termEn: { type: Type.STRING },
+        slug: { type: Type.STRING },
+        category: { type: Type.STRING },
+        phonetic: { type: Type.STRING },
+        definitionId: { type: Type.STRING },
+        definitionEn: { type: Type.STRING },
+        formula: { type: Type.STRING },
+        examples: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
         },
-      });
-    } catch (primaryErr: any) {
-      console.warn(`[AI Logic] Model ${targetModel} encountered error, trying fallback to gemini-3.6-flash...`, primaryErr);
-      usedModel = 'gemini-3.6-flash';
-      response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents: prompt,
-        config: {
-          systemInstruction:
-            'You are an encyclopedic technical lexicographer creating authoritative glossary entries.',
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              termId: { type: Type.STRING },
-              termEn: { type: Type.STRING },
-              slug: { type: Type.STRING },
-              category: { type: Type.STRING },
-              phonetic: { type: Type.STRING },
-              definitionId: { type: Type.STRING },
-              definitionEn: { type: Type.STRING },
-              formula: { type: Type.STRING },
-              examples: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
-              content: { type: Type.STRING },
-            },
-            required: [
-              'termId',
-              'termEn',
-              'slug',
-              'category',
-              'phonetic',
-              'definitionId',
-              'definitionEn',
-              'examples',
-              'content',
-            ],
-          },
-        },
-      });
-    }
+        content: { type: Type.STRING },
+      },
+      required: [
+        'termId',
+        'termEn',
+        'slug',
+        'category',
+        'phonetic',
+        'definitionId',
+        'definitionEn',
+        'examples',
+        'content',
+      ],
+    };
 
-    const text = response?.text;
-    if (!text) {
-      throw new Error('No response generated from Gemini model');
-    }
+    const aiResult = await executeSmartAiRouting({
+      model,
+      systemInstruction,
+      prompt,
+      isJson: true,
+      jsonSchema,
+    });
 
-    const parsedData = JSON.parse(text);
+    const parsedData = aiResult.parsedJson || JSON.parse(aiResult.text);
 
     res.status(200).json({
       success: true,
       data: {
         ...parsedData,
         isAiAssisted: true,
-        aiModel: usedModel,
+        aiModel: aiResult.usedModel,
+        provider: aiResult.provider,
+        executionPath: aiResult.executionPath,
       },
     });
   } catch (error: any) {
     console.error('Error generating Vanpedia term:', error);
     res.status(500).json({
-      error: error.message || 'Failed to generate Vanpedia term using AI Logic',
+      error: error.message || 'Failed to generate Vanpedia term using Smart AI Engine',
     });
   }
 }
