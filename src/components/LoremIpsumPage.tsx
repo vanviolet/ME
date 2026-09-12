@@ -224,7 +224,7 @@ export const LoremIpsumPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-stone-100 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 flex items-center justify-center border border-stone-200 dark:border-zinc-700">
+              <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 shadow-xs">
                 <Type size={18} />
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
@@ -240,7 +240,7 @@ export const LoremIpsumPage: React.FC = () => {
 
           <Link
             to="/tools"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:text-stone-950 dark:hover:text-white text-xs font-medium transition-colors shadow-xs self-start sm:self-auto"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-900/50 text-xs font-medium transition-colors shadow-xs self-start sm:self-auto"
           >
             <ArrowLeft size={13} />
             <span>{language === 'en' ? 'All Tools' : 'Semua Perkakas'}</span>
@@ -252,7 +252,7 @@ export const LoremIpsumPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Minimal Controls Panel */}
         <div className="lg:col-span-5 space-y-6 bg-white dark:bg-zinc-900/90 p-5 sm:p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 pb-3 border-b border-stone-100 dark:border-zinc-800">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 pb-3 border-b border-stone-100 dark:border-zinc-800">
             <Sliders size={14} />
             <span>{language === 'en' ? 'Configuration' : 'Konfigurasi'}</span>
           </div>
@@ -276,8 +276,8 @@ export const LoremIpsumPage: React.FC = () => {
                     onClick={() => setPreset(item.id as any)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium text-left transition-all ${
                       preset === item.id
-                        ? 'border-stone-900 dark:border-zinc-100 bg-stone-900 text-stone-50 dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-xs'
-                        : 'border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-800/40 text-stone-700 dark:text-zinc-300 hover:border-stone-300 dark:hover:border-zinc-700'
+                        ? 'border-rose-600 bg-rose-600 text-white dark:bg-rose-600 dark:text-white font-semibold shadow-xs'
+                        : 'border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-800/40 text-stone-700 dark:text-zinc-300 hover:border-rose-300 dark:hover:border-rose-900/50 hover:text-rose-600 dark:hover:text-rose-400'
                     }`}
                   >
                     <Icon size={14} className="shrink-0" />
@@ -319,7 +319,7 @@ export const LoremIpsumPage: React.FC = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-semibold text-stone-700 dark:text-zinc-300">
               <span>{language === 'en' ? 'Quantity' : 'Jumlah'}</span>
-              <span className="font-mono text-stone-900 dark:text-zinc-100 font-bold">
+              <span className="font-mono text-rose-600 dark:text-rose-400 font-bold">
                 {count} {type}
               </span>
             </div>
@@ -330,7 +330,7 @@ export const LoremIpsumPage: React.FC = () => {
                 max={type === 'words' ? 300 : type === 'sentences' ? 30 : 20}
                 value={count}
                 onChange={e => setCount(Math.max(1, parseInt(e.target.value) || 1))}
-                className="flex-1 accent-stone-900 dark:accent-zinc-100 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-700 rounded-lg"
+                className="flex-1 accent-rose-600 dark:accent-rose-500 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-700 rounded-lg"
               />
               <input
                 type="number"
@@ -338,7 +338,7 @@ export const LoremIpsumPage: React.FC = () => {
                 max={500}
                 value={count}
                 onChange={e => setCount(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-16 px-2 py-1 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs font-mono text-stone-900 dark:text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-stone-400"
+                className="w-16 px-2 py-1 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs font-mono text-stone-900 dark:text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-rose-500"
               />
             </div>
           </div>
@@ -442,7 +442,7 @@ export const LoremIpsumPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleCopy}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 hover:opacity-90 transition-opacity shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white dark:bg-rose-600 dark:hover:bg-rose-500 transition-colors shadow-xs"
                 >
                   {copied ? <Check size={13} /> : <Copy size={13} />}
                   <span>{copied ? (language === 'en' ? 'Copied' : 'Tersalin') : (language === 'en' ? 'Copy' : 'Salin')}</span>

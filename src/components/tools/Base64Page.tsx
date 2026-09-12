@@ -143,7 +143,7 @@ export const Base64Page: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-6">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-stone-100 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 flex items-center justify-center border border-stone-200 dark:border-zinc-700">
+              <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 shadow-xs">
                 <Binary size={18} />
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
@@ -159,7 +159,7 @@ export const Base64Page: React.FC = () => {
 
           <Link
             to="/tools"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:text-stone-950 dark:hover:text-white text-xs font-medium transition-colors shadow-xs self-start sm:self-auto"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-900/50 text-xs font-medium transition-colors shadow-xs self-start sm:self-auto"
           >
             <ArrowLeft size={13} />
             <span>{language === 'en' ? 'All Tools' : 'Semua Perkakas'}</span>
@@ -182,7 +182,7 @@ export const Base64Page: React.FC = () => {
                 onClick={() => setMode(tab.id as any)}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   mode === tab.id
-                    ? 'bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 shadow-xs'
+                    ? 'bg-rose-600 text-white dark:bg-rose-600 dark:text-white shadow-xs'
                     : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
                 }`}
               >
@@ -198,14 +198,14 @@ export const Base64Page: React.FC = () => {
                   type="checkbox"
                   checked={urlSafe}
                   onChange={e => setUrlSafe(e.target.checked)}
-                  className="w-4 h-4 rounded text-stone-900 focus:ring-stone-400 border-stone-300 dark:border-zinc-700 accent-stone-900 dark:accent-zinc-100"
+                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-stone-300 dark:border-zinc-700 accent-rose-600 dark:accent-rose-500"
                 />
                 <span>URL Safe Base64</span>
               </label>
 
               <button
                 onClick={handleSwap}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-stone-950 dark:hover:text-white text-xs font-medium transition-colors"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-900/50 text-xs font-medium transition-colors"
                 title={language === 'en' ? 'Swap Input & Output' : 'Tukar Input & Output'}
               >
                 <ArrowRightLeft size={13} />
@@ -297,7 +297,7 @@ export const Base64Page: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleCopy}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-xs font-semibold shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white dark:bg-rose-600 dark:hover:bg-rose-500 text-xs font-semibold shadow-xs transition-colors"
                   >
                     {copied ? <Check size={12} /> : <Copy size={12} />}
                     <span>{copied ? 'Copied' : 'Copy'}</span>

@@ -83,7 +83,7 @@ export const ToolsIndexPage: React.FC = () => {
 
       {/* Header Banner */}
       <div className="space-y-4 text-center max-w-2xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 text-xs font-semibold border border-stone-200 dark:border-zinc-700">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-semibold border border-rose-500/20 shadow-xs">
           <Wrench size={14} />
           <span>{language === 'en' ? 'Developer Tools Hub' : 'Pusat Perkakas Tool'}</span>
         </div>
@@ -106,23 +106,23 @@ export const ToolsIndexPage: React.FC = () => {
             <Link
               to={tool.path}
               key={tool.id}
-              className="group p-6 rounded-2xl bg-white dark:bg-zinc-900/90 border border-stone-200 dark:border-zinc-800 hover:border-stone-400 dark:hover:border-zinc-600 hover:shadow-md transition-all duration-200 flex flex-col justify-between"
+              className="group p-6 rounded-2xl bg-white dark:bg-zinc-900/90 border border-stone-200 dark:border-zinc-800 hover:border-rose-300 dark:hover:border-rose-900/50 hover:shadow-md transition-all duration-200 flex flex-col justify-between"
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-xl bg-stone-100 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200 flex items-center justify-center border border-stone-200 dark:border-zinc-700 group-hover:bg-stone-900 group-hover:text-stone-50 dark:group-hover:bg-zinc-100 dark:group-hover:text-zinc-900 transition-colors">
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 group-hover:bg-rose-600 group-hover:text-white dark:group-hover:bg-rose-600 dark:group-hover:text-white transition-colors">
                     <Icon size={20} />
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-stone-50 dark:bg-zinc-800/60 text-stone-600 dark:text-zinc-400 border-stone-200 dark:border-zinc-700">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20">
                     {tool.badge}
                   </span>
                 </div>
 
                 <div className="space-y-1.5">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-stone-400 dark:text-zinc-500 block">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-rose-600 dark:text-rose-400 block font-semibold">
                     {tool.category}
                   </span>
-                  <h3 className="text-lg font-bold text-stone-900 dark:text-zinc-100 group-hover:text-stone-950 dark:group-hover:text-white transition-colors">
+                  <h3 className="text-lg font-bold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
                     {tool.title}
                   </h3>
                   <p className="text-xs text-stone-600 dark:text-zinc-400 leading-relaxed">
@@ -131,7 +131,7 @@ export const ToolsIndexPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-5 mt-4 border-t border-stone-100 dark:border-zinc-800 flex items-center gap-2 text-xs font-semibold text-stone-900 dark:text-zinc-100 group-hover:translate-x-1 transition-transform">
+              <div className="pt-5 mt-4 border-t border-stone-100 dark:border-zinc-800 flex items-center gap-2 text-xs font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 group-hover:translate-x-1 transition-all">
                 <span>{language === 'en' ? 'Open Tool' : 'Buka Tool'}</span>
                 <ArrowRight size={14} />
               </div>
