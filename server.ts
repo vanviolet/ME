@@ -234,7 +234,14 @@ async function startServer() {
   app.get("/api/health", (_req, res) => {
     res.json({
       status: "ok",
-      aiEngine: "Firebase AI Logic (Powered by Gemini 3.8 Flash)",
+      aiEngine: "Firebase AI Logic (Gemini 2.5 & 3 Series Free Tier)",
+      supportedModels: [
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro",
+        "gemini-3.8-flash",
+        "gemini-3.1-flash-lite",
+      ],
       hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
     });
   });
@@ -242,7 +249,7 @@ async function startServer() {
   // Generate Article Endpoint
   app.post("/api/ai/generate-article", async (req, res) => {
     try {
-      const { topic, category = "Learning (AI)", keyPoints = "", language = "id" } = req.body;
+      const { topic, category = "Learning (AI)", keyPoints = "", language = "id", model = "gemini-2.5-flash" } = req.body;
 
       if (!topic || typeof topic !== "string" || !topic.trim()) {
         res.status(400).json({ error: "Topic/Title outline is required." });
@@ -276,33 +283,78 @@ Format keluaran HARUS berformat JSON valid dengan properti:
 - readTime: Estimasi waktu baca (contoh: "5 min read")
 - content: Isi artikel Markdown lengkap sesuai struktur di atas.`;
 
-      const response = await callGeminiWithRetry(() =>
-        ai.models.generateContent({
-          model: "gemini-3.8-flash",
-          contents: prompt,
-          config: {
-            systemInstruction: "You are a technical AI writer that generates structured, publication-ready technical articles.",
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                titleId: { type: Type.STRING },
-                titleEn: { type: Type.STRING },
-                category: { type: Type.STRING },
-                tags: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
+      const targetModel = [
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro",
+        "gemini-3.8-flash",
+        "gemini-3.1-flash-lite",
+      ].includes(model)
+        ? model
+        : "gemini-2.5-flash";
+
+      let usedModel = targetModel;
+      let response;
+
+      try {
+        response = await callGeminiWithRetry(() =>
+          ai.models.generateContent({
+            model: targetModel,
+            contents: prompt,
+            config: {
+              systemInstruction: "You are a technical AI writer that generates structured, publication-ready technical articles.",
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  titleId: { type: Type.STRING },
+                  titleEn: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  tags: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                  },
+                  summaryId: { type: Type.STRING },
+                  summaryEn: { type: Type.STRING },
+                  readTime: { type: Type.STRING },
+                  content: { type: Type.STRING },
                 },
-                summaryId: { type: Type.STRING },
-                summaryEn: { type: Type.STRING },
-                readTime: { type: Type.STRING },
-                content: { type: Type.STRING },
+                required: ["titleId", "titleEn", "category", "tags", "summaryId", "summaryEn", "readTime", "content"],
               },
-              required: ["titleId", "titleEn", "category", "tags", "summaryId", "summaryEn", "readTime", "content"],
             },
-          },
-        })
-      );
+          })
+        );
+      } catch (primaryErr) {
+        console.warn(`[AI Logic] Primary model ${targetModel} error, falling back to gemini-2.5-flash...`, primaryErr);
+        usedModel = "gemini-2.5-flash";
+        response = await callGeminiWithRetry(() =>
+          ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+              systemInstruction: "You are a technical AI writer that generates structured, publication-ready technical articles.",
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  titleId: { type: Type.STRING },
+                  titleEn: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  tags: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                  },
+                  summaryId: { type: Type.STRING },
+                  summaryEn: { type: Type.STRING },
+                  readTime: { type: Type.STRING },
+                  content: { type: Type.STRING },
+                },
+                required: ["titleId", "titleEn", "category", "tags", "summaryId", "summaryEn", "readTime", "content"],
+              },
+            },
+          })
+        );
+      }
 
       const text = response.text;
       if (!text) {
@@ -316,7 +368,7 @@ Format keluaran HARUS berformat JSON valid dengan properti:
         data: {
           ...parsedData,
           isAiAssisted: true,
-          aiModel: "Gemini 3.8 Flash (Firebase AI Logic)",
+          aiModel: usedModel,
         },
       });
     } catch (error: any) {
@@ -330,7 +382,7 @@ Format keluaran HARUS berformat JSON valid dengan properti:
   // Generate Vanpedia Term Endpoint
   app.post("/api/ai/generate-vanpedia", async (req, res) => {
     try {
-      const { termName, category = "Learning (AI)", details = "" } = req.body;
+      const { termName, category = "Learning (AI)", details = "", model = "gemini-2.5-flash" } = req.body;
 
       if (!termName || typeof termName !== "string" || !termName.trim()) {
         res.status(400).json({ error: "Term name is required." });
@@ -365,35 +417,82 @@ Keluaran HARUS berupa JSON dengan properti:
 - examples: Array 2-3 string contoh nyata
 - content: Penjelasan ringkas dan jelas dalam format Markdown`;
 
-      const response = await callGeminiWithRetry(() =>
-        ai.models.generateContent({
-          model: "gemini-3.8-flash",
-          contents: prompt,
-          config: {
-            systemInstruction: "You are an encyclopedic technical lexicographer creating authoritative glossary entries.",
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                termId: { type: Type.STRING },
-                termEn: { type: Type.STRING },
-                slug: { type: Type.STRING },
-                category: { type: Type.STRING },
-                phonetic: { type: Type.STRING },
-                definitionId: { type: Type.STRING },
-                definitionEn: { type: Type.STRING },
-                formula: { type: Type.STRING },
-                examples: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
+      const targetModel = [
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro",
+        "gemini-3.8-flash",
+        "gemini-3.1-flash-lite",
+      ].includes(model)
+        ? model
+        : "gemini-2.5-flash";
+
+      let usedModel = targetModel;
+      let response;
+
+      try {
+        response = await callGeminiWithRetry(() =>
+          ai.models.generateContent({
+            model: targetModel,
+            contents: prompt,
+            config: {
+              systemInstruction: "You are an encyclopedic technical lexicographer creating authoritative glossary entries.",
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  termId: { type: Type.STRING },
+                  termEn: { type: Type.STRING },
+                  slug: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  phonetic: { type: Type.STRING },
+                  definitionId: { type: Type.STRING },
+                  definitionEn: { type: Type.STRING },
+                  formula: { type: Type.STRING },
+                  examples: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                  },
+                  content: { type: Type.STRING },
                 },
-                content: { type: Type.STRING },
+                required: ["termId", "termEn", "slug", "category", "phonetic", "definitionId", "definitionEn", "examples", "content"],
               },
-              required: ["termId", "termEn", "slug", "category", "phonetic", "definitionId", "definitionEn", "examples", "content"],
             },
-          },
-        })
-      );
+          })
+        );
+      } catch (primaryErr) {
+        console.warn(`[AI Logic] Primary model ${targetModel} error, falling back to gemini-2.5-flash...`, primaryErr);
+        usedModel = "gemini-2.5-flash";
+        response = await callGeminiWithRetry(() =>
+          ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+              systemInstruction: "You are an encyclopedic technical lexicographer creating authoritative glossary entries.",
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  termId: { type: Type.STRING },
+                  termEn: { type: Type.STRING },
+                  slug: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  phonetic: { type: Type.STRING },
+                  definitionId: { type: Type.STRING },
+                  definitionEn: { type: Type.STRING },
+                  formula: { type: Type.STRING },
+                  examples: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                  },
+                  content: { type: Type.STRING },
+                },
+                required: ["termId", "termEn", "slug", "category", "phonetic", "definitionId", "definitionEn", "examples", "content"],
+              },
+            },
+          })
+        );
+      }
 
       const text = response.text;
       if (!text) {
@@ -407,7 +506,7 @@ Keluaran HARUS berupa JSON dengan properti:
         data: {
           ...parsedData,
           isAiAssisted: true,
-          aiModel: "Gemini 3.8 Flash (Firebase AI Logic)",
+          aiModel: usedModel,
         },
       });
     } catch (error: any) {
@@ -421,7 +520,7 @@ Keluaran HARUS berupa JSON dengan properti:
   // AI Assistant endpoint (General queries, Q&A assistance, proofreading, summaries)
   app.post("/api/ai/assist", async (req, res) => {
     try {
-      const { prompt, task = "general", context = "" } = req.body;
+      const { prompt, task = "general", context = "", model = "gemini-2.5-flash" } = req.body;
 
       if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
         res.status(400).json({ error: "Prompt is required." });
@@ -439,20 +538,47 @@ Keluaran HARUS berupa JSON dengan properti:
 
       const fullContents = context ? `Konteks:\n${context}\n\nPermintaan:\n${prompt}` : prompt;
 
-      const response = await callGeminiWithRetry(() =>
-        ai.models.generateContent({
-          model: "gemini-3.8-flash",
-          contents: fullContents,
-          config: {
-            systemInstruction,
-          },
-        })
-      );
+      const targetModel = [
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro",
+        "gemini-3.8-flash",
+        "gemini-3.1-flash-lite",
+      ].includes(model)
+        ? model
+        : "gemini-2.5-flash";
+
+      let usedModel = targetModel;
+      let response;
+
+      try {
+        response = await callGeminiWithRetry(() =>
+          ai.models.generateContent({
+            model: targetModel,
+            contents: fullContents,
+            config: {
+              systemInstruction,
+            },
+          })
+        );
+      } catch (primaryErr) {
+        console.warn(`[AI Logic] Primary model ${targetModel} error, falling back to gemini-2.5-flash...`, primaryErr);
+        usedModel = "gemini-2.5-flash";
+        response = await callGeminiWithRetry(() =>
+          ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: fullContents,
+            config: {
+              systemInstruction,
+            },
+          })
+        );
+      }
 
       res.json({
         success: true,
         result: response.text || "",
-        aiModel: "Gemini 3.8 Flash",
+        aiModel: usedModel,
       });
     } catch (error: any) {
       console.error("Error in AI assist:", error);

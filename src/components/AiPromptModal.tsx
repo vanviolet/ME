@@ -26,6 +26,7 @@ import {
   generateVanpediaWithAi,
   GeneratedArticleResult,
   GeneratedVanpediaResult,
+  GEMINI_FREE_MODELS,
 } from '../services/aiService';
 
 interface AiPromptModalProps {
@@ -51,7 +52,8 @@ export const AiPromptModal: React.FC<AiPromptModalProps> = ({
   const [topic, setTopic] = useState('');
   const [category, setCategory] = useState(defaultCategory);
   const [keyPoints, setKeyPoints] = useState('');
-  const [selectedModel, setSelectedModel] = useState('Gemini 3.8 Flash');
+  const [directModel, setDirectModel] = useState('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState('Gemini 2.5 Flash');
   const [copied, setCopied] = useState(false);
 
   // Direct AI Generation State
@@ -110,6 +112,7 @@ export const AiPromptModal: React.FC<AiPromptModalProps> = ({
           topic: topic.trim(),
           category,
           keyPoints: keyPoints.trim() || undefined,
+          model: directModel,
         });
         setGeneratedArticle(result);
       } else {
@@ -117,6 +120,7 @@ export const AiPromptModal: React.FC<AiPromptModalProps> = ({
           termName: topic.trim(),
           category,
           details: keyPoints.trim() || undefined,
+          model: directModel,
         });
         setGeneratedVanpedia(result);
       }
@@ -288,13 +292,33 @@ export const AiPromptModal: React.FC<AiPromptModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-stone-700 dark:text-zinc-300 mb-1">
-                  Model Engine
-                </label>
-                <div className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 bg-stone-100 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200 text-xs flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-stone-600 dark:text-zinc-300 shrink-0" />
-                  <span className="font-medium">Gemini 3.8 Flash (Server-Side)</span>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-semibold text-stone-700 dark:text-zinc-300">
+                    Model Gemini (Free Tier)
+                  </label>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-medium">
+                    100% Free
+                  </span>
                 </div>
+                <div className="relative">
+                  <select
+                    value={directModel}
+                    onChange={e => setDirectModel(e.target.value)}
+                    className="w-full appearance-none px-3.5 py-2.5 pr-8 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600 focus:outline-none"
+                  >
+                    {GEMINI_FREE_MODELS.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} — {m.badge}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-stone-500 dark:text-zinc-400">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-stone-500 dark:text-zinc-400 mt-1">
+                  {GEMINI_FREE_MODELS.find(m => m.id === directModel)?.description}
+                </p>
               </div>
             </div>
 
