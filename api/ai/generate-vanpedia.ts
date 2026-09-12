@@ -1,6 +1,35 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from '@google/genai';
-import { getCleanModelName } from './models.js';
+
+const AI_MODELS_LIST = [
+  { id: 'nemotron-3-ultra', name: 'Nemotron 3 Ultra' },
+  { id: 'deepseek-r1', name: 'DeepSeek R1' },
+  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
+  { id: 'mimo-v2-pro', name: 'MiMo V2 Pro' },
+  { id: 'llama-3.3-70b', name: 'Llama 3.3 70B' },
+  { id: 'qwen-2.5-coder', name: 'Qwen 2.5 Coder' },
+  { id: 'minimax-m2.5', name: 'MiniMax M2.5' },
+  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
+];
+
+function getCleanModelName(modelId: string): string {
+  if (!modelId) return 'Gemini 3.8 Flash';
+  const found = AI_MODELS_LIST.find(
+    (m) => m.id === modelId || m.id === modelId.replace('opencode/', '').replace(':free', '')
+  );
+  if (found) return found.name;
+
+  return modelId
+    .replace('opencode/', '')
+    .replace('openrouter/', '')
+    .replace(':free', '')
+    .replace('meta-llama/', '')
+    .replace('deepseek/', '')
+    .replace('qwen/', '')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+}
 
 function extractAndParseJson<T = any>(rawText: string): T {
   const trimmed = rawText.trim();
