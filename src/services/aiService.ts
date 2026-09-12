@@ -49,8 +49,18 @@ export async function generateArticleWithAi(params: {
   });
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Gagal menghasilkan artikel dengan Firebase AI Logic');
+    let errorMsg = 'Gagal menghasilkan artikel dengan Firebase AI Logic';
+    try {
+      const data = await res.json();
+      if (data.error) errorMsg = data.error;
+    } catch {
+      if (res.status === 405) {
+        errorMsg = 'Error 405 (Method Not Allowed). Pastikan konfigurasi vercel.json dan folder api/ sudah terdeploy di Vercel.';
+      } else if (res.status === 404) {
+        errorMsg = 'Error 404 (Endpoint Not Found). Endpoint AI belum tersedia di server.';
+      }
+    }
+    throw new Error(errorMsg);
   }
 
   const result = await res.json();
@@ -69,8 +79,18 @@ export async function generateVanpediaWithAi(params: {
   });
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Gagal menghasilkan entri Vanpedia dengan Firebase AI Logic');
+    let errorMsg = 'Gagal menghasilkan entri Vanpedia dengan Firebase AI Logic';
+    try {
+      const data = await res.json();
+      if (data.error) errorMsg = data.error;
+    } catch {
+      if (res.status === 405) {
+        errorMsg = 'Error 405 (Method Not Allowed). Pastikan konfigurasi vercel.json dan folder api/ sudah terdeploy di Vercel.';
+      } else if (res.status === 404) {
+        errorMsg = 'Error 404 (Endpoint Not Found). Endpoint AI belum tersedia di server.';
+      }
+    }
+    throw new Error(errorMsg);
   }
 
   const result = await res.json();
@@ -89,8 +109,16 @@ export async function askAiAssistant(params: {
   });
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'AI Assistant request failed');
+    let errorMsg = 'AI Assistant request failed';
+    try {
+      const data = await res.json();
+      if (data.error) errorMsg = data.error;
+    } catch {
+      if (res.status === 405) {
+        errorMsg = 'Error 405 (Method Not Allowed). Pastikan route Vercel Serverless Function aktif.';
+      }
+    }
+    throw new Error(errorMsg);
   }
 
   const result = await res.json();
