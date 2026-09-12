@@ -234,13 +234,12 @@ async function startServer() {
   app.get("/api/health", (_req, res) => {
     res.json({
       status: "ok",
-      aiEngine: "Firebase AI Logic (Gemini 2.5 & 3 Series Free Tier)",
+      aiEngine: "Firebase AI Logic (Gemini Free Tier)",
       supportedModels: [
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro",
         "gemini-3.8-flash",
+        "gemini-3.6-flash",
         "gemini-3.1-flash-lite",
+        "gemini-flash-latest",
       ],
       hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
     });
@@ -249,7 +248,7 @@ async function startServer() {
   // Generate Article Endpoint
   app.post("/api/ai/generate-article", async (req, res) => {
     try {
-      const { topic, category = "Learning (AI)", keyPoints = "", language = "id", model = "gemini-2.5-flash" } = req.body;
+      const { topic, category = "Learning (AI)", keyPoints = "", language = "id", model = "gemini-3.8-flash" } = req.body;
 
       if (!topic || typeof topic !== "string" || !topic.trim()) {
         res.status(400).json({ error: "Topic/Title outline is required." });
@@ -284,14 +283,13 @@ Format keluaran HARUS berformat JSON valid dengan properti:
 - content: Isi artikel Markdown lengkap sesuai struktur di atas.`;
 
       const targetModel = [
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro",
         "gemini-3.8-flash",
+        "gemini-3.6-flash",
         "gemini-3.1-flash-lite",
+        "gemini-flash-latest",
       ].includes(model)
         ? model
-        : "gemini-2.5-flash";
+        : "gemini-3.8-flash";
 
       let usedModel = targetModel;
       let response;
@@ -325,11 +323,11 @@ Format keluaran HARUS berformat JSON valid dengan properti:
           })
         );
       } catch (primaryErr) {
-        console.warn(`[AI Logic] Primary model ${targetModel} error, falling back to gemini-2.5-flash...`, primaryErr);
-        usedModel = "gemini-2.5-flash";
+        console.warn(`[AI Logic] Primary model ${targetModel} error, falling back to gemini-3.6-flash...`, primaryErr);
+        usedModel = "gemini-3.6-flash";
         response = await callGeminiWithRetry(() =>
           ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.6-flash",
             contents: prompt,
             config: {
               systemInstruction: "You are a technical AI writer that generates structured, publication-ready technical articles.",
@@ -382,7 +380,7 @@ Format keluaran HARUS berformat JSON valid dengan properti:
   // Generate Vanpedia Term Endpoint
   app.post("/api/ai/generate-vanpedia", async (req, res) => {
     try {
-      const { termName, category = "Learning (AI)", details = "", model = "gemini-2.5-flash" } = req.body;
+      const { termName, category = "Learning (AI)", details = "", model = "gemini-3.8-flash" } = req.body;
 
       if (!termName || typeof termName !== "string" || !termName.trim()) {
         res.status(400).json({ error: "Term name is required." });
@@ -418,14 +416,13 @@ Keluaran HARUS berupa JSON dengan properti:
 - content: Penjelasan ringkas dan jelas dalam format Markdown`;
 
       const targetModel = [
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro",
         "gemini-3.8-flash",
+        "gemini-3.6-flash",
         "gemini-3.1-flash-lite",
+        "gemini-flash-latest",
       ].includes(model)
         ? model
-        : "gemini-2.5-flash";
+        : "gemini-3.8-flash";
 
       let usedModel = targetModel;
       let response;
@@ -461,11 +458,11 @@ Keluaran HARUS berupa JSON dengan properti:
           })
         );
       } catch (primaryErr) {
-        console.warn(`[AI Logic] Primary model ${targetModel} error, falling back to gemini-2.5-flash...`, primaryErr);
-        usedModel = "gemini-2.5-flash";
+        console.warn(`[AI Logic] Primary model ${targetModel} error, falling back to gemini-3.6-flash...`, primaryErr);
+        usedModel = "gemini-3.6-flash";
         response = await callGeminiWithRetry(() =>
           ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.6-flash",
             contents: prompt,
             config: {
               systemInstruction: "You are an encyclopedic technical lexicographer creating authoritative glossary entries.",
@@ -520,7 +517,7 @@ Keluaran HARUS berupa JSON dengan properti:
   // AI Assistant endpoint (General queries, Q&A assistance, proofreading, summaries)
   app.post("/api/ai/assist", async (req, res) => {
     try {
-      const { prompt, task = "general", context = "", model = "gemini-2.5-flash" } = req.body;
+      const { prompt, task = "general", context = "", model = "gemini-3.8-flash" } = req.body;
 
       if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
         res.status(400).json({ error: "Prompt is required." });
@@ -539,14 +536,13 @@ Keluaran HARUS berupa JSON dengan properti:
       const fullContents = context ? `Konteks:\n${context}\n\nPermintaan:\n${prompt}` : prompt;
 
       const targetModel = [
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-pro",
         "gemini-3.8-flash",
+        "gemini-3.6-flash",
         "gemini-3.1-flash-lite",
+        "gemini-flash-latest",
       ].includes(model)
         ? model
-        : "gemini-2.5-flash";
+        : "gemini-3.8-flash";
 
       let usedModel = targetModel;
       let response;
@@ -562,11 +558,11 @@ Keluaran HARUS berupa JSON dengan properti:
           })
         );
       } catch (primaryErr) {
-        console.warn(`[AI Logic] Primary model ${targetModel} error, falling back to gemini-2.5-flash...`, primaryErr);
-        usedModel = "gemini-2.5-flash";
+        console.warn(`[AI Logic] Primary model ${targetModel} error, falling back to gemini-3.6-flash...`, primaryErr);
+        usedModel = "gemini-3.6-flash";
         response = await callGeminiWithRetry(() =>
           ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3.6-flash",
             contents: fullContents,
             config: {
               systemInstruction,

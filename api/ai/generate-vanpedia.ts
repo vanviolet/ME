@@ -2,11 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from '@google/genai';
 
 const ALLOWED_FREE_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-pro',
   'gemini-3.8-flash',
+  'gemini-3.6-flash',
   'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -29,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { termName, category = 'Learning (AI)', details = '', model = 'gemini-2.5-flash' } = req.body || {};
+    const { termName, category = 'Learning (AI)', details = '', model = 'gemini-3.8-flash' } = req.body || {};
 
     if (!termName || typeof termName !== 'string' || !termName.trim()) {
       res.status(400).json({ error: 'Term name is required.' });
@@ -54,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
 
-    const targetModel = ALLOWED_FREE_MODELS.includes(model) ? model : 'gemini-2.5-flash';
+    const targetModel = ALLOWED_FREE_MODELS.includes(model) ? model : 'gemini-3.8-flash';
 
     const prompt = `Anda adalah Leksikografer Teknis Rekayasa Perangkat Lunak dan AI (Firebase AI Logic).
 Tolong buatkan entri kamus istilah teknis untuk "Vanpedia" yang RINGKAS, PADAT, AKURAT, dan SANGAT JELAS (tidak bertele-tele, tidak panjang-panjang, fokus pada esensi dan pemahaman praktis):
@@ -126,10 +125,10 @@ Keluaran HARUS berupa JSON dengan properti:
         },
       });
     } catch (primaryErr: any) {
-      console.warn(`[AI Logic] Model ${targetModel} encountered error, trying fallback to gemini-2.5-flash...`, primaryErr);
-      usedModel = 'gemini-2.5-flash';
+      console.warn(`[AI Logic] Model ${targetModel} encountered error, trying fallback to gemini-3.6-flash...`, primaryErr);
+      usedModel = 'gemini-3.6-flash';
       response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: prompt,
         config: {
           systemInstruction:

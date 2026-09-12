@@ -2,11 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from '@google/genai';
 
 const ALLOWED_FREE_MODELS = [
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-pro',
   'gemini-3.8-flash',
+  'gemini-3.6-flash',
   'gemini-3.1-flash-lite',
+  'gemini-flash-latest',
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -34,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       category = 'Learning (AI)',
       keyPoints = '',
       language = 'id',
-      model = 'gemini-2.5-flash',
+      model = 'gemini-3.8-flash',
     } = req.body || {};
 
     if (!topic || typeof topic !== 'string' || !topic.trim()) {
@@ -60,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
 
-    const targetModel = ALLOWED_FREE_MODELS.includes(model) ? model : 'gemini-2.5-flash';
+    const targetModel = ALLOWED_FREE_MODELS.includes(model) ? model : 'gemini-3.8-flash';
 
     const prompt = `Anda adalah Penulis Teknis dan Arsitek Sistem Senior (Firebase AI Logic).
 Tolong buatkan draf artikel teknis yang mendalam, terstruktur rapi, berbobot, dan aplikatif berdasarkan input berikut:
@@ -128,10 +127,10 @@ Format keluaran HARUS berformat JSON valid dengan properti:
         },
       });
     } catch (primaryErr: any) {
-      console.warn(`[AI Logic] Model ${targetModel} error, trying fallback to gemini-2.5-flash...`, primaryErr);
-      usedModel = 'gemini-2.5-flash';
+      console.warn(`[AI Logic] Model ${targetModel} error, trying fallback to gemini-3.6-flash...`, primaryErr);
+      usedModel = 'gemini-3.6-flash';
       response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: prompt,
         config: {
           systemInstruction:

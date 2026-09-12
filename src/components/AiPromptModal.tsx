@@ -52,8 +52,8 @@ export const AiPromptModal: React.FC<AiPromptModalProps> = ({
   const [topic, setTopic] = useState('');
   const [category, setCategory] = useState(defaultCategory);
   const [keyPoints, setKeyPoints] = useState('');
-  const [directModel, setDirectModel] = useState('gemini-2.5-flash');
-  const [selectedModel, setSelectedModel] = useState('Gemini 2.5 Flash');
+  const [directModel, setDirectModel] = useState('gemini-3.8-flash');
+  const [selectedModel, setSelectedModel] = useState('Gemini 3.8 Flash');
   const [copied, setCopied] = useState(false);
 
   // Direct AI Generation State
