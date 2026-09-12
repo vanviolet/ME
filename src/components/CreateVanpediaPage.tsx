@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
 import { createVanpediaTermInFirestore } from '../services/firestoreService';
@@ -29,6 +29,7 @@ import { AiModelSelect } from './AiModelSelect';
 
 export const CreateVanpediaPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language } = usePortfolio();
   const { user, isAdmin, adminEmail, signInWithGoogle } = useAuth();
 
@@ -59,6 +60,41 @@ export const CreateVanpediaPage: React.FC = () => {
   const [showTemplateUpload, setShowTemplateUpload] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  // Auto-prefill form from location.state (e.g. from AI Chatbot "Tambahkan ke VanPedia")
+  useEffect(() => {
+    const prefill = (location.state as any)?.prefill;
+    if (prefill) {
+      if (prefill.termName) {
+        setAiTermName(prefill.termName);
+        setTitleId(prefill.termName);
+        setTitleEn(prefill.termName);
+        setSlugInput(
+          prefill.termName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '')
+        );
+      }
+      if (prefill.definition) {
+        setDefinitionId(prefill.definition);
+        setDefinitionEn(prefill.definition);
+      }
+      if (prefill.content) {
+        setContentId(prefill.content);
+        setContentEn(prefill.content);
+      }
+      if (prefill.aiModel) {
+        setAiModel(getCleanModelName(prefill.aiModel));
+      }
+      setIsAiAssisted(true);
+      setFeedback(
+        language === 'en'
+          ? `Form pre-filled automatically from AI Chatbot (${getCleanModelName(prefill.aiModel || 'AI Assistant')}). You can review and publish.`
+          : `Form VanPedia berhasil terisi otomatis dari respon AI Chatbot (${getCleanModelName(prefill.aiModel || 'AI Assistant')}). Silakan tinjau dan simpan.`
+      );
+    }
+  }, [location.state, language]);
 
   // Fast-Track AI Generator
   const handleGenerateWithAi = async () => {

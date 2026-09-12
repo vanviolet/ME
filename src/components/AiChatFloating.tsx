@@ -20,6 +20,8 @@ import {
   Brain,
   ArrowRight,
   Zap,
+  BookOpen,
+  PlusCircle,
 } from 'lucide-react';
 import { renderMarkdownWithMath } from '../lib/renderMath';
 import { AI_MODELS_LIST, getCleanModelName } from '../lib/models';
@@ -33,6 +35,7 @@ export interface ChatMessage {
   createdAt: string;
   model?: string;
   provider?: string;
+  termName?: string;
   thinking?: {
     steps: string[];
     executionPath?: string[];
@@ -222,6 +225,27 @@ export const AiChatFloating: React.FC = () => {
     }
   };
 
+  // Handle custom trigger from text selection popover ("Tanyakan ke AI")
+  useEffect(() => {
+    const handleAskEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ query: string; termName?: string }>;
+      if (customEvent.detail?.query) {
+        setIsOpen(true);
+        const queryText = customEvent.detail.query;
+        const targetTerm = customEvent.detail.termName;
+
+        setTimeout(() => {
+          handleSendMessage(queryText, targetTerm);
+        }, 150);
+      }
+    };
+
+    window.addEventListener('ask-vanbot', handleAskEvent);
+    return () => {
+      window.removeEventListener('ask-vanbot', handleAskEvent);
+    };
+  }, [messages, isLoading, selectedModelId, activeModel]);
+
   // Copy message
   const handleCopyMessage = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -229,16 +253,65 @@ export const AiChatFloating: React.FC = () => {
     setTimeout(() => setCopiedMessageId(null), 2000);
   };
 
+  // Add response directly into VanPedia create form
+  const handleAddToVanpedia = (msg: ChatMessage) => {
+    let termName = msg.termName || '';
+    if (!termName) {
+      // Deduce title/term from first line or bold markdown
+      const boldMatch = msg.content.match(/\*\*([^*]+)\*\*/);
+      if (boldMatch) {
+        termName = boldMatch[1].trim();
+      } else {
+        const firstLine = msg.content.split('\n')[0].replace(/[*#`_]/g, '').trim();
+        termName = firstLine && firstLine.length < 50 ? firstLine : 'Istilah Baru';
+      }
+    }
+
+    // Extract core definition from first non-header paragraph
+    const cleanParagraphs = msg.content
+      .split(/\n\s*\n/)
+      .map((p) => p.replace(/[*#`_]/g, '').trim())
+      .filter((p) => p.length > 10 && !p.startsWith('#'));
+
+    const shortDefinition = cleanParagraphs[0] || msg.content.slice(0, 250);
+
+    navigate('/vanpedia/create', {
+      state: {
+        prefill: {
+          termName,
+          definition: shortDefinition,
+          content: msg.content,
+          aiModel: msg.model || activeModel.name,
+          isAiGenerated: true,
+        },
+      },
+    });
+
+    setIsOpen(false);
+  };
+
   // Send message
-  const handleSendMessage = async (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string, customTermName?: string) => {
     const query = (textToSend || inputMessage).trim();
     if (!query || isLoading) return;
+
+    // Deduce target term if not provided
+    let targetTerm = customTermName;
+    if (!targetTerm) {
+      const termMatch =
+        query.match(/istilah(?:\steknis)?:?\s*["']?([^"'\.\?]+)["']?/i) ||
+        query.match(/apa itu\s+["']?([^"'\.\?]+)["']?/i);
+      if (termMatch && termMatch[1]) {
+        targetTerm = termMatch[1].trim();
+      }
+    }
 
     const userMsg: ChatMessage = {
       id: `usr_${Date.now()}`,
       role: 'user',
       content: query,
       createdAt: new Date().toISOString(),
+      termName: targetTerm,
     };
 
     const newHistory = [...messages, userMsg];
@@ -285,6 +358,7 @@ export const AiChatFloating: React.FC = () => {
         createdAt: json.data.message.createdAt || new Date().toISOString(),
         model: json.data.message.model || activeModel.name,
         provider: json.data.message.provider,
+        termName: targetTerm,
         thinking: json.data.thinking,
       };
 
@@ -538,35 +612,46 @@ export const AiChatFloating: React.FC = () => {
                         />
 
                         {/* Minimalist Message Footer Actions */}
-                        <div className="flex items-center justify-between pt-1 text-[11px] text-stone-400 dark:text-zinc-500">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-stone-100 dark:bg-zinc-900 text-stone-600 dark:text-zinc-400">
-                              {cleanName}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
+                        <div className="flex flex-col gap-2 pt-1.5 text-[11px] text-stone-400 dark:text-zinc-500">
+                          {/* Dedicated Action Button: Tambahkan ke VanPedia */}
+                          <div className="pt-1 border-t border-stone-200/60 dark:border-zinc-800/80 flex items-center justify-between gap-2">
                             <button
-                              onClick={() => handleCopyMessage(msg.id, msg.content)}
-                              title="Copy response"
-                              className="p-1 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded transition"
+                              type="button"
+                              onClick={() => handleAddToVanpedia(msg)}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[11px] font-medium transition cursor-pointer shadow-2xs group"
                             >
-                              {copiedMessageId === msg.id ? (
-                                <Check className="w-3 h-3 text-emerald-500" />
-                              ) : (
-                                <Copy className="w-3 h-3" />
-                              )}
+                              <BookOpen className="w-3 h-3 text-rose-500 group-hover:scale-110 transition-transform" />
+                              <span>{language === 'en' ? 'Add to VanPedia' : 'Tambahkan ke VanPedia'}</span>
+                              <ArrowRight className="w-2.5 h-2.5 text-rose-400 group-hover:translate-x-0.5 transition-transform" />
                             </button>
-                            <button
-                              onClick={() => handleToggleSpeak(msg.content)}
-                              title="Read aloud"
-                              className="p-1 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded transition"
-                            >
-                              {isSpeaking ? (
-                                <VolumeX className="w-3 h-3 text-rose-500" />
-                              ) : (
-                                <Volume2 className="w-3 h-3" />
-                              )}
-                            </button>
+
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-stone-100 dark:bg-zinc-900 text-stone-600 dark:text-zinc-400 mr-1">
+                                {cleanName}
+                              </span>
+                              <button
+                                onClick={() => handleCopyMessage(msg.id, msg.content)}
+                                title="Copy response"
+                                className="p-1 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded transition"
+                              >
+                                {copiedMessageId === msg.id ? (
+                                  <Check className="w-3 h-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="w-3 h-3" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleToggleSpeak(msg.content)}
+                                title="Read aloud"
+                                className="p-1 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded transition"
+                              >
+                                {isSpeaking ? (
+                                  <VolumeX className="w-3 h-3 text-rose-500" />
+                                ) : (
+                                  <Volume2 className="w-3 h-3" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
