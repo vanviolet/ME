@@ -47,9 +47,9 @@ export const Footer: React.FC = () => {
             <span>Vanpedia</span>
           </Link>
           <span className="text-stone-300 dark:text-zinc-700">•</span>
-          <Link to="/issues" className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex items-center gap-1">
+          <Link to="/forum" className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex items-center gap-1">
             <MessageSquare size={12} />
-            <span>{language === 'en' ? 'Q&A' : 'Diskusi'}</span>
+            <span>Forum</span>
           </Link>
         </div>
 

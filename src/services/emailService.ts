@@ -151,15 +151,17 @@ export async function notifyAdminNewVanpedia(payload: VanpediaNotifyPayload): Pr
 /**
  * Notify vanviolet.js@gmail.com for new Q&A Question (Notification only, instantly published)
  */
-export async function notifyAdminNewQuestion(payload: QuestionNotifyPayload): Promise<boolean> {
+export async function notifyAdminNewQuestion(payload: QuestionNotifyPayload & { visibility?: string }): Promise<boolean> {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const questionLink = `${origin}/issues?id=${encodeURIComponent(payload.id)}`;
+  const questionLink = `${origin}/forum/${encodeURIComponent(payload.id)}`;
+  const isPrivate = payload.visibility === 'private';
+  const tagPrefix = isPrivate ? '[FORUM PRIVATE 🔒]' : '[FORUM PUBLIC 🌐]';
 
   return sendNotificationEmail({
-    subject: `[Q&A Forum] Pertanyaan Komunitas Baru: "${payload.title}"`,
+    subject: `${tagPrefix} Utas Baru: "${payload.title}"`,
     type: 'QA_NOTIFICATION',
     payload: {
-      status: 'PUBLISHED (Notifikasi Saja)',
+      status: isPrivate ? 'TERBIT (FORUM PRIVAT - Pembuat & vanviolet.js)' : 'TERBIT (FORUM PUBLIK)',
       title: payload.title,
       category: payload.category,
       tags: payload.tags.join(', '),

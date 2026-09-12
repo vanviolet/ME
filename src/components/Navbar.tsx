@@ -48,7 +48,7 @@ export const Navbar: React.FC = () => {
   const isHomePage = location.pathname === '/';
   const isArticlesPage = location.pathname.startsWith('/articles');
   const isVanpediaPage = location.pathname.startsWith('/vanpedia');
-  const isIssuesPage = location.pathname.startsWith('/issues');
+  const isForumPage = location.pathname.startsWith('/forum') || location.pathname.startsWith('/issues');
 
   // Key home anchors for desktop
   const homeNavAnchors = [
@@ -170,18 +170,18 @@ export const Navbar: React.FC = () => {
             <span>Vanpedia</span>
           </Link>
 
-          {/* Primary Hub: Issues & Q&A */}
+          {/* Primary Hub: Forum (Public & Private) */}
           <Link
-            id="nav-link-issues"
-            to="/issues"
+            id="nav-link-forum"
+            to="/forum"
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-150 ${
-              isIssuesPage
+              isForumPage
                 ? 'bg-rose-600 text-white shadow-xs font-semibold'
                 : 'text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400'
             }`}
           >
             <MessageSquare size={13} />
-            <span>Q&A</span>
+            <span>Forum</span>
           </Link>
         </nav>
 
@@ -349,19 +349,19 @@ export const Navbar: React.FC = () => {
               </Link>
 
               <Link
-                to="/issues"
+                to="/forum"
                 onClick={() => setMobileMenuOpen(false)}
                 className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${
-                  isIssuesPage
+                  isForumPage
                     ? 'border-rose-500/50 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
                     : 'border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200'
                 }`}
               >
                 <MessageSquare size={16} className="text-rose-500 shrink-0" />
                 <div className="text-left">
-                  <div className="text-xs font-semibold">{language === 'en' ? 'Q&A Discussions' : 'Tanya & Diskusi'}</div>
+                  <div className="text-xs font-semibold">{language === 'en' ? 'Forum' : 'Forum Komunitas'}</div>
                   <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
-                    Stack Overflow Style
+                    Public & Private Threads
                   </div>
                 </div>
               </Link>

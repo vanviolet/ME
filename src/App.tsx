@@ -83,6 +83,8 @@ export default function App() {
               <Route path="/vanpedia" element={<VanpediaIndexPage />} />
               <Route path="/vanpedia/create" element={<CreateVanpediaPage />} />
               <Route path="/vanpedia/:slug" element={<VanpediaPage />} />
+              <Route path="/forum" element={<IssuesPage />} />
+              <Route path="/forum/:id" element={<IssuesPage />} />
               <Route path="/issues" element={<IssuesPage />} />
               <Route path="/issues/:id" element={<IssuesPage />} />
               <Route path="/issue" element={<IssuesPage />} />

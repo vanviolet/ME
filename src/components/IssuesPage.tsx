@@ -32,6 +32,8 @@ import {
   HelpCircle,
   AlertCircle,
   CornerDownRight,
+  Globe,
+  Lock,
 } from 'lucide-react';
 import { Seo } from './Seo';
 import { EmojiPicker } from './EmojiPicker';
@@ -61,6 +63,7 @@ export const IssuesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'solved'>('all');
+  const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
   const [selectedTag, setSelectedTag] = useState<string>('');
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(id || null);
 
@@ -68,13 +71,15 @@ export const IssuesPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const questionsListRef = useRef<HTMLDivElement>(null);
 
-  // New Question Modal State
+  // New Question / Forum Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState('General');
   const [newTags, setNewTags] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newVisibility, setNewVisibility] = useState<'public' | 'private'>('public');
   const [authorName, setAuthorName] = useState('');
+  const [authorEmailInput, setAuthorEmailInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -94,6 +99,25 @@ export const IssuesPage: React.FC = () => {
     }
     return anon;
   }, [user?.uid]);
+
+  // Check if current user can view a specific private/public topic
+  const isTopicAccessible = (topic: CommunityIssue) => {
+    if (!topic.visibility || topic.visibility === 'public') return true;
+
+    const userEmailLower = (user?.email || authorEmailInput.trim()).toLowerCase();
+    const authorEmailLower = (topic.authorEmail || '').toLowerCase();
+
+    const isCreatorByEmail = Boolean(userEmailLower && authorEmailLower && userEmailLower === authorEmailLower);
+    const isCreatorByUid = Boolean(user?.uid && topic.authorId && user.uid === topic.authorId);
+    const isCreatorByAnonUid = Boolean(currentUserId && topic.authorId && currentUserId === topic.authorId);
+    const isVanvioletAdmin = Boolean(
+      isAdmin ||
+      (user?.email && user.email.toLowerCase() === 'vanviolet.js@gmail.com') ||
+      adminEmail === 'vanviolet.js@gmail.com'
+    );
+
+    return isVanvioletAdmin || isCreatorByEmail || isCreatorByUid || isCreatorByAnonUid;
+  };
 
   // Sync selectedIssueId with route param :id
   useEffect(() => {
@@ -132,6 +156,10 @@ export const IssuesPage: React.FC = () => {
 
   const filteredIssues = useMemo(() => {
     return issues.filter(issue => {
+      // 1. Accessibility Check for Private topics
+      if (!isTopicAccessible(issue)) return false;
+
+      // 2. Search query filter
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         q === '' ||
@@ -139,21 +167,29 @@ export const IssuesPage: React.FC = () => {
         issue.description.toLowerCase().includes(q) ||
         (issue.tags || []).some(t => t.toLowerCase().includes(q));
 
+      // 3. Status filter
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'solved' && issue.status === 'solved') ||
         (statusFilter === 'open' && issue.status === 'open');
 
+      // 4. Tag filter
       const matchesTag = selectedTag === '' || (issue.tags || []).includes(selectedTag);
 
-      return matchesSearch && matchesStatus && matchesTag;
+      // 5. Visibility filter
+      const matchesVisibility =
+        visibilityFilter === 'all' ||
+        (visibilityFilter === 'public' && (!issue.visibility || issue.visibility === 'public')) ||
+        (visibilityFilter === 'private' && issue.visibility === 'private');
+
+      return matchesSearch && matchesStatus && matchesTag && matchesVisibility;
     });
-  }, [issues, searchQuery, statusFilter, selectedTag]);
+  }, [issues, searchQuery, statusFilter, selectedTag, visibilityFilter, user, isAdmin, currentUserId, authorEmailInput]);
 
   // Reset pagination when search or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, selectedTag]);
+  }, [searchQuery, statusFilter, selectedTag, visibilityFilter]);
 
   const totalPages = Math.ceil(filteredIssues.length / ITEMS_PER_PAGE) || 1;
   const paginatedIssues = useMemo(() => {
@@ -341,7 +377,9 @@ export const IssuesPage: React.FC = () => {
     const effectiveAuthorName =
       authorName.trim() ||
       user?.displayName ||
-      (language === 'en' ? 'Community Developer' : 'Developer Komunitas');
+      (language === 'en' ? 'Community Developer' : 'Anggota Komunitas');
+
+    const effectiveEmail = user?.email || authorEmailInput.trim() || undefined;
 
     try {
       const savedIssue = await createQuestionInFirestore(
@@ -351,16 +389,17 @@ export const IssuesPage: React.FC = () => {
           category: newCategory,
           tags: parsedTags.length > 0 ? parsedTags : ['General'],
           authorName: effectiveAuthorName,
-          authorEmail: user?.email || undefined,
+          authorEmail: effectiveEmail,
           authorAvatar: user?.photoURL || undefined,
           authorId: user?.uid || currentUserId,
+          visibility: newVisibility,
           votes: 1,
           votedBy: [currentUserId],
           answersCount: 0,
           status: 'open',
           answers: [],
         },
-        user?.email || undefined,
+        effectiveEmail,
         user?.uid || currentUserId
       );
 
@@ -372,13 +411,19 @@ export const IssuesPage: React.FC = () => {
       setAuthorName('');
       setSelectedIssueId(savedIssue.id);
 
-      setFeedback(
-        language === 'en'
-          ? `Question published! Email notification dispatched to administrator (${adminEmail}).`
-          : `Pertanyaan dipublikasikan! Notifikasi email otomatis telah dikirim ke admin (${adminEmail}).`
-      );
+      const visibilityNotice =
+        newVisibility === 'private'
+          ? language === 'en'
+            ? 'Private thread created! Only visible to you and vanviolet.js@gmail.com.'
+            : 'Utas Privat berhasil dibuat! Hanya dapat dilihat oleh Anda & vanviolet.js@gmail.com.'
+          : language === 'en'
+          ? 'Public forum thread published!'
+          : 'Utas Forum Publik berhasil dipublikasikan!';
+
+      setFeedback(visibilityNotice);
+      navigate(`/forum/${savedIssue.id}`);
     } catch (err: any) {
-      alert('Error creating issue: ' + err.message);
+      alert('Error creating thread: ' + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -459,15 +504,19 @@ export const IssuesPage: React.FC = () => {
   return (
     <>
       <Seo
-        title={language === 'en' ? 'Community Q&A & Technical Issues | Muchamad Irvan' : 'Diskusi & Q&A Komunitas | Muchamad Irvan'}
+        title={
+          language === 'en'
+            ? 'Developer & Tech Forum | Muchamad Irvan'
+            : 'Forum Komunitas & Teknis | Muchamad Irvan'
+        }
         description={
           language === 'en'
-            ? 'Interactive technical Q&A, software architectural discussions, and developer issue troubleshooting.'
-            : 'Forum tanya-jawab teknis, diskusi arsitektur perangkat lunak, dan pemecahan masalah ala Stack Overflow.'
+            ? 'Public & Private technical forum discussions on software architecture, AI systems, and engineering.'
+            : 'Forum diskusi publik & privat mengenai arsitektur perangkat lunak, sistem AI, dan pemecahan masalah teknis.'
         }
-        url="https://vanviolet.my.id/issues"
+        url="https://vanviolet.my.id/forum"
         type="website"
-        keywords="issues, forum, qna, stackoverflow, questions, muchamad irvan, community"
+        keywords="forum, community, questions, public forum, private forum, vanviolet ai, muchamad irvan"
       />
 
       <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto min-h-screen">
@@ -476,30 +525,30 @@ export const IssuesPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs uppercase tracking-widest text-rose-500 font-semibold">
-                {language === 'en' ? 'Community & Discussions' : 'Komunitas & Tanya Jawab'}
+                {language === 'en' ? 'Community Forum' : 'Forum Komunitas & Teknis'}
               </span>
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-bold">
-                <Sparkles size={11} />
-                <span>Q&A Stack Overflow Style</span>
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center gap-1 font-bold">
+                <Lock size={11} />
+                <span>Public & Private Forum</span>
               </span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100">
-              {language === 'en' ? 'Questions & Issues' : 'Tanya & Diskusi Teknis'}
+              {language === 'en' ? 'Developer Forum' : 'Forum Diskusi Komunitas'}
             </h1>
             <p className="text-sm text-stone-600 dark:text-zinc-400 mt-2 max-w-xl">
               {language === 'en'
-                ? 'Ask questions about system design, AI algorithms, database concurrency, and web engineering. Open for community answers.'
-                : 'Ajukan pertanyaan tentang arsitektur sistem, algoritma AI, konkurensi database, dan rekayasa web. Dibuka untuk diskusi komunitas.'}
+                ? 'Create Public forum discussions visible to everyone, or Private threads shared strictly between you and vanviolet.js@gmail.com.'
+                : 'Buat diskusi Forum Publik untuk dibaca semua orang, atau Utas Privat yang hanya bisa diakses oleh Anda & vanviolet.js@gmail.com.'}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={handleOpenAskModal}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs sm:text-sm transition-all shadow-xs shrink-0"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs sm:text-sm transition-all shadow-xs shrink-0 cursor-pointer"
             >
               <Plus size={16} />
-              <span>{language === 'en' ? 'Ask a Question' : 'Ajukan Pertanyaan'}</span>
+              <span>{language === 'en' ? 'Create Forum Thread' : 'Buat Utas Forum'}</span>
             </button>
           </div>
         </div>
@@ -543,13 +592,39 @@ export const IssuesPage: React.FC = () => {
             <button
               onClick={() => {
                 setSelectedIssueId(null);
-                navigate('/issues');
+                navigate('/forum');
               }}
-              className="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors font-medium"
+              className="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors font-medium cursor-pointer"
             >
               <ArrowLeft size={14} />
-              <span>{language === 'en' ? 'Back to All Questions' : 'Kembali ke Semua Pertanyaan'}</span>
+              <span>{language === 'en' ? 'Back to All Forum Threads' : 'Kembali ke Semua Utas Forum'}</span>
             </button>
+
+            {!isTopicAccessible(selectedIssue) ? (
+              <div className="p-8 sm:p-12 rounded-3xl border border-purple-500/30 bg-purple-950/20 text-center space-y-4 max-w-xl mx-auto my-12 shadow-xl">
+                <div className="w-14 h-14 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center mx-auto">
+                  <Lock size={28} />
+                </div>
+                <h2 className="text-xl font-bold text-stone-900 dark:text-zinc-100">
+                  {language === 'en' ? 'Private Forum Thread — Restricted' : 'Forum Privat — Akses Terbatas'}
+                </h2>
+                <p className="text-xs text-stone-600 dark:text-zinc-300 leading-relaxed">
+                  {language === 'en'
+                    ? 'This forum thread is private. Only accessible by the creator and vanviolet.js (vanviolet.js@gmail.com).'
+                    : 'Utas forum ini bersifat rahasia dan privat. Hanya dapat dibaca dan dibalas oleh pembuat utas dan vanviolet.js (vanviolet.js@gmail.com).'}
+                </p>
+                <button
+                  onClick={() => {
+                    setSelectedIssueId(null);
+                    navigate('/forum');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-semibold hover:opacity-90 transition"
+                >
+                  {language === 'en' ? 'Return to Forum List' : 'Kembali ke Daftar Forum'}
+                </button>
+              </div>
+            ) : (
+              <>
 
             {/* Question Details Card */}
             <div className="p-6 sm:p-8 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 shadow-xs">
@@ -844,8 +919,10 @@ export const IssuesPage: React.FC = () => {
                 </div>
               </form>
             </div>
-          </div>
-        ) : (
+          </>
+        )}
+      </div>
+    ) : (
           /* Issues Listing */
           <div className="space-y-6" ref={questionsListRef}>
             {/* Search & Filter Bar */}
@@ -868,15 +945,51 @@ export const IssuesPage: React.FC = () => {
                 />
               </div>
 
-              {/* Status & Tag Filters */}
+              {/* Status, Visibility & Tag Filters */}
               <div className="flex flex-wrap items-center justify-between gap-4 pt-1 text-xs">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-stone-500 dark:text-zinc-400 font-semibold">Tipe Forum:</span>
+                  <button
+                    onClick={() => setVisibilityFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                      visibilityFilter === 'all'
+                        ? 'bg-rose-600 text-white font-semibold'
+                        : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400'
+                    }`}
+                  >
+                    {language === 'en' ? 'All' : 'Semua'}
+                  </button>
+                  <button
+                    onClick={() => setVisibilityFilter('public')}
+                    className={`px-2.5 py-1 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer ${
+                      visibilityFilter === 'public'
+                        ? 'bg-emerald-600 text-white font-semibold'
+                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                    }`}
+                  >
+                    <Globe size={11} />
+                    <span>Public</span>
+                  </button>
+                  <button
+                    onClick={() => setVisibilityFilter('private')}
+                    className={`px-2.5 py-1 rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer ${
+                      visibilityFilter === 'private'
+                        ? 'bg-purple-600 text-white font-semibold'
+                        : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                    }`}
+                  >
+                    <Lock size={11} />
+                    <span>Private</span>
+                  </button>
+
+                  <span className="text-stone-300 dark:text-zinc-700 font-normal">|</span>
+
                   <span className="text-stone-500 dark:text-zinc-400">Status:</span>
                   <button
                     onClick={() => setStatusFilter('all')}
-                    className={`px-2.5 py-1 rounded-lg transition-colors ${
+                    className={`px-2 py-0.5 rounded-md transition-colors ${
                       statusFilter === 'all'
-                        ? 'bg-rose-600 text-white font-semibold'
+                        ? 'bg-stone-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold'
                         : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400'
                     }`}
                   >
@@ -884,25 +997,23 @@ export const IssuesPage: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setStatusFilter('open')}
-                    className={`px-2.5 py-1 rounded-lg transition-colors ${
+                    className={`px-2 py-0.5 rounded-md transition-colors ${
                       statusFilter === 'open'
-                        ? 'bg-rose-600 text-white font-semibold'
+                        ? 'bg-stone-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold'
                         : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400'
                     }`}
                   >
-                    {language === 'en' ? 'Open' : 'Belum Selesai'} (
-                    {issues.filter(i => i.status === 'open').length})
+                    {language === 'en' ? 'Open' : 'Belum Selesai'}
                   </button>
                   <button
                     onClick={() => setStatusFilter('solved')}
-                    className={`px-2.5 py-1 rounded-lg transition-colors ${
+                    className={`px-2 py-0.5 rounded-md transition-colors ${
                       statusFilter === 'solved'
-                        ? 'bg-rose-600 text-white font-semibold'
+                        ? 'bg-stone-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-semibold'
                         : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400'
                     }`}
                   >
-                    {language === 'en' ? 'Solved' : 'Terjawab'} (
-                    {issues.filter(i => i.status === 'solved').length})
+                    {language === 'en' ? 'Solved' : 'Terjawab'}
                   </button>
                 </div>
 
@@ -947,9 +1058,13 @@ export const IssuesPage: React.FC = () => {
                     key={issue.id}
                     onClick={() => {
                       setSelectedIssueId(issue.id);
-                      navigate(`/issues/${issue.id}`);
+                      navigate(`/forum/${issue.id}`);
                     }}
-                    className="p-5 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 hover:border-rose-500/30 transition-all cursor-pointer group shadow-xs"
+                    className={`p-5 rounded-2xl border transition-all cursor-pointer group shadow-xs ${
+                      issue.visibility === 'private'
+                        ? 'border-purple-500/30 bg-purple-950/10 hover:bg-purple-950/20'
+                        : 'border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 hover:border-rose-500/30'
+                    }`}
                   >
                     <div className="flex items-start gap-4">
                       {/* Stat Badges */}
@@ -962,7 +1077,7 @@ export const IssuesPage: React.FC = () => {
                               ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 font-bold'
                               : 'bg-stone-50 dark:bg-zinc-800/60 text-stone-700 dark:text-zinc-300 border-stone-200 dark:border-zinc-700 hover:text-rose-600'
                           }`}
-                          title="Vote Pertanyaan"
+                          title="Vote Utas Forum"
                         >
                           <ThumbsUp size={13} className={userHasVoted ? 'fill-rose-500 text-rose-500' : ''} />
                           <span className="text-xs font-bold mt-0.5">{votesCount}</span>
@@ -983,8 +1098,20 @@ export const IssuesPage: React.FC = () => {
 
                       {/* Question Summary */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-[10px] uppercase px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20">
+                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                          {issue.visibility === 'private' ? (
+                            <span className="text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                              <Lock size={10} />
+                              <span>Private Forum</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                              <Globe size={10} />
+                              <span>Public Forum</span>
+                            </span>
+                          )}
+
+                          <span className="text-[10px] uppercase px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20">
                             {issue.category}
                           </span>
                           <span className="text-stone-400 dark:text-zinc-600 text-xs">•</span>
@@ -1111,33 +1238,79 @@ export const IssuesPage: React.FC = () => {
           </div>
         )}
 
-        {/* Modal Ask Question */}
+        {/* Modal Ask Question / Create Forum */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs">
             <div className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-3xl max-w-xl w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
               <div className="flex items-center justify-between border-b border-stone-100 dark:border-zinc-800 pb-4">
                 <div>
                   <h2 className="text-lg font-bold text-stone-900 dark:text-zinc-100">
-                    {language === 'en' ? 'Ask a Technical Question' : 'Ajukan Pertanyaan Teknis'}
+                    {language === 'en' ? 'Create Forum Discussion Thread' : 'Buat Utas Diskusi Forum'}
                   </h2>
                   <p className="text-xs text-stone-500 dark:text-zinc-400 mt-0.5">
                     {language === 'en'
-                      ? `Questions are published immediately and notify ${adminEmail}.`
-                      : `Pertanyaan langsung dipublikasikan dan mengirimkan email ke ${adminEmail}.`}
+                      ? `Siapapun dapat membuat forum publik maupun privat (dengan vanviolet.js@gmail.com).`
+                      : `Siapapun dapat membuat forum publik maupun privat (khusus Anda & vanviolet.js@gmail.com).`}
                   </p>
                 </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-1 text-stone-400 hover:text-stone-600 dark:hover:text-zinc-200"
+                  className="p-1 text-stone-400 hover:text-stone-600 dark:hover:text-zinc-200 cursor-pointer"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               <form onSubmit={handleCreateIssue} className="space-y-4 text-xs">
+                {/* Visibility Option */}
+                <div>
+                  <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1.5">
+                    {language === 'en' ? 'Forum Type & Visibility *' : 'Tipe Visibilitas Forum *'}
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div
+                      onClick={() => setNewVisibility('public')}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                        newVisibility === 'public'
+                          ? 'border-emerald-500 bg-emerald-500/10 text-stone-900 dark:text-zinc-100 ring-2 ring-emerald-500/30'
+                          : 'border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-950/50 hover:border-stone-300 dark:hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-xs mb-1 text-emerald-600 dark:text-emerald-400">
+                        <Globe size={15} />
+                        <span>{language === 'en' ? 'Public Forum' : 'Forum Publik'}</span>
+                      </div>
+                      <p className="text-[11px] text-stone-500 dark:text-zinc-400 leading-snug">
+                        {language === 'en'
+                          ? 'Visible to everyone in the community. Anyone can read and reply.'
+                          : 'Dapat dilihat dan dibalas oleh semua pengunjung & komunitas.'}
+                      </p>
+                    </div>
+
+                    <div
+                      onClick={() => setNewVisibility('private')}
+                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                        newVisibility === 'private'
+                          ? 'border-purple-500 bg-purple-500/10 text-stone-900 dark:text-zinc-100 ring-2 ring-purple-500/30'
+                          : 'border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-950/50 hover:border-stone-300 dark:hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-xs mb-1 text-purple-600 dark:text-purple-400">
+                        <Lock size={15} />
+                        <span>{language === 'en' ? 'Private Forum' : 'Forum Privat'}</span>
+                      </div>
+                      <p className="text-[11px] text-stone-500 dark:text-zinc-400 leading-snug">
+                        {language === 'en'
+                          ? 'Strictly private. Only visible to You and vanviolet.js (vanviolet.js@gmail.com).'
+                          : 'Hanya dapat dilihat & dibalas oleh Anda & vanviolet.js@gmail.com.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
-                    {language === 'en' ? 'Title *' : 'Judul Pertanyaan *'}
+                    {language === 'en' ? 'Thread Title *' : 'Judul Utas Forum *'}
                   </label>
                   <input
                     type="text"
@@ -1146,8 +1319,8 @@ export const IssuesPage: React.FC = () => {
                     onChange={e => setNewTitle(e.target.value)}
                     placeholder={
                       language === 'en'
-                        ? 'e.g. How to prevent race condition in distributed PostgreSQL lock?'
-                        : 'Contoh: Bagaimana mencegah race condition pada PostgreSQL advisory lock?'
+                        ? 'e.g. Discussing Microservice Event Sourcing Architecture'
+                        : 'Contoh: Diskusi Arsitektur Microservices Event Sourcing'
                     }
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                   />
@@ -1188,23 +1361,39 @@ export const IssuesPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
-                    {language === 'en' ? 'Your Name or Handle' : 'Nama atau Identitas Anda'}
-                  </label>
-                  <input
-                    type="text"
-                    value={authorName}
-                    onChange={e => setAuthorName(e.target.value)}
-                    placeholder={user?.displayName || (language === 'en' ? 'e.g. Alex Tech' : 'Contoh: Budi Coder')}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
+                      {language === 'en' ? 'Your Name or Handle' : 'Nama atau Identitas Anda'}
+                    </label>
+                    <input
+                      type="text"
+                      value={authorName}
+                      onChange={e => setAuthorName(e.target.value)}
+                      placeholder={user?.displayName || (language === 'en' ? 'e.g. Alex Tech' : 'Contoh: Budi Coder')}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
+                      {language === 'en' ? 'Email Address' : 'Alamat Email'}
+                    </label>
+                    <input
+                      type="email"
+                      required={newVisibility === 'private' && !user}
+                      value={authorEmailInput}
+                      onChange={e => setAuthorEmailInput(e.target.value)}
+                      placeholder={user?.email || 'email-anda@domain.com'}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-stone-700 dark:text-zinc-300 font-semibold">
-                      {language === 'en' ? 'Description & Details *' : 'Deskripsi & Penjelasan Teknis *'}
+                      {language === 'en' ? 'Discussion Content & Context *' : 'Isi Diskusi & Konteks Teknis *'}
                     </label>
                     <EmojiPicker onSelectEmoji={handleInsertEmojiQuestion} buttonLabel="Tambah Emoji" />
                   </div>
@@ -1215,8 +1404,8 @@ export const IssuesPage: React.FC = () => {
                     onChange={e => setNewDescription(e.target.value)}
                     placeholder={
                       language === 'en'
-                        ? 'Describe what you are trying to achieve, code behavior, and specific questions...'
-                        : 'Jelaskan masalah, konteks kode, dan pertanyaan spesifik yang ingin dipecahkan...'
+                        ? 'Describe your topic, question, or discussion in detail...'
+                        : 'Jelaskan topik, pertanyaan, atau pesan yang ingin Anda sampaikan...'
                     }
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                   />
@@ -1234,10 +1423,14 @@ export const IssuesPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
+                    className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold flex items-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     <Send size={14} />
-                    <span>{submitting ? (language === 'en' ? 'Publishing...' : 'Menerbitkan...') : (language === 'en' ? 'Submit Question' : 'Terbitkan Pertanyaan')}</span>
+                    <span>
+                      {submitting
+                        ? (language === 'en' ? 'Creating...' : 'Membuat...')
+                        : (language === 'en' ? 'Create Forum Thread' : 'Terbitkan Utas Forum')}
+                    </span>
                   </button>
                 </div>
               </form>
@@ -1248,4 +1441,6 @@ export const IssuesPage: React.FC = () => {
     </>
   );
 };
+
+export const ForumPage = IssuesPage;
 

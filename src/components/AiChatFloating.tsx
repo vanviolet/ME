@@ -444,7 +444,7 @@ export const AiChatFloating: React.FC = () => {
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-ping opacity-75" />
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full" />
               </div>
-              <span className="font-semibold text-xs tracking-wide">VanBot</span>
+              <span className="font-semibold text-xs tracking-wide">Vanviolet AI</span>
             </div>
           )}
 
@@ -478,7 +478,7 @@ export const AiChatFloating: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-1.5">
                     <span className="font-semibold text-xs tracking-tight text-stone-900 dark:text-zinc-100">
-                      VanBot
+                      Vanviolet AI
                     </span>
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   </div>
@@ -725,8 +725,8 @@ export const AiChatFloating: React.FC = () => {
                   onKeyDown={handleKeyDown}
                   placeholder={
                     language === 'en'
-                      ? 'Ask VanBot anything...'
-                      : 'Tanya apa saja seputar portofolio & tech...'
+                      ? 'Ask Vanviolet AI anything...'
+                      : 'Tanya apa saja ke Vanviolet AI...'
                   }
                   rows={1}
                   className="flex-1 bg-transparent resize-none border-none outline-none text-xs sm:text-sm text-stone-900 dark:text-zinc-100 placeholder-stone-400 dark:placeholder-zinc-500 max-h-24 py-1 px-1"

@@ -187,7 +187,10 @@ export interface CommunityIssue {
   status: 'open' | 'solved';
   solvedAnswerId?: string;
   answers?: IssueAnswer[];
+  visibility?: 'public' | 'private';
 }
+
+export type ForumTopic = CommunityIssue;
 
 export interface PhilosophyItem {
   number: string;

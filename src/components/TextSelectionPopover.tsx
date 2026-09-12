@@ -139,7 +139,7 @@ export const TextSelectionPopover: React.FC = () => {
           <Sparkles className="w-3.5 h-3.5 text-amber-400 dark:text-amber-500 animate-pulse group-hover:rotate-12 transition-transform" />
           <span>Tanyakan ke AI</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400/20 dark:bg-amber-500/20 text-amber-300 dark:text-amber-700 font-bold ml-0.5">
-            VanBot
+            Vanviolet AI
           </span>
         </button>
       </motion.div>
