@@ -10,7 +10,6 @@ import {
   FlipHorizontal,
   FlipVertical,
   ZoomIn,
-  ZoomOut,
   Download,
   Copy,
   Check,
@@ -33,9 +32,8 @@ import {
   RotateCcw as ResetIcon,
   Maximize2,
   Minimize2,
+  X,
   Sliders as ControlsIcon,
-  Film,
-  Zap,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -222,8 +220,8 @@ export const ImageCropperPage: React.FC = () => {
   const { language } = usePortfolio();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Active Control Sidebar Tab
-  const [controlTab, setControlTab] = useState<'adjust' | 'crop' | 'export'>('adjust');
+  // Active Bottom Control Drawer Tab
+  const [activeTab, setActiveTab] = useState<'crop' | 'filter' | 'adjust' | 'export' | null>('crop');
 
   // Image & Cropper States
   const [imageSrc, setImageSrc] = useState<string>(SAMPLE_IMAGES[0].url);
@@ -262,7 +260,6 @@ export const ImageCropperPage: React.FC = () => {
   const [copiedBase64, setCopiedBase64] = useState<boolean>(false);
   const [copiedImage, setCopiedImage] = useState<boolean>(false);
   const [downloadSuccess, setDownloadSuccess] = useState<boolean>(false);
-  const [showLivePreviewModal, setShowLivePreviewModal] = useState<boolean>(false);
 
   // Handle Crop Complete Callback from react-easy-crop
   const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
@@ -343,7 +340,7 @@ export const ImageCropperPage: React.FC = () => {
     if (!croppedResult) return;
     const link = document.createElement('a');
     const ext = outputFormat.split('/')[1] || 'png';
-    link.download = `edited-image-${Date.now()}.${ext}`;
+    link.download = `photo-studio-${Date.now()}.${ext}`;
     link.href = croppedResult.url;
     link.click();
     setDownloadSuccess(true);
@@ -405,7 +402,7 @@ export const ImageCropperPage: React.FC = () => {
   const ASPECT_RATIOS = [
     { label: '1:1 Square', value: 1, shape: 'rect' as const },
     { label: 'Circle Avatar', value: 1, shape: 'round' as const },
-    { label: '4:3 Standard', value: 4 / 3, shape: 'rect' as const },
+    { label: '4:3 Photo', value: 4 / 3, shape: 'rect' as const },
     { label: '16:9 Banner', value: 16 / 9, shape: 'rect' as const },
     { label: '9:16 Story', value: 9 / 16, shape: 'rect' as const },
     { label: '3:2 Camera', value: 3 / 2, shape: 'rect' as const },
@@ -415,47 +412,70 @@ export const ImageCropperPage: React.FC = () => {
   const currentFilterCss = getFilterString(filters);
 
   return (
-    <div className="min-h-screen pt-20 pb-16 px-3 sm:px-6 lg:px-8 max-w-[1500px] mx-auto space-y-6">
+    <div className="relative w-full h-[calc(100vh-4rem)] bg-zinc-950 overflow-hidden select-none font-sans">
       <Seo
-        title={language === 'en' ? 'Modern Image Editor & Cropper — Studio Pro' : 'Editor Foto Modern & Crop Online — Perkakas Pro'}
+        title={language === 'en' ? 'Full Screen Modern Photo Editor & Cropper' : 'Editor Foto Modern Fullscreen & Crop'}
         description={
           language === 'en'
-            ? 'Professional modern photo studio editor with interactive crop, real-time CSS color filters, lighting controls, avatar masks, and high-res export.'
-            : 'Studio editor foto modern profesional dengan pemotong foto interaktif, filter warna real-time, pengatur kecerahan & kontras, serta ekspor PNG, WEBP, JPEG.'
+            ? 'Immersive full-screen modern image studio editor with interactive cropping, live filters, lighting adjustments, and high-res export.'
+            : 'Editor studio foto modern fullscreen interaktif dengan pemotong foto, filter warna real-time, pengatur kecerahan & kontras, serta ekspor PNG, WEBP, JPEG.'
         }
         url="/tools/image-cropper"
       />
 
-      {/* Top Studio Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-zinc-900/90 backdrop-blur-md p-4 rounded-3xl border border-stone-200 dark:border-zinc-800 shadow-xs">
+      {/* TOP FLOATING GLASSBAR */}
+      <div className="absolute top-4 left-4 right-4 z-40 flex items-center justify-between gap-3 bg-zinc-900/80 backdrop-blur-xl px-4 py-2.5 rounded-2xl border border-white/10 shadow-2xl">
         <div className="flex items-center gap-3">
           <Link
             to="/tools"
-            className="w-9 h-9 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors shadow-xs shrink-0"
+            className="w-9 h-9 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors border border-white/10 shrink-0"
             title={language === 'en' ? 'Back to Tools' : 'Kembali ke Perkakas'}
           >
             <ArrowLeft size={16} />
           </Link>
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono uppercase tracking-widest font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20">
-                Studio Editor Pro
-              </span>
-              <span className="text-xs text-stone-400 dark:text-zinc-500 font-mono">v2.0</span>
-            </div>
-            <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-stone-900 dark:text-zinc-100 flex items-center gap-2">
-              <span>Modern Image Cropper & Filters</span>
-            </h1>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+            <span className="text-xs font-extrabold tracking-wide text-zinc-100 uppercase font-mono">
+              Image Studio Pro
+            </span>
           </div>
+
+          {croppedResult && (
+            <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-zinc-950/80 border border-white/10 text-[11px] font-mono text-zinc-400">
+              <span className="text-zinc-200 font-bold">{croppedResult.width} × {croppedResult.height} px</span>
+              <span className="opacity-40">•</span>
+              <span className="text-rose-400 font-bold">{(croppedResult.blob.size / 1024).toFixed(1)} KB</span>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        {/* Action Controls */}
+        <div className="flex items-center gap-2">
+          {/* Sample Photo Dropdown */}
+          <div className="hidden md:flex items-center gap-1.5 mr-2">
+            <span className="text-[11px] font-bold text-zinc-400">Samples:</span>
+            {SAMPLE_IMAGES.map((sample, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setImageSrc(sample.url);
+                  handleReset();
+                }}
+                className="px-2 py-1 rounded-lg text-[11px] font-medium bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors"
+              >
+                {sample.name.split(' ')[0]}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={handleReset}
-            className="px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold flex items-center gap-1.5 transition-colors"
+            className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/10"
+            title="Reset All Adjustments"
           >
             <RefreshCw size={14} />
-            <span>{language === 'en' ? 'Reset Studio' : 'Reset Semua'}</span>
+            <span className="hidden sm:inline">Reset</span>
           </button>
 
           <input
@@ -467,442 +487,333 @@ export const ImageCropperPage: React.FC = () => {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-1.5 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs font-bold flex items-center gap-1.5 shadow-xs hover:bg-rose-600 dark:hover:bg-rose-500 dark:hover:text-white transition-colors"
+            className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/10"
           >
             <Upload size={14} />
-            <span>{language === 'en' ? 'Upload Photo' : 'Unggah Foto'}</span>
+            <span className="hidden sm:inline">Change</span>
+          </button>
+
+          <button
+            onClick={handleDownload}
+            disabled={!croppedResult || isProcessing}
+            className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-rose-600/30 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {downloadSuccess ? <CheckCircle2 size={15} /> : <Download size={15} />}
+            <span>{downloadSuccess ? 'Downloaded!' : 'Export Photo'}</span>
           </button>
         </div>
       </div>
 
-      {/* Main Studio Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT PANEL: Interactive Canvas Stage & Floating Toolbar */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="relative w-full h-[450px] sm:h-[580px] rounded-3xl bg-zinc-950 border border-stone-200 dark:border-zinc-800/80 shadow-2xl overflow-hidden flex flex-col justify-between p-4 group">
-            {/* Aspect Ratio Top Floating Pill Toolbar */}
-            <div className="z-30 flex items-center justify-between gap-2 overflow-x-auto pb-1 no-scrollbar">
-              <div className="flex items-center gap-1.5 bg-zinc-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-white/10 shadow-lg">
-                {ASPECT_RATIOS.map((item, idx) => {
-                  const isActive = aspect === item.value && cropShape === item.shape;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setAspect(item.value);
-                        setCropShape(item.shape);
-                      }}
-                      className={`px-3 py-1.2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                        isActive
-                          ? 'bg-rose-600 text-white shadow-xs'
-                          : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
-                      }`}
-                    >
-                      {item.shape === 'round' ? <Circle size={12} /> : <Square size={12} />}
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+      {/* FULLSCREEN CROPPER STAGE */}
+      <div className="absolute inset-0 z-10 w-full h-full flex items-center justify-center">
+        {imageSrc ? (
+          <Cropper
+            image={imageSrc}
+            crop={crop}
+            zoom={zoom}
+            rotation={rotation}
+            aspect={aspect}
+            cropShape={cropShape}
+            showGrid={showGrid}
+            onCropChange={setCrop}
+            onZoomChange={setZoom}
+            onRotationChange={setRotation}
+            onCropComplete={onCropComplete}
+            style={{
+              containerStyle: {
+                width: '100%',
+                height: '100%',
+                backgroundColor: '#09090b',
+              },
+              mediaStyle: {
+                filter: currentFilterCss,
+                WebkitFilter: currentFilterCss,
+              },
+            }}
+            mediaProps={{
+              style: {
+                filter: currentFilterCss,
+                WebkitFilter: currentFilterCss,
+              },
+            }}
+          />
+        ) : (
+          <div
+            onDragOver={e => e.preventDefault()}
+            onDrop={handleDrop}
+            className="flex flex-col items-center justify-center text-center p-8 space-y-4 cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="w-20 h-20 rounded-3xl bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/20 shadow-2xl">
+              <Upload size={36} />
+            </div>
+            <div className="space-y-1">
+              <p className="text-base font-extrabold text-zinc-100">
+                Click or Drag & Drop Image Here
+              </p>
+              <p className="text-xs text-zinc-400">
+                Supports High-Resolution PNG, JPG, WEBP, GIF, SVG
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
 
-              <div className="flex items-center gap-1 bg-zinc-900/90 backdrop-blur-md p-1.5 rounded-2xl border border-white/10 shadow-lg">
+      {/* FLOATING BOTTOM TOOLBAR & DRAWER (Modern Overlay Dock) */}
+      {imageSrc && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-3xl space-y-3 pointer-events-auto">
+          {/* Active Tool Drawer Card */}
+          {activeTab && (
+            <div className="bg-zinc-900/90 backdrop-blur-2xl p-4 rounded-3xl border border-white/10 shadow-2xl animate-in fade-in slide-in-from-bottom-3 duration-200">
+              <div className="flex items-center justify-between pb-2 mb-3 border-b border-white/10">
+                <span className="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-2">
+                  {activeTab === 'crop' && <Crop size={14} />}
+                  {activeTab === 'filter' && <Sparkles size={14} />}
+                  {activeTab === 'adjust' && <SlidersHorizontal size={14} />}
+                  {activeTab === 'export' && <Download size={14} />}
+                  <span>
+                    {activeTab === 'crop' && 'Aspect Ratio & Crop'}
+                    {activeTab === 'filter' && 'Color Filter Presets'}
+                    {activeTab === 'adjust' && 'Lighting & Tone Sliders'}
+                    {activeTab === 'export' && 'Export & Quality Settings'}
+                  </span>
+                </span>
                 <button
-                  onClick={() => setShowGrid(!showGrid)}
-                  className={`p-1.5 rounded-xl text-xs font-bold transition-all ${
-                    showGrid ? 'bg-rose-600 text-white' : 'text-zinc-400 hover:text-white'
-                  }`}
-                  title="Toggle Grid Lines"
+                  onClick={() => setActiveTab(null)}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
                 >
-                  <Layers size={15} />
+                  <X size={14} />
                 </button>
               </div>
-            </div>
 
-            {/* Cropper Work Area with Direct Filter Application */}
-            <div className="absolute inset-0 z-10 cropper-studio-container">
-              {imageSrc ? (
-                <Cropper
-                  image={imageSrc}
-                  crop={crop}
-                  zoom={zoom}
-                  rotation={rotation}
-                  aspect={aspect}
-                  cropShape={cropShape}
-                  showGrid={showGrid}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onRotationChange={setRotation}
-                  onCropComplete={onCropComplete}
-                  style={{
-                    mediaStyle: {
-                      filter: currentFilterCss,
-                      WebkitFilter: currentFilterCss,
-                    },
-                  }}
-                  mediaProps={{
-                    style: {
-                      filter: currentFilterCss,
-                      WebkitFilter: currentFilterCss,
-                    },
-                  }}
-                  classes={{
-                    containerClassName: 'w-full h-full',
-                  }}
-                />
-              ) : (
-                <div
-                  onDragOver={e => e.preventDefault()}
-                  onDrop={handleDrop}
-                  className="flex flex-col items-center justify-center h-full text-center p-6 space-y-3 cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <div className="w-16 h-16 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/20">
-                    <Upload size={28} />
+              {/* DRAWER CONTENT: CROP & ASPECT */}
+              {activeTab === 'crop' && (
+                <div className="space-y-3">
+                  {/* Aspect Ratio Pills */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                    {ASPECT_RATIOS.map((item, idx) => {
+                      const isActive = aspect === item.value && cropShape === item.shape;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setAspect(item.value);
+                            setCropShape(item.shape);
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 whitespace-nowrap transition-all ${
+                            isActive
+                              ? 'bg-rose-600 text-white shadow-md'
+                              : 'bg-zinc-800/80 text-zinc-300 hover:text-white hover:bg-zinc-700'
+                          }`}
+                        >
+                          {item.shape === 'round' ? <Circle size={13} /> : <Square size={13} />}
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-zinc-100">
-                      {language === 'en' ? 'Click or Drag & Drop Image Here' : 'Klik atau Tarik & Lepas Foto di sini'}
-                    </p>
-                    <p className="text-xs text-zinc-400">
-                      Supports PNG, JPG, WEBP, GIF, SVG
-                    </p>
+
+                  {/* Transformation Sliders (Zoom, Rotate, Flip) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-white/10">
+                    {/* Zoom */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono text-zinc-400 w-12 shrink-0">Zoom</span>
+                      <input
+                        type="range"
+                        min={1}
+                        max={5}
+                        step={0.1}
+                        value={zoom}
+                        onChange={e => setZoom(parseFloat(e.target.value))}
+                        className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                      />
+                      <span className="text-xs font-mono font-bold text-rose-400 w-8 text-right">{zoom.toFixed(1)}x</span>
+                    </div>
+
+                    {/* Rotation */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono text-zinc-400 w-12 shrink-0">Rotate</span>
+                      <button
+                        onClick={() => setRotation(r => (r - 90 < -180 ? r - 90 + 360 : r - 90))}
+                        className="p-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+                      >
+                        <RotateCcw size={12} />
+                      </button>
+                      <input
+                        type="range"
+                        min={-180}
+                        max={180}
+                        step={1}
+                        value={rotation}
+                        onChange={e => setRotation(parseInt(e.target.value) || 0)}
+                        className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                      />
+                      <button
+                        onClick={() => setRotation(r => (r + 90 > 180 ? r + 90 - 360 : r + 90))}
+                        className="p-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+                      >
+                        <RotateCw size={12} />
+                      </button>
+                      <span className="text-xs font-mono font-bold text-rose-400 w-9 text-right">{rotation}°</span>
+                    </div>
+
+                    {/* Flip & Grid Toggle */}
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => setFlip(f => ({ ...f, horizontal: !f.horizontal }))}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                          flip.horizontal ? 'bg-rose-600 text-white' : 'bg-zinc-800 text-zinc-300'
+                        }`}
+                      >
+                        Flip H
+                      </button>
+                      <button
+                        onClick={() => setFlip(f => ({ ...f, vertical: !f.vertical }))}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                          flip.vertical ? 'bg-rose-600 text-white' : 'bg-zinc-800 text-zinc-300'
+                        }`}
+                      >
+                        Flip V
+                      </button>
+                      <button
+                        onClick={() => setShowGrid(!showGrid)}
+                        className={`p-1.5 rounded-xl transition-all ${
+                          showGrid ? 'bg-rose-600 text-white' : 'bg-zinc-800 text-zinc-400'
+                        }`}
+                      >
+                        <Layers size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Bottom Floating Transformation Quick Controls */}
-            {imageSrc && (
-              <div className="z-30 mt-auto flex flex-wrap items-center justify-between gap-3 bg-zinc-900/90 backdrop-blur-md p-2.5 rounded-2xl border border-white/10 shadow-xl">
-                {/* Zoom Level Control */}
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono font-bold text-zinc-400 flex items-center gap-1">
-                    <ZoomIn size={13} />
-                    <span>Zoom</span>
-                  </span>
-                  <input
-                    type="range"
-                    min={1}
-                    max={5}
-                    step={0.1}
-                    value={zoom}
-                    onChange={e => setZoom(parseFloat(e.target.value))}
-                    className="w-24 sm:w-32 accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
-                  />
-                  <span className="text-xs font-mono font-bold text-rose-400 w-8">{zoom.toFixed(1)}x</span>
-                </div>
-
-                {/* Rotation Control */}
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono font-bold text-zinc-400 flex items-center gap-1">
-                    <RotateCw size={13} />
-                    <span>Rotate</span>
-                  </span>
-                  <button
-                    onClick={() => setRotation(r => (r - 90 < -180 ? r - 90 + 360 : r - 90))}
-                    className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs transition-colors"
-                    title="Rotate -90°"
-                  >
-                    <RotateCcw size={13} />
-                  </button>
-                  <span className="text-xs font-mono font-bold text-rose-400 w-9 text-center">{rotation}°</span>
-                  <button
-                    onClick={() => setRotation(r => (r + 90 > 180 ? r + 90 - 360 : r + 90))}
-                    className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs transition-colors"
-                    title="Rotate +90°"
-                  >
-                    <RotateCw size={13} />
-                  </button>
-                </div>
-
-                {/* Flip Toggles */}
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setFlip(f => ({ ...f, horizontal: !f.horizontal }))}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all ${
-                      flip.horizontal
-                        ? 'bg-rose-600 text-white'
-                        : 'bg-zinc-800 text-zinc-300 hover:text-white'
-                    }`}
-                  >
-                    <FlipHorizontal size={13} />
-                    <span className="hidden sm:inline">Flip H</span>
-                  </button>
-                  <button
-                    onClick={() => setFlip(f => ({ ...f, vertical: !f.vertical }))}
-                    className={`px-2.5 py-1 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all ${
-                      flip.vertical
-                        ? 'bg-rose-600 text-white'
-                        : 'bg-zinc-800 text-zinc-300 hover:text-white'
-                    }`}
-                  >
-                    <FlipVertical size={13} />
-                    <span className="hidden sm:inline">Flip V</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Quick Sample Selector */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs">
-            <span className="text-xs font-bold text-stone-600 dark:text-zinc-400 flex items-center gap-1.5">
-              <ImageIcon size={14} className="text-rose-500" />
-              <span>{language === 'en' ? 'Sample Photos:' : 'Foto Contoh:'}</span>
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              {SAMPLE_IMAGES.map((sample, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setImageSrc(sample.url);
-                    setCrop({ x: 0, y: 0 });
-                    setZoom(1);
-                    setRotation(0);
-                    setFlip({ horizontal: false, vertical: false });
-                    setFilters(DEFAULT_FILTERS);
-                    setActivePreset('normal');
-                  }}
-                  className="px-3 py-1 rounded-xl text-xs font-semibold bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 border border-stone-200 dark:border-zinc-700 transition-all"
-                >
-                  {sample.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT PANEL: Modern Studio Editing Sidebar */}
-        <div className="lg:col-span-4 space-y-4">
-          {/* Main Studio Navigation Tabs */}
-          <div className="grid grid-cols-3 gap-1 bg-stone-200/80 dark:bg-zinc-900 p-1.5 rounded-2xl border border-stone-300/60 dark:border-zinc-800 shadow-xs">
-            <button
-              onClick={() => setControlTab('adjust')}
-              className={`py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                controlTab === 'adjust'
-                  ? 'bg-rose-600 text-white shadow-md'
-                  : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
-              }`}
-            >
-              <Wand2 size={14} />
-              <span>Filters & Color</span>
-            </button>
-
-            <button
-              onClick={() => setControlTab('crop')}
-              className={`py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                controlTab === 'crop'
-                  ? 'bg-rose-600 text-white shadow-md'
-                  : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
-              }`}
-            >
-              <Crop size={14} />
-              <span>Crop & Aspect</span>
-            </button>
-
-            <button
-              onClick={() => setControlTab('export')}
-              className={`py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                controlTab === 'export'
-                  ? 'bg-rose-600 text-white shadow-md'
-                  : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
-              }`}
-            >
-              <Download size={14} />
-              <span>Live Result</span>
-            </button>
-          </div>
-
-          {/* TAB 1: FILTERS & COLOR ADJUSTMENTS */}
-          {controlTab === 'adjust' && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              {/* Filter Preset Cards */}
-              <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-zinc-800">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                    <Sparkles size={14} />
-                    <span>Filter Presets</span>
-                  </div>
-                  {activePreset !== 'normal' && (
-                    <button
-                      onClick={() => {
-                        setFilters(DEFAULT_FILTERS);
-                        setActivePreset('normal');
-                      }}
-                      className="text-[11px] font-bold text-stone-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors flex items-center gap-1"
-                    >
-                      <ResetIcon size={11} />
-                      <span>Reset</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+              {/* DRAWER CONTENT: FILTERS */}
+              {activeTab === 'filter' && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
                   {FILTER_PRESETS.map((preset) => {
                     const isSelected = activePreset === preset.id;
                     return (
                       <button
                         key={preset.id}
                         onClick={() => applyPreset(preset)}
-                        className={`p-2.5 rounded-2xl border text-left transition-all relative overflow-hidden group ${
+                        className={`p-2 rounded-2xl border text-left min-w-[100px] shrink-0 transition-all ${
                           isSelected
-                            ? 'border-rose-500 bg-rose-500/10 shadow-xs ring-1 ring-rose-500'
-                            : 'border-stone-200 dark:border-zinc-800 bg-stone-50/60 dark:bg-zinc-950/40 hover:border-stone-300 dark:hover:border-zinc-700'
+                            ? 'border-rose-500 bg-rose-500/20 ring-2 ring-rose-500'
+                            : 'border-white/10 bg-zinc-800/50 hover:bg-zinc-800'
                         }`}
                       >
-                        <div className={`w-full h-8 rounded-xl bg-gradient-to-r ${preset.colorBg} mb-1.5 shadow-xs group-hover:scale-105 transition-transform`} />
-                        <div className="text-xs font-extrabold text-stone-900 dark:text-zinc-100 truncate">
+                        <div className={`w-full h-8 rounded-xl bg-gradient-to-r ${preset.colorBg} mb-1.5 shadow-sm`} />
+                        <div className="text-xs font-extrabold text-zinc-100 truncate">
                           {preset.name}
                         </div>
-                        <div className="text-[10px] text-stone-500 dark:text-zinc-400 truncate font-medium">
+                        <div className="text-[10px] text-zinc-400 truncate">
                           {preset.desc}
                         </div>
                       </button>
                     );
                   })}
                 </div>
-              </div>
+              )}
 
-              {/* Lighting & Tone Fine-Tuning Sliders */}
-              <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-zinc-800">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                    <SlidersHorizontal size={14} />
-                    <span>Lighting & Tone Controls</span>
-                  </div>
-                </div>
-
-                {/* Brightness */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                    <span className="flex items-center gap-1.5">
-                      <Sun size={14} className="text-amber-500" />
-                      <span>{language === 'en' ? 'Brightness' : 'Kecerahan'}</span>
-                    </span>
-                    <div className="flex items-center gap-1.5 font-mono">
-                      <span className="text-rose-600 dark:text-rose-400 font-bold">{filters.brightness}%</span>
-                      {filters.brightness !== 100 && (
-                        <button onClick={() => resetSingleFilter('brightness')} className="text-stone-400 hover:text-rose-500">
-                          <ResetIcon size={10} />
-                        </button>
-                      )}
+              {/* DRAWER CONTENT: LIGHTING & ADJUSTMENTS */}
+              {activeTab === 'adjust' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Brightness */}
+                  <div className="space-y-1 bg-zinc-950/60 p-2.5 rounded-2xl border border-white/5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-300">
+                      <span className="flex items-center gap-1">
+                        <Sun size={12} className="text-amber-400" />
+                        <span>Brightness</span>
+                      </span>
+                      <span className="font-mono text-rose-400">{filters.brightness}%</span>
                     </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={200}
+                      value={filters.brightness}
+                      onChange={e => updateFilter('brightness', parseInt(e.target.value))}
+                      className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
                   </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={200}
-                    value={filters.brightness}
-                    onChange={e => updateFilter('brightness', parseInt(e.target.value))}
-                    className="w-full accent-rose-600 dark:accent-rose-500 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-800 rounded-lg"
-                  />
-                </div>
 
-                {/* Contrast */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                    <span className="flex items-center gap-1.5">
-                      <Contrast size={14} className="text-purple-500" />
-                      <span>{language === 'en' ? 'Contrast' : 'Kontras'}</span>
-                    </span>
-                    <div className="flex items-center gap-1.5 font-mono">
-                      <span className="text-rose-600 dark:text-rose-400 font-bold">{filters.contrast}%</span>
-                      {filters.contrast !== 100 && (
-                        <button onClick={() => resetSingleFilter('contrast')} className="text-stone-400 hover:text-rose-500">
-                          <ResetIcon size={10} />
-                        </button>
-                      )}
+                  {/* Contrast */}
+                  <div className="space-y-1 bg-zinc-950/60 p-2.5 rounded-2xl border border-white/5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-300">
+                      <span className="flex items-center gap-1">
+                        <Contrast size={12} className="text-purple-400" />
+                        <span>Contrast</span>
+                      </span>
+                      <span className="font-mono text-rose-400">{filters.contrast}%</span>
                     </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={200}
+                      value={filters.contrast}
+                      onChange={e => updateFilter('contrast', parseInt(e.target.value))}
+                      className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
                   </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={200}
-                    value={filters.contrast}
-                    onChange={e => updateFilter('contrast', parseInt(e.target.value))}
-                    className="w-full accent-rose-600 dark:accent-rose-500 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-800 rounded-lg"
-                  />
-                </div>
 
-                {/* Saturation */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                    <span className="flex items-center gap-1.5">
-                      <Palette size={14} className="text-rose-500" />
-                      <span>{language === 'en' ? 'Saturation' : 'Saturasi Warna'}</span>
-                    </span>
-                    <div className="flex items-center gap-1.5 font-mono">
-                      <span className="text-rose-600 dark:text-rose-400 font-bold">{filters.saturate}%</span>
-                      {filters.saturate !== 100 && (
-                        <button onClick={() => resetSingleFilter('saturate')} className="text-stone-400 hover:text-rose-500">
-                          <ResetIcon size={10} />
-                        </button>
-                      )}
+                  {/* Saturation */}
+                  <div className="space-y-1 bg-zinc-950/60 p-2.5 rounded-2xl border border-white/5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-300">
+                      <span className="flex items-center gap-1">
+                        <Palette size={12} className="text-rose-400" />
+                        <span>Saturation</span>
+                      </span>
+                      <span className="font-mono text-rose-400">{filters.saturate}%</span>
                     </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={200}
+                      value={filters.saturate}
+                      onChange={e => updateFilter('saturate', parseInt(e.target.value))}
+                      className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
                   </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={200}
-                    value={filters.saturate}
-                    onChange={e => updateFilter('saturate', parseInt(e.target.value))}
-                    className="w-full accent-rose-600 dark:accent-rose-500 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-800 rounded-lg"
-                  />
-                </div>
 
-                {/* Blur */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                    <span>{language === 'en' ? 'Blur Effect' : 'Efek Blur'}</span>
-                    <div className="flex items-center gap-1.5 font-mono">
-                      <span className="text-rose-600 dark:text-rose-400 font-bold">{filters.blur}px</span>
-                      {filters.blur !== 0 && (
-                        <button onClick={() => resetSingleFilter('blur')} className="text-stone-400 hover:text-rose-500">
-                          <ResetIcon size={10} />
-                        </button>
-                      )}
+                  {/* Blur */}
+                  <div className="space-y-1 bg-zinc-950/60 p-2.5 rounded-2xl border border-white/5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-300">
+                      <span>Blur Effect</span>
+                      <span className="font-mono text-rose-400">{filters.blur}px</span>
                     </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={10}
+                      step={0.5}
+                      value={filters.blur}
+                      onChange={e => updateFilter('blur', parseFloat(e.target.value))}
+                      className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
                   </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={10}
-                    step={0.5}
-                    value={filters.blur}
-                    onChange={e => updateFilter('blur', parseFloat(e.target.value))}
-                    className="w-full accent-rose-600 dark:accent-rose-500 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-800 rounded-lg"
-                  />
-                </div>
 
-                {/* Hue Shift */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                    <span>{language === 'en' ? 'Hue Color Shift' : 'Pergeseran Hue'}</span>
-                    <div className="flex items-center gap-1.5 font-mono">
-                      <span className="text-rose-600 dark:text-rose-400 font-bold">{filters.hueRotate}°</span>
-                      {filters.hueRotate !== 0 && (
-                        <button onClick={() => resetSingleFilter('hueRotate')} className="text-stone-400 hover:text-rose-500">
-                          <ResetIcon size={10} />
-                        </button>
-                      )}
+                  {/* Hue Shift */}
+                  <div className="space-y-1 bg-zinc-950/60 p-2.5 rounded-2xl border border-white/5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-300">
+                      <span>Hue Shift</span>
+                      <span className="font-mono text-rose-400">{filters.hueRotate}°</span>
                     </div>
+                    <input
+                      type="range"
+                      min={-180}
+                      max={180}
+                      value={filters.hueRotate}
+                      onChange={e => updateFilter('hueRotate', parseInt(e.target.value))}
+                      className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
                   </div>
-                  <input
-                    type="range"
-                    min={-180}
-                    max={180}
-                    value={filters.hueRotate}
-                    onChange={e => updateFilter('hueRotate', parseInt(e.target.value))}
-                    className="w-full accent-rose-600 dark:accent-rose-500 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-800 rounded-lg"
-                  />
-                </div>
 
-                {/* Grayscale & Sepia */}
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-stone-100 dark:border-zinc-800">
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[11px] font-semibold text-stone-700 dark:text-zinc-300">
+                  {/* Grayscale */}
+                  <div className="space-y-1 bg-zinc-950/60 p-2.5 rounded-2xl border border-white/5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-300">
                       <span>Grayscale</span>
-                      <span className="font-mono text-rose-600 dark:text-rose-400 font-bold">{filters.grayscale}%</span>
+                      <span className="font-mono text-rose-400">{filters.grayscale}%</span>
                     </div>
                     <input
                       type="range"
@@ -910,14 +821,15 @@ export const ImageCropperPage: React.FC = () => {
                       max={100}
                       value={filters.grayscale}
                       onChange={e => updateFilter('grayscale', parseInt(e.target.value))}
-                      className="w-full accent-rose-600 dark:accent-rose-500 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-800 rounded-lg"
+                      className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[11px] font-semibold text-stone-700 dark:text-zinc-300">
+                  {/* Sepia */}
+                  <div className="space-y-1 bg-zinc-950/60 p-2.5 rounded-2xl border border-white/5 col-span-1 sm:col-span-2">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-300">
                       <span>Sepia Tone</span>
-                      <span className="font-mono text-rose-600 dark:text-rose-400 font-bold">{filters.sepia}%</span>
+                      <span className="font-mono text-rose-400">{filters.sepia}%</span>
                     </div>
                     <input
                       type="range"
@@ -925,182 +837,125 @@ export const ImageCropperPage: React.FC = () => {
                       max={100}
                       value={filters.sepia}
                       onChange={e => updateFilter('sepia', parseInt(e.target.value))}
-                      className="w-full accent-rose-600 dark:accent-rose-500 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-800 rounded-lg"
+                      className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
                     />
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* TAB 2: CROP & ASPECT RATIO */}
-          {controlTab === 'crop' && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 pb-2 border-b border-stone-100 dark:border-zinc-800">
-                  <Crop size={14} />
-                  <span>Presets Aspect Ratio</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {ASPECT_RATIOS.map((item, idx) => {
-                    const isActive = aspect === item.value && cropShape === item.shape;
-                    return (
+              {/* DRAWER CONTENT: EXPORT & FORMAT */}
+              {activeTab === 'export' && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  {/* Format Toggle */}
+                  <div className="flex items-center gap-1.5 bg-zinc-950/80 p-1 rounded-xl border border-white/10">
+                    {(['image/png', 'image/jpeg', 'image/webp'] as const).map(fmt => (
                       <button
-                        key={idx}
-                        onClick={() => {
-                          setAspect(item.value);
-                          setCropShape(item.shape);
-                        }}
-                        className={`p-3 rounded-2xl border text-xs font-extrabold text-left transition-all flex items-center justify-between ${
-                          isActive
-                            ? 'border-rose-500 bg-rose-500/10 text-rose-600 dark:text-rose-400 shadow-xs ring-1 ring-rose-500'
-                            : 'border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-950/40 text-stone-700 dark:text-zinc-300 hover:border-stone-300 dark:hover:border-zinc-700'
+                        key={fmt}
+                        onClick={() => setOutputFormat(fmt)}
+                        className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all ${
+                          outputFormat === fmt
+                            ? 'bg-rose-600 text-white shadow-md'
+                            : 'text-zinc-400 hover:text-white'
                         }`}
                       >
-                        <span>{item.label}</span>
-                        {item.shape === 'round' ? (
-                          <Circle size={15} className="shrink-0 text-rose-500" />
-                        ) : (
-                          <Square size={15} className="shrink-0 opacity-60" />
-                        )}
+                        {fmt.split('/')[1].toUpperCase()}
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: LIVE RESULT PREVIEW & EXPORT STUDIO */}
-          {controlTab === 'export' && (
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-4 animate-in fade-in duration-200">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 pb-2 border-b border-stone-100 dark:border-zinc-800">
-                <Eye size={14} />
-                <span>Live Cropped Result</span>
-              </div>
-
-              {/* Real-time Result Output Image Container */}
-              {croppedResult ? (
-                <div className="space-y-3">
-                  <div className="relative w-full h-48 rounded-2xl bg-zinc-950 border border-stone-200 dark:border-zinc-800 overflow-hidden flex items-center justify-center p-2 group shadow-inner">
-                    <img
-                      src={croppedResult.url}
-                      alt="Cropped Result Preview"
-                      className={`max-h-full max-w-full object-contain ${
-                        cropShape === 'round' ? 'rounded-full' : 'rounded-lg'
-                      }`}
-                    />
-                    <div className="absolute top-2 right-2 bg-zinc-900/80 backdrop-blur-md px-2 py-1 rounded-lg text-[10px] font-mono text-zinc-300 font-bold border border-white/10">
-                      {croppedResult.width} × {croppedResult.height} px
-                    </div>
+                    ))}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono p-3 rounded-2xl bg-stone-50 dark:bg-zinc-950/70 border border-stone-200 dark:border-zinc-800">
-                    <div>
-                      <span className="text-stone-400 dark:text-zinc-500 block text-[10px]">FILE SIZE</span>
-                      <span className="font-bold text-rose-600 dark:text-rose-400">
-                        {(croppedResult.blob.size / 1024).toFixed(1)} KB
-                      </span>
+                  {/* Quality Slider */}
+                  {outputFormat !== 'image/png' && (
+                    <div className="flex items-center gap-2 w-full sm:w-48">
+                      <span className="text-xs font-bold text-zinc-400 shrink-0">Quality</span>
+                      <input
+                        type="range"
+                        min={0.1}
+                        max={1}
+                        step={0.05}
+                        value={quality}
+                        onChange={e => setQuality(parseFloat(e.target.value))}
+                        className="w-full accent-rose-500 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                      />
+                      <span className="text-xs font-mono font-bold text-rose-400">{Math.round(quality * 100)}%</span>
                     </div>
-                    <div>
-                      <span className="text-stone-400 dark:text-zinc-500 block text-[10px]">FORMAT</span>
-                      <span className="font-bold text-stone-900 dark:text-zinc-100 uppercase">
-                        {outputFormat.split('/')[1]}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-8 text-center text-xs text-stone-400 dark:text-zinc-500 font-medium">
-                  Generating output preview...
-                </div>
-              )}
+                  )}
 
-              {/* Format Selection */}
-              <div className="space-y-1.5 pt-2 border-t border-stone-100 dark:border-zinc-800">
-                <label className="text-xs font-bold text-stone-700 dark:text-zinc-300 block">
-                  Export Format
-                </label>
-                <div className="grid grid-cols-3 gap-1.5 bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl border border-stone-200 dark:border-zinc-700">
-                  {(['image/png', 'image/jpeg', 'image/webp'] as const).map(fmt => (
+                  {/* Clipboard Quick Copy Actions */}
+                  <div className="flex items-center gap-2">
                     <button
-                      key={fmt}
-                      onClick={() => setOutputFormat(fmt)}
-                      className={`py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        outputFormat === fmt
-                          ? 'bg-rose-600 text-white shadow-xs'
-                          : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
-                      }`}
+                      onClick={handleCopyImage}
+                      disabled={!croppedResult || isProcessing}
+                      className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-colors"
                     >
-                      {fmt.split('/')[1].toUpperCase()}
+                      {copiedImage ? <Check size={13} /> : <Copy size={13} />}
+                      <span>{copiedImage ? 'Copied' : 'Copy Image'}</span>
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Quality Slider (JPEG/WEBP) */}
-              {outputFormat !== 'image/png' && (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                    <span>Export Quality</span>
-                    <span className="font-mono text-rose-600 dark:text-rose-400 font-bold">{Math.round(quality * 100)}%</span>
+                    <button
+                      onClick={handleCopyBase64}
+                      disabled={!croppedResult || isProcessing}
+                      className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-colors"
+                    >
+                      {copiedBase64 ? <Check size={13} /> : <FileCode size={13} />}
+                      <span>{copiedBase64 ? 'Copied' : 'Base64'}</span>
+                    </button>
                   </div>
-                  <input
-                    type="range"
-                    min={0.1}
-                    max={1}
-                    step={0.05}
-                    value={quality}
-                    onChange={e => setQuality(parseFloat(e.target.value))}
-                    className="w-full accent-rose-600 dark:accent-rose-500 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-800 rounded-lg"
-                  />
                 </div>
               )}
-
-              {/* Action Buttons */}
-              <div className="space-y-2 pt-2">
-                <button
-                  onClick={handleDownload}
-                  disabled={!croppedResult || isProcessing}
-                  className="w-full py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
-                >
-                  {downloadSuccess ? <CheckCircle2 size={16} /> : <Download size={16} />}
-                  <span>
-                    {downloadSuccess
-                      ? language === 'en'
-                        ? 'Downloaded!'
-                        : 'Berhasil Diunduh!'
-                      : language === 'en'
-                      ? 'Download Edited Photo'
-                      : 'Unduh Hasil Foto'}
-                  </span>
-                </button>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={handleCopyImage}
-                    disabled={!croppedResult || isProcessing}
-                    className="py-2.5 px-3 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
-                  >
-                    {copiedImage ? <Check size={14} /> : <Copy size={14} />}
-                    <span>{copiedImage ? 'Copied' : 'Copy Image'}</span>
-                  </button>
-
-                  <button
-                    onClick={handleCopyBase64}
-                    disabled={!croppedResult || isProcessing}
-                    className="py-2.5 px-3 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
-                  >
-                    {copiedBase64 ? <Check size={14} /> : <FileCode size={14} />}
-                    <span>{copiedBase64 ? 'Copied' : 'Copy Base64'}</span>
-                  </button>
-                </div>
-              </div>
             </div>
           )}
+
+          {/* Primary Floating Navigation Dock */}
+          <div className="flex items-center justify-center gap-1.5 bg-zinc-900/90 backdrop-blur-2xl p-1.5 rounded-2xl border border-white/10 shadow-2xl">
+            <button
+              onClick={() => setActiveTab(activeTab === 'crop' ? null : 'crop')}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
+                activeTab === 'crop'
+                  ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30'
+                  : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+              }`}
+            >
+              <Crop size={15} />
+              <span>Crop & Aspect</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab(activeTab === 'filter' ? null : 'filter')}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
+                activeTab === 'filter'
+                  ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30'
+                  : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+              }`}
+            >
+              <Sparkles size={15} />
+              <span>Filters</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab(activeTab === 'adjust' ? null : 'adjust')}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
+                activeTab === 'adjust'
+                  ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30'
+                  : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+              }`}
+            >
+              <SlidersHorizontal size={15} />
+              <span>Adjustments</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab(activeTab === 'export' ? null : 'export')}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
+                activeTab === 'export'
+                  ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30'
+                  : 'text-zinc-300 hover:text-white hover:bg-zinc-800'
+              }`}
+            >
+              <Download size={15} />
+              <span>Format & Copy</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
