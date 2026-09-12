@@ -293,7 +293,7 @@ ${context ? `\n### Konteks Halaman Pengguna Saat Ini:\n${context}` : ""}`;
   // Generate Article Endpoint
   app.post("/api/ai/generate-article", async (req, res) => {
     try {
-      const { topic, category = "Learning (AI)", keyPoints = "", language = "id", model = "gemini-3.8-flash" } = req.body;
+      const { topic, category = "", keyPoints = "", language = "id", model = "gemini-3.8-flash" } = req.body;
 
       if (!topic || typeof topic !== "string" || !topic.trim()) {
         res.status(400).json({ error: "Topic/Title outline is required." });
@@ -301,13 +301,13 @@ ${context ? `\n### Konteks Halaman Pengguna Saat Ini:\n${context}` : ""}`;
       }
 
       const systemInstruction =
-        "You are a technical AI writer that generates structured, publication-ready technical articles in JSON format.";
+        "You are a senior technical architect & AI writer that generates structured, publication-ready technical articles in JSON format.";
 
       const prompt = `Anda adalah Penulis Teknis dan Arsitek Sistem Senior.
 Tolong buatkan draf artikel teknis yang mendalam, terstruktur rapi, berbobot, dan aplikatif berdasarkan input berikut:
 - Topik / Judul: "${topic.trim()}"
-- Kategori: "${category}"
-${keyPoints ? `- Poin-poin kunci: "${keyPoints}"` : ""}
+${category && category !== "Auto" ? `- Kategori yang Diinginkan: "${category}"` : "- Kategori: (Tentukan otomatis kategori teknis yang paling akurat, presisi, dan representatif, contoh: 'AI & Machine Learning', 'Distributed Systems', 'Software Architecture', 'Database Systems', 'Frontend Architecture', 'Cloud Infrastructure', 'Cybersecurity', atau kategori spesifik lainnya)"}
+${keyPoints ? `- Poin-poin Kunci / Deskripsi Singkat: "${keyPoints}"` : ""}
 - Bahasa Utama: ${language === "en" ? "English" : "Bahasa Indonesia"}
 
 Ketentuan Konten:
@@ -322,7 +322,7 @@ Ketentuan Konten:
 Format keluaran HARUS berformat JSON valid dengan properti:
 - titleId: Judul dalam Bahasa Indonesia
 - titleEn: Title in English
-- category: Kategori yang sesuai
+- category: Kategori teknis yang tepat dan representatif
 - tags: Array string 3-5 tag teknis relevan
 - summaryId: Ringkasan padat 2-3 kalimat dalam Bahasa Indonesia
 - summaryEn: Summary in English (2-3 sentences)
@@ -378,7 +378,7 @@ Format keluaran HARUS berformat JSON valid dengan properti:
   // Generate Vanpedia Term Endpoint
   app.post("/api/ai/generate-vanpedia", async (req, res) => {
     try {
-      const { termName, category = "Learning (AI)", details = "", model = "gemini-3.8-flash" } = req.body;
+      const { termName, category = "", details = "", model = "gemini-3.8-flash" } = req.body;
 
       if (!termName || typeof termName !== "string" || !termName.trim()) {
         res.status(400).json({ error: "Term name is required." });
@@ -386,13 +386,13 @@ Format keluaran HARUS berformat JSON valid dengan properti:
       }
 
       const systemInstruction =
-        "You are an encyclopedic technical lexicographer creating authoritative glossary entries in JSON format.";
+        "You are an authoritative encyclopedic technical lexicographer creating concise, high-precision glossary entries in JSON format.";
 
       const prompt = `Anda adalah Leksikografer Teknis Rekayasa Perangkat Lunak dan AI.
 Tolong buatkan entri kamus istilah teknis untuk "Vanpedia" yang RINGKAS, PADAT, AKURAT, dan SANGAT JELAS (tidak bertele-tele, tidak panjang-panjang, fokus pada esensi dan pemahaman praktis):
 - Nama Istilah: "${termName.trim()}"
-- Kategori: "${category}"
-${details ? `- Catatan Khusus: "${details}"` : ""}
+${category && category !== "Auto" ? `- Kategori yang Diinginkan: "${category}"` : "- Kategori: (Tentukan otomatis kategori teknis yang paling tepat dan representatif, contoh: 'Learning (AI)', 'Computer Systems', 'Database Systems', 'Distributed Systems', 'Security & Auth', 'Algorithms & Optimization', atau nama kategori lainnya)"}
+${details ? `- Catatan Khusus / Deskripsi Singkat: "${details}"` : ""}
 
 Ketentuan Format:
 - Jangan menyertakan metafora musik atau audio, fokus murni pada ilmu komputer, software engineering, AI, atau teknologi umum.
@@ -407,7 +407,7 @@ Keluaran HARUS berupa JSON dengan properti:
 - termId: Nama istilah dalam Bahasa Indonesia
 - termEn: Term name in English
 - slug: URL-friendly slug (huruf kecil, strip pengganti spasi)
-- category: Kategori
+- category: Kategori teknis yang tepat
 - phonetic: Notasi fonetik IPA
 - definitionId: Definisi presisi 1-2 kalimat dalam Bahasa Indonesia
 - definitionEn: Formal 1-2 sentence definition in English

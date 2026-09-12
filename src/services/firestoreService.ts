@@ -28,6 +28,115 @@ const COMMENTS_COLLECTION = 'comments';
 const REPORTS_COLLECTION = 'reports';
 const ARTICLE_LIKES_COLLECTION = 'article_likes';
 const MESSAGES_COLLECTION = 'messages';
+const CATEGORIES_COLLECTION = 'categories';
+const CUSTOM_CATEGORIES_KEY = 'vanviolet_master_categories';
+
+export const DEFAULT_ARTICLE_CATEGORIES = [
+  'Learning (AI)',
+  'Software Engineering',
+  'System Architecture',
+  'Database Systems',
+  'Security & Auth',
+  'Distributed Systems',
+  'Frontend Architecture',
+  'General',
+];
+
+export const DEFAULT_VANPEDIA_CATEGORIES = [
+  'Learning (AI)',
+  'Computer Systems',
+  'Database Systems',
+  'Biometric Security',
+  'Software Architecture',
+  'Distributed Systems',
+  'Algorithms & Optimization',
+  'General',
+];
+
+export async function fetchCategoriesFromFirestore(type?: 'article' | 'vanpedia' | 'all'): Promise<string[]> {
+  const categorySet = new Set<string>();
+
+  // Add default categories
+  if (type === 'article' || !type || type === 'all') {
+    DEFAULT_ARTICLE_CATEGORIES.forEach(c => categorySet.add(c));
+  }
+  if (type === 'vanpedia' || !type || type === 'all') {
+    DEFAULT_VANPEDIA_CATEGORIES.forEach(c => categorySet.add(c));
+  }
+
+  // Load from local storage
+  try {
+    const raw = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
+    if (raw) {
+      const parsed: string[] = JSON.parse(raw);
+      parsed.forEach(c => {
+        if (c && typeof c === 'string') categorySet.add(c.trim());
+      });
+    }
+  } catch (e) {}
+
+  // Fetch from Firestore categories collection
+  try {
+    const colRef = collection(db, CATEGORIES_COLLECTION);
+    const snap = await getDocs(colRef);
+    if (!snap.empty) {
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const catName = data.name || data.title;
+        if (catName && typeof catName === 'string') {
+          categorySet.add(catName.trim());
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('Firestore fetchCategories fallback to local/defaults:', err);
+  }
+
+  return Array.from(categorySet).sort((a, b) => a.localeCompare(b));
+}
+
+export async function ensureCategoryInFirestore(
+  categoryName: string,
+  type: 'article' | 'vanpedia' | 'both' = 'both',
+  authorUser?: AuthUser | null
+): Promise<void> {
+  const trimmed = (categoryName || '').trim();
+  if (!trimmed) return;
+
+  // Save to local storage
+  try {
+    const raw = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
+    const existing: string[] = raw ? JSON.parse(raw) : [];
+    const exists = existing.some(c => c.toLowerCase() === trimmed.toLowerCase());
+    if (!exists) {
+      existing.push(trimmed);
+      localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(existing));
+    }
+  } catch (e) {}
+
+  // Save to Firestore master data
+  try {
+    const slug = trimmed
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-');
+    const docRef = doc(db, CATEGORIES_COLLECTION, slug || `cat-${Date.now()}`);
+    await setDoc(
+      docRef,
+      cleanUndefined({
+        name: trimmed,
+        slug,
+        type,
+        updatedAt: new Date().toISOString(),
+        lastUsedBy: authorUser?.email || authorUser?.uid || 'guest',
+        count: increment(1),
+      }),
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('ensureCategoryInFirestore warning:', err);
+  }
+}
 
 // Helper function to remove undefined values before Firestore writes
 export function cleanUndefined<T>(obj: T): T {
@@ -358,6 +467,15 @@ export async function createArticleInFirestore(
     }).catch(err => console.error('Email notify error:', err));
   }
 
+  // Ensure category is persisted to master data in Firestore
+  if (created.category) {
+    ensureCategoryInFirestore(
+      created.category,
+      'article',
+      typeof authorEmailOrUser === 'object' ? authorEmailOrUser : null
+    ).catch(() => {});
+  }
+
   return created;
 }
 
@@ -635,6 +753,15 @@ export async function createVanpediaTermInFirestore(
       authorName: created.authorName || 'Contributor',
       authorEmail: userEmail || 'No email provided',
     }).catch(err => console.error('Email notify error:', err));
+  }
+
+  // Ensure category is persisted to master data in Firestore
+  if (created.category) {
+    ensureCategoryInFirestore(
+      created.category,
+      'vanpedia',
+      typeof authorEmailOrUser === 'object' ? authorEmailOrUser : null
+    ).catch(() => {});
   }
 
   return created;

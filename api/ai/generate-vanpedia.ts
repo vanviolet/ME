@@ -143,7 +143,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { termName, category = 'Learning (AI)', details = '', model = 'gemini-3.8-flash' } = req.body || {};
+    const { termName, category = '', details = '', model = 'gemini-3.8-flash' } = req.body || {};
 
     if (!termName || typeof termName !== 'string' || !termName.trim()) {
       res.status(400).json({ error: 'Term name is required.' });
@@ -151,13 +151,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const systemInstruction =
-      'You are an encyclopedic technical lexicographer creating authoritative glossary entries in JSON format.';
+      'You are an authoritative encyclopedic technical lexicographer creating concise, high-precision glossary entries in JSON format.';
 
     const prompt = `Anda adalah Leksikografer Teknis Rekayasa Perangkat Lunak dan AI.
 Tolong buatkan entri kamus istilah teknis untuk "Vanpedia" yang RINGKAS, PADAT, AKURAT, dan SANGAT JELAS:
 - Nama Istilah: "${termName.trim()}"
-- Kategori: "${category}"
-${details ? `- Catatan Khusus: "${details}"` : ''}
+${category && category !== 'Auto' ? `- Kategori yang Diinginkan: "${category}"` : "- Kategori: (Tentukan otomatis kategori teknis yang paling tepat dan representatif, contoh: 'Learning (AI)', 'Computer Systems', 'Database Systems', 'Distributed Systems', 'Security & Auth', 'Algorithms & Optimization', atau nama kategori lainnya)"}
+${details ? `- Catatan Khusus / Deskripsi Singkat: "${details}"` : ''}
 
 Ketentuan Format:
 - Jangan menyertakan metafora musik atau audio, fokus murni pada ilmu komputer, software engineering, AI, atau teknologi umum.
@@ -172,7 +172,7 @@ Keluaran HARUS berupa JSON dengan properti:
 - termId: Nama istilah dalam Bahasa Indonesia
 - termEn: Term name in English
 - slug: URL-friendly slug (huruf kecil, strip pengganti spasi)
-- category: Kategori
+- category: Kategori teknis yang tepat
 - phonetic: Notasi fonetik IPA
 - definitionId: Definisi presisi 1-2 kalimat dalam Bahasa Indonesia
 - definitionEn: Formal 1-2 sentence definition in English

@@ -145,7 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const {
       topic,
-      category = 'Learning (AI)',
+      category = '',
       keyPoints = '',
       language = 'id',
       model = 'gemini-3.8-flash',
@@ -157,13 +157,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const systemInstruction =
-      'You are a technical AI writer that generates structured, publication-ready technical articles in JSON format.';
+      'You are a senior technical architect & AI writer that generates structured, publication-ready technical articles in JSON format.';
 
     const prompt = `Anda adalah Penulis Teknis dan Arsitek Sistem Senior.
 Tolong buatkan draf artikel teknis yang mendalam, terstruktur rapi, berbobot, dan aplikatif berdasarkan input berikut:
 - Topik / Judul: "${topic.trim()}"
-- Kategori: "${category}"
-${keyPoints ? `- Poin-poin kunci: "${keyPoints}"` : ''}
+${category && category !== 'Auto' ? `- Kategori yang Diinginkan: "${category}"` : "- Kategori: (Tentukan otomatis kategori teknis yang paling akurat, presisi, dan representatif, contoh: 'AI & Machine Learning', 'Distributed Systems', 'Software Architecture', 'Database Systems', 'Frontend Architecture', 'Cloud Infrastructure', 'Cybersecurity', atau kategori spesifik lainnya)"}
+${keyPoints ? `- Poin-poin Kunci / Deskripsi Singkat: "${keyPoints}"` : ''}
 - Bahasa Utama: ${language === 'en' ? 'English' : 'Bahasa Indonesia'}
 
 Ketentuan Konten:
@@ -178,7 +178,7 @@ Ketentuan Konten:
 Format keluaran HARUS berformat JSON valid dengan properti:
 - titleId: Judul dalam Bahasa Indonesia
 - titleEn: Title in English
-- category: Kategori yang sesuai
+- category: Kategori teknis yang tepat dan representatif
 - tags: Array string 3-5 tag teknis relevan
 - summaryId: Ringkasan padat 2-3 kalimat dalam Bahasa Indonesia
 - summaryEn: Summary in English (2-3 sentences)

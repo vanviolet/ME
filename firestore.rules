@@ -76,6 +76,12 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Categories Master Data
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // Direct Contact Messages & Inquiries
     match /messages/{messageId} {
       allow read: if isAdmin();

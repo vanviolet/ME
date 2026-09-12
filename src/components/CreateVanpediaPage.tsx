@@ -3,11 +3,26 @@ import { useNavigate, Link } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
 import { createVanpediaTermInFirestore } from '../services/firestoreService';
-import { ArrowLeft, Send, Sparkles, BookOpen, Globe, Lock, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { generateVanpediaWithAi } from '../services/aiService';
+import { AI_MODELS_LIST, getCleanModelName } from '../lib/models';
+import {
+  ArrowLeft,
+  Send,
+  Sparkles,
+  BookOpen,
+  Globe,
+  Lock,
+  ChevronDown,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  UploadCloud,
+  FileCode,
+} from 'lucide-react';
 import { Seo } from './Seo';
 import { RichEditor } from './RichEditor';
+import { CategoryFreetextInput } from './CategoryFreetextInput';
 import { TemplateUploadZone } from './TemplateUploadZone';
-import { AiPromptModal } from './AiPromptModal';
 import { ParsedVanpediaFile } from '../utils/fileParser';
 
 export const CreateVanpediaPage: React.FC = () => {
@@ -15,6 +30,14 @@ export const CreateVanpediaPage: React.FC = () => {
   const { language } = usePortfolio();
   const { user, isAdmin, adminEmail, signInWithGoogle } = useAuth();
 
+  // Fast-Track AI Generation States
+  const [aiTermName, setAiTermName] = useState('');
+  const [aiDetails, setAiDetails] = useState('');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+
+  // Form Fields
   const [titleId, setTitleId] = useState('');
   const [titleEn, setTitleEn] = useState('');
   const [slugInput, setSlugInput] = useState('');
@@ -28,10 +51,69 @@ export const CreateVanpediaPage: React.FC = () => {
 
   const [isAiAssisted, setIsAiAssisted] = useState(false);
   const [aiModel, setAiModel] = useState('Gemini 3.8 Flash');
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
+  const [showTemplateUpload, setShowTemplateUpload] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  // Fast-Track AI Generator
+  const handleGenerateWithAi = async () => {
+    if (!aiTermName.trim()) {
+      setGenerationError(
+        language === 'en'
+          ? 'Please enter a term name to generate.'
+          : 'Mohon masukkan nama istilah yang ingin digenerate.'
+      );
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationError(null);
+
+    try {
+      const result = await generateVanpediaWithAi({
+        termName: aiTermName.trim(),
+        category: category !== 'Learning (AI)' && category ? category : undefined,
+        details: aiDetails.trim() || undefined,
+        model: selectedModel,
+      });
+
+      if (result) {
+        setTitleId(result.termId || aiTermName.trim());
+        setTitleEn(result.termEn || aiTermName.trim());
+        if (result.slug) {
+          setSlugInput(result.slug);
+        }
+        if (result.category) {
+          setCategory(result.category);
+        }
+        if (result.phonetic) {
+          setPhonetic(result.phonetic);
+        }
+        setDefinitionId(result.content || result.definitionId || '');
+        setDefinitionEn(result.definitionEn || result.definitionId || '');
+        if (result.formula) {
+          setFormula(result.formula);
+        }
+        if (result.examples && Array.isArray(result.examples)) {
+          setExamples(result.examples.join('\n'));
+        }
+        setIsAiAssisted(true);
+        setAiModel(getCleanModelName(result.aiModel || selectedModel));
+
+        setFeedback(
+          language === 'en'
+            ? `Vanpedia term generated successfully with ${getCleanModelName(result.aiModel || selectedModel)}! Category: "${result.category}". You can review, edit, and publish.`
+            : `Istilah Vanpedia berhasil digenerate dengan ${getCleanModelName(result.aiModel || selectedModel)}! Kategori otomatis: "${result.category}". Anda dapat meninjau, mengedit, atau langsung menyimpan.`
+        );
+      }
+    } catch (err: any) {
+      console.error('AI Vanpedia Generation Error:', err);
+      setGenerationError(err.message || 'Gagal menghasilkan entri Vanpedia dengan AI Engine.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleTemplateLoaded = (parsed: ParsedVanpediaFile) => {
     if (parsed.title || parsed.termId) setTitleId(parsed.title || parsed.termId || '');
@@ -50,7 +132,13 @@ export const CreateVanpediaPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      if (confirm(language === 'en' ? 'Please sign in with Google to submit a term.' : 'Silakan masuk dengan Google terlebih dahulu untuk menambahkan istilah.')) {
+      if (
+        confirm(
+          language === 'en'
+            ? 'Please sign in with Google to submit a term.'
+            : 'Silakan masuk dengan Google terlebih dahulu untuk menambahkan istilah.'
+        )
+      ) {
         signInWithGoogle();
       }
       return;
@@ -75,8 +163,8 @@ export const CreateVanpediaPage: React.FC = () => {
       const isSubmittingAdmin = user.email === adminEmail;
       const parsedExamples = examples
         .split('\n')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
 
       const authorName = user.displayName || user.email?.split('@')[0] || 'Contributor';
 
@@ -87,7 +175,7 @@ export const CreateVanpediaPage: React.FC = () => {
             id: titleId.trim(),
             en: titleEn.trim() || titleId.trim(),
           },
-          category,
+          category: category.trim() || 'Learning (AI)',
           phonetic: phonetic.trim() || undefined,
           definition: {
             id: definitionId.trim(),
@@ -112,12 +200,12 @@ export const CreateVanpediaPage: React.FC = () => {
 
       setFeedback(
         visibility === 'public'
-          ? (language === 'en'
-              ? 'Public term published! Visible to everyone and visitors.'
-              : 'Istilah publik berhasil dipublikasikan! Dapat dilihat oleh semua orang dan pengunjung.')
-          : (language === 'en'
-              ? 'Private term saved! Only visible in your personal account.'
-              : 'Istilah privat berhasil disimpan! Hanya dapat dilihat di akun Anda.')
+          ? language === 'en'
+            ? 'Public term published! Visible to everyone.'
+            : 'Istilah publik berhasil dipublikasikan! Dapat dilihat oleh semua orang.'
+          : language === 'en'
+          ? 'Private term saved! Only visible in your account.'
+          : 'Istilah privat berhasil disimpan! Hanya dapat dilihat di akun Anda.'
       );
 
       setTimeout(() => {
@@ -148,6 +236,7 @@ export const CreateVanpediaPage: React.FC = () => {
           onClick={signInWithGoogle}
           className="w-full sm:w-auto px-6 py-3 rounded-xl bg-stone-900 hover:bg-stone-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-stone-900 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
         >
+          <BookOpen className="w-4 h-4" />
           <span>{language === 'en' ? 'Sign In with Google' : 'Masuk dengan Google'}</span>
         </button>
       </section>
@@ -155,14 +244,14 @@ export const CreateVanpediaPage: React.FC = () => {
   }
 
   return (
-    <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto min-h-screen">
+    <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto min-h-screen">
       <Seo
-        title={language === 'en' ? 'Add Term | Vanpedia' : 'Tambah Istilah | Vanpedia'}
-        description="Add a technical term to Vanpedia knowledge base."
+        title={language === 'en' ? 'Add Vanpedia Term | Van' : 'Tambah Istilah Vanpedia | Van'}
+        description="Add a new technical term, definition, and formula to the encyclopedia."
       />
 
       {/* Header & Back Link */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-8 flex items-center justify-between">
         <Link
           to="/vanpedia"
           className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-stone-600 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
@@ -171,296 +260,387 @@ export const CreateVanpediaPage: React.FC = () => {
           <span>{language === 'en' ? 'Back to Vanpedia' : 'Kembali ke Vanpedia'}</span>
         </Link>
         <button
-          onClick={() => setIsAiModalOpen(true)}
-          className="w-full sm:w-auto px-4 py-2 rounded-xl bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 text-stone-900 dark:text-zinc-100 text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-stone-200 dark:border-zinc-700"
+          type="button"
+          onClick={() => setShowTemplateUpload((prev) => !prev)}
+          className="px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:bg-stone-200 dark:hover:bg-zinc-700 text-xs font-medium flex items-center gap-1.5 transition-colors border border-stone-200 dark:border-zinc-700"
         >
-          <Sparkles className="w-3.5 h-3.5 text-stone-700 dark:text-zinc-300" />
-          <span>{language === 'en' ? 'Generate with AI Logic' : 'Buat dengan AI Logic (Gemini)'}</span>
+          <UploadCloud className="w-3.5 h-3.5" />
+          <span>
+            {showTemplateUpload
+              ? language === 'en'
+                ? 'Hide Template Upload'
+                : 'Tutup Upload File'
+              : language === 'en'
+              ? 'Import from File/Template'
+              : 'Upload Template File'}
+          </span>
         </button>
       </div>
 
-      <div className="mt-4">
+      <div>
         <div className="border-b border-stone-200 dark:border-zinc-800 pb-6 mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold font-serif text-stone-900 dark:text-zinc-100 flex items-center gap-3">
-            <BookOpen className="w-7 h-7 text-stone-800 dark:text-zinc-200 shrink-0" />
-            <span>{language === 'en' ? 'Add New Vanpedia Term' : 'Tambah Istilah Vanpedia Baru'}</span>
+            <BookOpen className="w-6 h-6 text-stone-700 dark:text-zinc-300 shrink-0" />
+            <span>{language === 'en' ? 'Add Technical Term' : 'Tambah Istilah Baru ke Vanpedia'}</span>
           </h1>
-          <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 mt-2">
+          <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 mt-1">
             {language === 'en'
-              ? 'Contribute concise, clear technical concepts and formulas to the engineering glossary.'
-              : 'Kontribusikan konsep teknis yang ringkas, padat, dan jelas ke dalam kamus rekayasa perangkat lunak.'}
+              ? 'Create concise, high-precision technical glossary definitions with formulas, IPA notation, and examples.'
+              : 'Buat glosarium istilah teknis yang padat, akurat, formula matematis LaTeX, notasi fonetik IPA, dan contoh nyata.'}
           </p>
         </div>
 
-        {feedback && (
-          <div className="mb-6 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span>{feedback}</span>
-          </div>
-        )}
-
-        {/* File Template Upload Dropzone */}
-        <div className="mb-8">
-          <TemplateUploadZone onVanpediaLoaded={handleTemplateLoaded} type="vanpedia" />
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Author Badge & Visibility Settings */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-stone-50 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-stone-200 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 font-bold flex items-center justify-center text-sm">
-                {(user.displayName || user.email || 'A')[0].toUpperCase()}
+        {/* ========================================================= */}
+        {/* FAST-TRACK "GENERATE WITH AI" SECTION */}
+        {/* ========================================================= */}
+        <div className="mb-10 p-5 sm:p-6 rounded-2xl bg-gradient-to-b from-stone-50 to-white dark:from-zinc-900/80 dark:to-zinc-900 border border-stone-300/80 dark:border-zinc-800 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-stone-900 text-white dark:bg-zinc-100 dark:text-stone-900 flex items-center justify-center shadow-sm">
+                <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <p className="text-xs font-medium text-stone-500 dark:text-zinc-400 uppercase tracking-wider">
-                  {language === 'en' ? 'Author' : 'Penulis'}
-                </p>
-                <p className="text-sm font-semibold text-stone-900 dark:text-zinc-100 flex items-center gap-2">
-                  {user.displayName || user.email?.split('@')[0]}
-                  {isAdmin && (
-                    <span className="text-[10px] bg-stone-800 dark:bg-zinc-700 text-white px-2 py-0.5 rounded-full font-medium">
-                      ADMIN
-                    </span>
-                  )}
+                <h2 className="text-sm sm:text-base font-bold text-stone-900 dark:text-zinc-100 flex items-center gap-2">
+                  <span>{language === 'en' ? 'Generate Term with AI' : 'Aksi Cepat: Generate dengan AI'}</span>
+                  <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Auto-Fill Everything
+                  </span>
+                </h2>
+                <p className="text-xs text-stone-500 dark:text-zinc-400">
+                  {language === 'en'
+                    ? 'Simply enter the term name & short context. AI will auto-generate phonetic IPA, category, concise definition, formula & examples.'
+                    : 'Cukup masukkan Nama Istilah & Konteks Singkat. AI akan otomatis mengisi fonetik IPA, kategori bebas, definisi ringkas, rumus LaTeX, dan contoh nyata.'}
                 </p>
               </div>
             </div>
+          </div>
 
-            {/* Visibility Mode Selector */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <span className="text-xs font-semibold text-stone-500 dark:text-zinc-400">
-                {language === 'en' ? 'Visibility:' : 'Visibilitas:'}
-              </span>
-              <div className="inline-flex rounded-xl bg-stone-200/70 dark:bg-zinc-800 p-1 border border-stone-300/60 dark:border-zinc-700">
-                <button
-                  type="button"
-                  onClick={() => setVisibility('public')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                    visibility === 'public'
-                      ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-sm'
-                      : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>{language === 'en' ? 'Public (All Users & Guests)' : 'Publik (Semua Orang)'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVisibility('private')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                    visibility === 'private'
-                      ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-sm'
-                      : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>{language === 'en' ? 'Private (Only Me)' : 'Privat (Hanya Saya)'}</span>
-                </button>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
+              {/* Nama Istilah Input */}
+              <div className="sm:col-span-7">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
+                  {language === 'en' ? '1. Term Name' : '1. Nama Istilah Teknis'} *
+                </label>
+                <input
+                  type="text"
+                  value={aiTermName}
+                  onChange={(e) => setAiTermName(e.target.value)}
+                  placeholder={
+                    language === 'en'
+                      ? 'e.g. Backpropagation, Consistent Hashing, Vector Embedding'
+                      : 'misal: Backpropagation, Consistent Hashing, Vector Embedding'
+                  }
+                  className="w-full px-4 py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30"
+                />
               </div>
+
+              {/* Model Selector */}
+              <div className="sm:col-span-5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
+                  {language === 'en' ? 'AI Model' : 'Pilihan Model AI'}
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="w-full appearance-none px-4 py-2.5 pr-10 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30 font-medium"
+                  >
+                    {AI_MODELS_LIST.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} {m.badge ? `(${m.badge})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Konteks Singkat */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
+                {language === 'en' ? '2. Short Context / Details (Optional)' : '2. Deskripsi Singkat / Konteks Istilah (Opsional)'}
+              </label>
+              <textarea
+                value={aiDetails}
+                onChange={(e) => setAiDetails(e.target.value)}
+                rows={2}
+                placeholder={
+                  language === 'en'
+                    ? 'e.g. Focus on computational graph chain rule, loss gradients, and deep learning optimizer application.'
+                    : 'misal: Fokus pada aturan rantai graf komputasi (chain rule), gradien fungsi loss, dan optimasi bobot jaringan syaraf.'
+                }
+                className="w-full px-4 py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30"
+              />
+            </div>
+
+            {/* Error Message */}
+            {generationError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{generationError}</span>
+              </div>
+            )}
+
+            {/* Generate Action Button */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+              <span className="text-[11px] text-stone-500 dark:text-zinc-400">
+                ⚡ Kategori, rumus matematis, fonetik IPA, dan contoh nyata akan diisi otomatis.
+              </span>
+              <button
+                type="button"
+                onClick={handleGenerateWithAi}
+                disabled={isGenerating}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-stone-900 disabled:opacity-50 text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                    <span>{language === 'en' ? 'Generating with AI...' : 'Sedang Generate Istilah...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-emerald-400 dark:text-emerald-600" />
+                    <span>{language === 'en' ? 'Generate with AI' : 'Generate with AI'}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Feedback Banner */}
+        {feedback && (
+          <div className="mb-8 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span className="leading-relaxed">{feedback}</span>
+          </div>
+        )}
+
+        {/* Optional Template Upload Dropzone */}
+        {showTemplateUpload && (
+          <div className="mb-8">
+            <TemplateUploadZone
+              mode="vanpedia"
+              onVanpediaLoaded={handleTemplateLoaded}
+              onOpenAiHelper={() => {}}
+            />
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* MAIN VANPEDIA FORM & EDITOR */}
+        {/* ========================================================= */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Visibility Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-stone-50 dark:bg-zinc-900/60 border border-stone-200 dark:border-zinc-800">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300">
+                {language === 'en' ? 'Visibility & Author' : 'Visibilitas & Penulis'}
+              </p>
+              <p className="text-xs text-stone-500 dark:text-zinc-400 mt-0.5">
+                {user.displayName || user.email} {isAdmin && '• (Admin Verified)'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setVisibility('public')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  visibility === 'public'
+                    ? 'bg-stone-900 text-white dark:bg-zinc-100 dark:text-stone-900 shadow-sm'
+                    : 'bg-white dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border border-stone-200 dark:border-zinc-700'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>{language === 'en' ? 'Public' : 'Publik'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibility('private')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                  visibility === 'private'
+                    ? 'bg-stone-900 text-white dark:bg-zinc-100 dark:text-stone-900 shadow-sm'
+                    : 'bg-white dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border border-stone-200 dark:border-zinc-700'
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>{language === 'en' ? 'Private' : 'Privat'}</span>
+              </button>
             </div>
           </div>
 
           {/* Title Inputs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
                 {language === 'en' ? 'Term Name (Indonesian)' : 'Nama Istilah (Bahasa Indonesia)'} *
               </label>
               <input
                 type="text"
                 value={titleId}
-                onChange={e => setTitleId(e.target.value)}
+                onChange={(e) => setTitleId(e.target.value)}
                 placeholder="misal: Gradient Descent"
                 required
-                className="w-full px-4 py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600"
+                className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
                 {language === 'en' ? 'Term Name (English - Optional)' : 'Nama Istilah (Bahasa Inggris - Opsional)'}
               </label>
               <input
                 type="text"
                 value={titleEn}
-                onChange={e => setTitleEn(e.target.value)}
-                placeholder="e.g. Gradient Descent Algorithm"
-                className="w-full px-4 py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600"
+                onChange={(e) => setTitleEn(e.target.value)}
+                placeholder="e.g. Gradient Descent Optimization"
+                className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30"
               />
             </div>
           </div>
 
-          {/* Category & Slug & Phonetic */}
+          {/* Category, Phonetic, & Slug */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Category with Freetext + Master Data Auto-Saving */}
+            <CategoryFreetextInput
+              value={category}
+              onChange={setCategory}
+              type="vanpedia"
+              language={language === 'en' ? 'en' : 'id'}
+              required
+            />
+
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
-                {language === 'en' ? 'Category' : 'Kategori'}
-              </label>
-              <div className="relative">
-                <select
-                  value={category}
-                  onChange={e => setCategory(e.target.value)}
-                  className="w-full appearance-none px-4 py-2.5 pr-10 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600"
-                >
-                  <option value="Learning (AI)">Learning (AI)</option>
-                  <option value="Computer Systems">Computer Systems</option>
-                  <option value="Database Systems">Database Systems</option>
-                  <option value="Biometric Security">Biometric Security</option>
-                  <option value="Software Architecture">Software Architecture</option>
-                  <option value="General">General</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-stone-500 dark:text-zinc-400">
-                  <ChevronDown className="w-4 h-4" />
-                </div>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
-                {language === 'en' ? 'Phonetic (Optional)' : 'Pengucapan / Fonetik'}
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
+                {language === 'en' ? 'Phonetic IPA (Optional)' : 'Pengucapan / Fonetik IPA'}
               </label>
               <input
                 type="text"
                 value={phonetic}
-                onChange={e => setPhonetic(e.target.value)}
-                placeholder="e.g. /ˈɡreɪdiənt dɪˈsɛnt/"
-                className="w-full px-4 py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600"
+                onChange={(e) => setPhonetic(e.target.value)}
+                placeholder="misal: /ˈɡreɪdiənt dɪˈsɛnt/"
+                className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
                 {language === 'en' ? 'Custom URL Slug' : 'Slug URL Kustom'}
               </label>
               <input
                 type="text"
                 value={slugInput}
-                onChange={e => setSlugInput(e.target.value)}
-                placeholder="e.g. gradient-descent"
-                className="w-full px-4 py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600"
+                onChange={(e) => setSlugInput(e.target.value)}
+                placeholder="misal: gradient-descent"
+                className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30"
               />
             </div>
           </div>
 
           {/* Definition with RichEditor */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
-              {language === 'en' ? 'Definition / Content (Markdown supported)' : 'Definisi & Penjelasan (Mendukung Markdown)'} *
+            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
+              {language === 'en' ? 'Definition & Content (Markdown supported)' : 'Definisi & Penjelasan (Mendukung Markdown)'} *
             </label>
             <RichEditor
               value={definitionId}
               onChange={setDefinitionId}
               placeholder="Jelaskan definisi istilah ini secara ringkas, padat, dan jelas..."
-              minHeight="250px"
+              minHeight="280px"
             />
           </div>
 
-          {/* Formula */}
+          {/* Mathematical Formula (LaTeX) */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
               {language === 'en' ? 'Mathematical Formula (LaTeX - Optional)' : 'Rumus Matematika / Formula (LaTeX - Opsional)'}
             </label>
             <input
               type="text"
               value={formula}
-              onChange={e => setFormula(e.target.value)}
-              placeholder="e.g. \theta_{t+1} = \theta_t - \eta \nabla L(\theta_t)"
-              className="w-full px-4 py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600"
+              onChange={(e) => setFormula(e.target.value)}
+              placeholder="misal: \theta_{t+1} = \theta_t - \eta \nabla L(\theta_t)"
+              className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30"
             />
           </div>
 
           {/* Real-World Examples */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-zinc-300 mb-1.5">
               {language === 'en' ? 'Real-World Examples (1 per line)' : 'Contoh Penerapan Nyata (1 per baris)'}
             </label>
             <textarea
               value={examples}
-              onChange={e => setExamples(e.target.value)}
+              onChange={(e) => setExamples(e.target.value)}
               rows={3}
               placeholder={'Misal:\nOptimasi bobot model deep learning saat proses training\nPenyesuaian parameter regresi linier pada dataset besar'}
-              className="w-full px-4 py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600"
+              className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400/30"
             />
           </div>
 
           {/* AI Assistance Toggle */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-stone-50 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 space-y-3">
+          <div className="p-4 rounded-xl bg-stone-50 dark:bg-zinc-900/60 border border-stone-200 dark:border-zinc-800 space-y-3">
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
                 id="aiAssistedTermCheck"
                 checked={isAiAssisted}
-                onChange={e => setIsAiAssisted(e.target.checked)}
-                className="w-4 h-4 text-stone-900 dark:text-zinc-100 rounded border-stone-300 dark:border-zinc-700 focus:ring-stone-500"
+                onChange={(e) => setIsAiAssisted(e.target.checked)}
+                className="w-4 h-4 text-stone-900 dark:text-zinc-100 rounded border-stone-300 dark:border-zinc-700 focus:ring-stone-400"
               />
-              <label htmlFor="aiAssistedTermCheck" className="text-sm font-semibold text-stone-900 dark:text-zinc-100 cursor-pointer flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-stone-600 dark:text-zinc-400" />
-                <span>{language === 'en' ? 'Assisted with AI' : 'Diriset dengan Bantuan AI'}</span>
+              <label
+                htmlFor="aiAssistedTermCheck"
+                className="text-xs sm:text-sm font-semibold text-stone-900 dark:text-zinc-100 cursor-pointer flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 text-stone-500 dark:text-zinc-400" />
+                <span>{language === 'en' ? 'Researched with AI Assistance' : 'Diriset dengan Bantuan AI'}</span>
               </label>
             </div>
 
             {isAiAssisted && (
               <div className="pl-7">
-                <label className="block text-xs font-semibold text-stone-600 dark:text-zinc-400 mb-1">
+                <label className="block text-xs font-medium text-stone-500 dark:text-zinc-400 mb-1">
                   {language === 'en' ? 'AI Model Used' : 'Model AI yang Digunakan'}
                 </label>
                 <input
                   type="text"
                   value={aiModel}
-                  onChange={e => setAiModel(e.target.value)}
-                  placeholder="misal: Gemini 3.8 Flash, ChatGPT (GPT-4o), Claude 3.7 Sonnet"
-                  className="w-full px-3 py-2 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 text-xs focus:outline-none focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600"
+                  onChange={(e) => setAiModel(e.target.value)}
+                  placeholder="misal: Gemini 3.8 Flash, Nemotron 3 Ultra, DeepSeek R1"
+                  className="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 text-xs focus:outline-none focus:ring-2 focus:ring-stone-400/30"
                 />
               </div>
             )}
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-6 border-t border-stone-200 dark:border-zinc-800">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 pt-4 border-t border-stone-200 dark:border-zinc-800">
             <Link
               to="/vanpedia"
-              className="w-full sm:w-auto text-center px-6 py-2.5 rounded-xl border border-stone-300 dark:border-zinc-700 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 text-sm font-semibold transition-colors"
+              className="w-full sm:w-auto text-center px-5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 hover:bg-stone-50 dark:hover:bg-zinc-800 text-sm font-medium transition-colors"
             >
               {language === 'en' ? 'Cancel' : 'Batal'}
             </Link>
             <button
               type="submit"
               disabled={submitting}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-stone-900 disabled:opacity-50 text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm"
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 disabled:opacity-50 text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm"
             >
               <Send className="w-4 h-4" />
               <span>
                 {submitting
-                  ? (language === 'en' ? 'Submitting...' : 'Mengajukan...')
-                  : (language === 'en' ? 'Add Term' : 'Tambah Istilah')}
+                  ? language === 'en'
+                    ? 'Submitting...'
+                    : 'Menyimpan...'
+                  : language === 'en'
+                  ? 'Add Term'
+                  : 'Tambah Istilah'}
               </span>
             </button>
           </div>
         </form>
       </div>
-
-      <AiPromptModal
-        isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
-        mode="vanpedia"
-        defaultCategory={category}
-        onApplyVanpedia={(van) => {
-          handleTemplateLoaded({
-            title: van.termId,
-            termId: van.termId,
-            category: van.category,
-            phonetic: van.phonetic,
-            definition: van.content || van.definitionId,
-            formula: van.formula,
-            examples: van.examples,
-            isAiAssisted: true,
-            aiModel: van.aiModel,
-          });
-          setFeedback(
-            language === 'en'
-              ? 'Vanpedia entry generated with Firebase AI Logic! You can review, edit, and publish.'
-              : 'Entri Vanpedia berhasil dibuat dengan Firebase AI Logic! Anda dapat meninjau, mengedit, dan mempublikasikan.'
-          );
-        }}
-      />
     </section>
   );
 };
-
