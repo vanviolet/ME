@@ -27,6 +27,7 @@ import { LoremIpsumPage } from './components/LoremIpsumPage';
 import { JsonFormatterPage } from './components/tools/JsonFormatterPage';
 import { Base64Page } from './components/tools/Base64Page';
 import { CssGradientPage } from './components/tools/CssGradientPage';
+import { ImageCropperPage } from './components/tools/ImageCropperPage';
 import { AiChatFloating } from './components/AiChatFloating';
 import { TextSelectionPopover } from './components/TextSelectionPopover';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
@@ -100,6 +101,8 @@ export default function App() {
               <Route path="/tools/json-formatter" element={<JsonFormatterPage />} />
               <Route path="/tools/base64" element={<Base64Page />} />
               <Route path="/tools/css-gradient" element={<CssGradientPage />} />
+              <Route path="/tools/image-cropper" element={<ImageCropperPage />} />
+              <Route path="/tools/crop-image" element={<ImageCropperPage />} />
               {/* Fallback */}
               <Route path="*" element={<HomePage />} />
             </Routes>

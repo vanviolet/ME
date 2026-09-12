@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft, ShieldCheck, Wrench, ChevronDown, Type, Code2, Binary, Palette } from 'lucide-react';
+import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft, ShieldCheck, Wrench, ChevronDown, Type, Code2, Binary, Palette, Crop } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthButton } from './AuthButton';
 import { useAuth } from '../context/AuthContext';
@@ -295,6 +295,24 @@ export const Navbar: React.FC = () => {
                       </div>
                       <div className="text-[10px] text-stone-500 dark:text-zinc-400">
                         {language === 'en' ? 'CSS & Tailwind gradients' : 'Gradien CSS & Tailwind'}
+                      </div>
+                    </div>
+                  </Link>
+
+                  <Link
+                    to="/tools/image-cropper"
+                    onClick={() => setToolsDropdownOpen(false)}
+                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800/80 transition-colors group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                      <Crop size={14} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                        Image Cropper & Editor
+                      </div>
+                      <div className="text-[10px] text-stone-500 dark:text-zinc-400">
+                        {language === 'en' ? 'Crop, rotate & avatar masks' : 'Potong foto & avatar lingkaran'}
                       </div>
                     </div>
                   </Link>

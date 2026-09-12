@@ -7,6 +7,7 @@ import {
   Code2,
   Binary,
   Palette,
+  Crop,
   ArrowRight,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -66,6 +67,19 @@ export const ToolsIndexPage: React.FC = () => {
       path: '/tools/css-gradient',
       status: 'active',
       badge: language === 'en' ? 'Available' : 'Tersedia',
+    },
+    {
+      id: 'image-cropper',
+      title: 'Image Cropper & Editor',
+      description:
+        language === 'en'
+          ? 'Interactive image cropping with custom aspect ratios, rotation, zoom, circular avatar masks, and PNG/WEBP/JPEG export.'
+          : 'Potong foto interaktif dengan rasio aspek kustom, rotasi, zoom, avatar lingkaran, dan ekspor PNG, WEBP, JPEG.',
+      icon: Crop,
+      category: 'Media & Image',
+      path: '/tools/image-cropper',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
     },
   ];
 
