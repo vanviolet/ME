@@ -11,6 +11,8 @@ import {
   toggleQuestionVoteInFirestore,
   toggleAnswerVoteInFirestore,
   acceptAnswerInFirestore,
+  deleteQuestionFromFirestore,
+  deleteAnswerFromFirestore,
 } from '../services/firestoreService';
 import {
   MessageSquare,
@@ -34,6 +36,7 @@ import {
   CornerDownRight,
   Globe,
   Lock,
+  Trash2,
 } from 'lucide-react';
 import { Seo } from './Seo';
 import { EmojiPicker } from './EmojiPicker';
@@ -354,6 +357,93 @@ export const IssuesPage: React.FC = () => {
       }
     } catch (e) {
       console.error('Error marking answer accepted:', e);
+    }
+  };
+
+  // Delete authorization checks
+  const canDeleteQuestion = (issue: CommunityIssue): boolean => {
+    if (isAdmin) return true;
+    if (user?.uid && issue.authorId && user.uid === issue.authorId) return true;
+    if (user?.email && issue.authorEmail && user.email.toLowerCase() === issue.authorEmail.toLowerCase()) return true;
+    if (currentUserId && issue.authorId && currentUserId === issue.authorId) return true;
+    return false;
+  };
+
+  const canDeleteAnswer = (answer: IssueAnswer, issue: CommunityIssue): boolean => {
+    if (isAdmin) return true;
+    if (user?.uid && answer.authorId && user.uid === answer.authorId) return true;
+    if (user?.email && answer.authorEmail && user.email.toLowerCase() === answer.authorEmail.toLowerCase()) return true;
+    if (currentUserId && answer.authorId && currentUserId === answer.authorId) return true;
+    if (user?.uid && issue.authorId && user.uid === issue.authorId) return true;
+    if (user?.email && issue.authorEmail && user.email.toLowerCase() === issue.authorEmail.toLowerCase()) return true;
+    return false;
+  };
+
+  const handleDeleteQuestion = async (issueId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+
+    const targetIssue = issues.find(i => i.id === issueId);
+    if (!targetIssue || !canDeleteQuestion(targetIssue)) {
+      alert(language === 'en' ? 'You do not have permission to delete this forum thread.' : 'Anda tidak memiliki izin untuk menghapus utas forum ini.');
+      return;
+    }
+
+    const confirmMsg = language === 'en'
+      ? 'Are you sure you want to delete this forum thread? This action cannot be undone.'
+      : 'Apakah Anda yakin ingin menghapus utas forum ini? Tindakan ini tidak dapat dibatalkan.';
+
+    if (!window.confirm(confirmMsg)) return;
+
+    // Optimistic UI update
+    setIssues(prev => prev.filter(i => i.id !== issueId));
+    if (selectedIssueId === issueId) {
+      setSelectedIssueId(null);
+      navigate('/forum');
+    }
+
+    try {
+      await deleteQuestionFromFirestore(issueId);
+      setFeedback(language === 'en' ? 'Forum thread deleted successfully.' : 'Utas forum berhasil dihapus.');
+    } catch (err) {
+      console.error('Error deleting question:', err);
+    }
+  };
+
+  const handleDeleteAnswer = async (issueId: string, answerId: string) => {
+    const targetIssue = issues.find(i => i.id === issueId);
+    const targetAnswer = targetIssue?.answers?.find(a => a.id === answerId);
+
+    if (!targetIssue || !targetAnswer || !canDeleteAnswer(targetAnswer, targetIssue)) {
+      alert(language === 'en' ? 'You do not have permission to delete this answer.' : 'Anda tidak memiliki izin untuk menghapus jawaban ini.');
+      return;
+    }
+
+    const confirmMsg = language === 'en'
+      ? 'Are you sure you want to delete this answer/chat?'
+      : 'Apakah Anda yakin ingin menghapus balasan/chat ini?';
+
+    if (!window.confirm(confirmMsg)) return;
+
+    // Optimistic UI update
+    setIssues(prev =>
+      prev.map(i => {
+        if (i.id === issueId) {
+          const updatedAnswers = (i.answers || []).filter(a => a.id !== answerId);
+          return {
+            ...i,
+            answers: updatedAnswers,
+            answersCount: Math.max(0, updatedAnswers.length),
+          };
+        }
+        return i;
+      })
+    );
+
+    try {
+      await deleteAnswerFromFirestore(issueId, answerId);
+      setFeedback(language === 'en' ? 'Answer/chat deleted successfully.' : 'Balasan/chat berhasil dihapus.');
+    } catch (err) {
+      console.error('Error deleting answer:', err);
     }
   };
 
@@ -702,13 +792,27 @@ export const IssuesPage: React.FC = () => {
                         </span>
                       ))}
                     </div>
-                    <div className="text-stone-500 dark:text-zinc-400 flex items-center gap-2">
-                      {selectedIssue.authorAvatar ? (
-                        <img src={selectedIssue.authorAvatar} alt="" className="w-5 h-5 rounded-full" />
-                      ) : (
-                        <User size={13} />
+                    <div className="flex items-center gap-3">
+                      {canDeleteQuestion(selectedIssue) && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteQuestion(selectedIssue.id, e)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 text-xs font-semibold transition-all border border-rose-500/20 cursor-pointer"
+                          title={language === 'en' ? 'Delete this forum thread' : 'Hapus utas forum ini'}
+                        >
+                          <Trash2 size={13} />
+                          <span>{language === 'en' ? 'Delete Forum' : 'Hapus Forum'}</span>
+                        </button>
                       )}
-                      <span className="font-semibold">{selectedIssue.authorName}</span>
+
+                      <div className="text-stone-500 dark:text-zinc-400 flex items-center gap-2">
+                        {selectedIssue.authorAvatar ? (
+                          <img src={selectedIssue.authorAvatar} alt="" className="w-5 h-5 rounded-full" />
+                        ) : (
+                          <User size={13} />
+                        )}
+                        <span className="font-semibold">{selectedIssue.authorName}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -797,8 +901,21 @@ export const IssuesPage: React.FC = () => {
                               )}
                             </div>
 
-                            {/* Solution Button ONLY for Question Author or Admin */}
-                            {isCurrentQuestionAuthor && (
+                            <div className="flex items-center gap-2">
+                              {canDeleteAnswer(ans, selectedIssue) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteAnswer(selectedIssue.id, ans.id)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 text-[11px] font-semibold transition-all border border-rose-500/20 cursor-pointer"
+                                  title={language === 'en' ? 'Delete answer / chat' : 'Hapus balasan / chat'}
+                                >
+                                  <Trash2 size={12} />
+                                  <span>{language === 'en' ? 'Delete Chat' : 'Hapus Chat'}</span>
+                                </button>
+                              )}
+
+                              {/* Solution Button ONLY for Question Author or Admin */}
+                              {isCurrentQuestionAuthor && (
                               <button
                                 type="button"
                                 onClick={() => handleMarkAccepted(selectedIssue.id, ans.id)}
@@ -822,6 +939,7 @@ export const IssuesPage: React.FC = () => {
                               </button>
                             )}
                           </div>
+                        </div>
 
                           <p className="text-xs sm:text-sm text-stone-800 dark:text-zinc-200 leading-relaxed whitespace-pre-line font-reading-sans">
                             {ans.content}
@@ -1143,13 +1261,27 @@ export const IssuesPage: React.FC = () => {
                             ))}
                           </div>
 
-                          <div className="text-stone-400 flex items-center gap-1.5">
-                            {issue.authorAvatar ? (
-                              <img src={issue.authorAvatar} alt="" className="w-4 h-4 rounded-full" />
-                            ) : (
-                              <User size={12} />
+                          <div className="flex items-center gap-2">
+                            {canDeleteQuestion(issue) && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteQuestion(issue.id, e)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 text-[10px] font-semibold transition-colors border border-rose-500/20"
+                                title={language === 'en' ? 'Delete Forum Thread' : 'Hapus Utas Forum'}
+                              >
+                                <Trash2 size={11} />
+                                <span>{language === 'en' ? 'Delete' : 'Hapus'}</span>
+                              </button>
                             )}
-                            <span className="font-semibold">{issue.authorName}</span>
+
+                            <div className="text-stone-400 flex items-center gap-1.5">
+                              {issue.authorAvatar ? (
+                                <img src={issue.authorAvatar} alt="" className="w-4 h-4 rounded-full" />
+                              ) : (
+                                <User size={12} />
+                              )}
+                              <span className="font-semibold">{issue.authorName}</span>
+                            </div>
                           </div>
                         </div>
                       </div>

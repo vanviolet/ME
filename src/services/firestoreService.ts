@@ -1050,6 +1050,44 @@ export async function acceptAnswerInFirestore(
 
 export const markAnswerAcceptedInFirestore = acceptAnswerInFirestore;
 
+export async function deleteQuestionFromFirestore(questionId: string): Promise<boolean> {
+  try {
+    const docRef = doc(db, QUESTIONS_COLLECTION, questionId);
+    await deleteDoc(docRef);
+    return true;
+  } catch (error) {
+    console.warn('deleteQuestionFromFirestore error:', error);
+    return false;
+  }
+}
+
+export async function deleteAnswerFromFirestore(
+  questionId: string,
+  answerId: string
+): Promise<{ success: boolean; answers: IssueAnswer[] }> {
+  try {
+    const docRef = doc(db, QUESTIONS_COLLECTION, questionId);
+    const snap = await getDoc(docRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      const currentAnswers: IssueAnswer[] = Array.isArray(data.answers) ? [...data.answers] : [];
+      const updatedAnswers = currentAnswers.filter(ans => ans.id !== answerId);
+      const newCount = Math.max(0, (data.answersCount || currentAnswers.length) - 1);
+
+      await updateDoc(docRef, {
+        answers: updatedAnswers,
+        answersCount: newCount,
+      });
+
+      return { success: true, answers: updatedAnswers };
+    }
+  } catch (error) {
+    console.warn('deleteAnswerFromFirestore error:', error);
+  }
+  return { success: false, answers: [] };
+}
+
 // ==========================================
 // ARTICLE COMMENTS SERVICE
 // ==========================================
