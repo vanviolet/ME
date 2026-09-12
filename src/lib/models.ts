@@ -18,6 +18,7 @@ export const AI_MODELS_LIST: AiModelConfig[] = [
 ];
 
 export function getCleanModelName(modelId: string): string {
+  if (!modelId) return 'Gemini 3.8 Flash';
   const found = AI_MODELS_LIST.find(
     (m) => m.id === modelId || m.id === modelId.replace('opencode/', '').replace(':free', '')
   );

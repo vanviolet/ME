@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { AI_MODELS_LIST, getCleanModelName } from './models';
+import { AI_MODELS_LIST, getCleanModelName } from './models.js';
 
 export interface SmartAiRequestOptions {
   model?: string;

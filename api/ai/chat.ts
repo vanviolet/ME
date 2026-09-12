@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
-import { AI_MODELS_LIST, getCleanModelName } from '../../src/lib/models';
+import { AI_MODELS_LIST, getCleanModelName } from './models.js';
 
 interface ChatMessageInput {
   role: 'user' | 'assistant' | 'system';
