@@ -158,10 +158,15 @@ export const JsonFormatterPage: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-6">
           <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
-              JSON Formatter & Validator
-            </h1>
-            <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-stone-100 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 flex items-center justify-center border border-stone-200 dark:border-zinc-700">
+                <Code2 size={18} />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
+                JSON Formatter & Validator
+              </h1>
+            </div>
+            <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 pt-1">
               {language === 'en'
                 ? 'Beautify, validate, minify, and inspect JSON payload structures instantly.'
                 : 'Rapikan, validasi sintaks, dan minifikasi struktur data JSON secara real-time.'}

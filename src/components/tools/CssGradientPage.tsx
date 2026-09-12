@@ -165,10 +165,15 @@ export const CssGradientPage: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-6">
           <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
-              CSS Gradient Generator
-            </h1>
-            <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-stone-100 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 flex items-center justify-center border border-stone-200 dark:border-zinc-700">
+                <Palette size={18} />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
+                CSS Gradient Generator
+              </h1>
+            </div>
+            <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 pt-1">
               {language === 'en'
                 ? 'Create smooth linear and radial CSS gradients for modern UI components.'
                 : 'Desain gradien warna linear & radial halus untuk antarmuka pengguna modern.'}

@@ -142,10 +142,15 @@ export const Base64Page: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-6">
           <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
-              Base64 Encoder & Decoder
-            </h1>
-            <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-stone-100 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 flex items-center justify-center border border-stone-200 dark:border-zinc-700">
+                <Binary size={18} />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
+                Base64 Encoder & Decoder
+              </h1>
+            </div>
+            <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 pt-1">
               {language === 'en'
                 ? 'Encode strings and files to Base64 or decode Base64 strings with UTF-8 support.'
                 : 'Enkode teks & berkas ke Base64 atau dekode string Base64 dengan dukungan karakter UTF-8.'}

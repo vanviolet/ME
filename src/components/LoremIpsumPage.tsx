@@ -11,6 +11,9 @@ import {
   Type,
   ArrowLeft,
   Terminal,
+  BookOpen,
+  Compass,
+  Sparkles,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -220,10 +223,15 @@ export const LoremIpsumPage: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-6">
           <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
-              Lorem Ipsum Generator
-            </h1>
-            <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-stone-100 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 flex items-center justify-center border border-stone-200 dark:border-zinc-700">
+                <Type size={18} />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
+                Lorem Ipsum Generator
+              </h1>
+            </div>
+            <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 pt-1">
               {language === 'en'
                 ? 'Minimalist dummy text generator for design mockups, prototypes, and developers.'
                 : 'Generator teks dummy minimalis untuk maket desain, prototipe, dan pengembang.'}
@@ -256,23 +264,27 @@ export const LoremIpsumPage: React.FC = () => {
             </label>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'latin', label: 'Classic Latin' },
-                { id: 'tech', label: 'Tech & Dev Jargon' },
-                { id: 'indonesian', label: 'Nusantara / Bahasa' },
-                { id: 'startup', label: 'Startup & SaaS' },
-              ].map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => setPreset(item.id as any)}
-                  className={`px-3 py-2 rounded-xl border text-xs font-medium text-left transition-all ${
-                    preset === item.id
-                      ? 'border-stone-900 dark:border-zinc-100 bg-stone-900 text-stone-50 dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-xs'
-                      : 'border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-800/40 text-stone-700 dark:text-zinc-300 hover:border-stone-300 dark:hover:border-zinc-700'
-                  }`}
-                >
-                  <span className="truncate">{item.label}</span>
-                </button>
-              ))}
+                { id: 'latin', label: 'Classic Latin', icon: BookOpen },
+                { id: 'tech', label: 'Tech & Dev Jargon', icon: Terminal },
+                { id: 'indonesian', label: 'Nusantara / Bahasa', icon: Compass },
+                { id: 'startup', label: 'Startup & SaaS', icon: Sparkles },
+              ].map(item => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setPreset(item.id as any)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium text-left transition-all ${
+                      preset === item.id
+                        ? 'border-stone-900 dark:border-zinc-100 bg-stone-900 text-stone-50 dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-xs'
+                        : 'border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-800/40 text-stone-700 dark:text-zinc-300 hover:border-stone-300 dark:hover:border-zinc-700'
+                    }`}
+                  >
+                    <Icon size={14} className="shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
