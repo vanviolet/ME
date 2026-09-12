@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft, ShieldCheck, Wrench, ChevronDown, Type } from 'lucide-react';
+import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft, ShieldCheck, Wrench, ChevronDown, Type, Code2, Binary, Palette } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthButton } from './AuthButton';
 import { useAuth } from '../context/AuthContext';
@@ -219,42 +219,97 @@ export const Navbar: React.FC = () => {
             {/* Dropdown Menu */}
             {toolsDropdownOpen && (
               <div
-                className="absolute top-full right-0 mt-2 w-64 p-2 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                className="absolute top-full right-0 mt-2 w-72 p-2 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
                 onMouseLeave={() => setToolsDropdownOpen(false)}
               >
                 <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-stone-400 dark:text-zinc-500 border-b border-stone-100 dark:border-zinc-800 mb-1">
                   {language === 'en' ? 'Available Tools' : 'Perkakas Tool Tersedia'}
                 </div>
 
-                <Link
-                  to="/tools/lorem-ipsum"
-                  onClick={() => setToolsDropdownOpen(false)}
-                  className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800/80 transition-colors group"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform mt-0.5">
-                    <Type size={14} />
-                  </div>
-                  <div className="space-y-0.5 text-left">
-                    <div className="text-xs font-bold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 flex items-center gap-1.5">
-                      <span>Lorem Ipsum Generator</span>
-                      <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold">New</span>
+                <div className="space-y-0.5">
+                  <Link
+                    to="/tools/lorem-ipsum"
+                    onClick={() => setToolsDropdownOpen(false)}
+                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800/80 transition-colors group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200 flex items-center justify-center shrink-0 group-hover:bg-stone-900 group-hover:text-white dark:group-hover:bg-zinc-100 dark:group-hover:text-zinc-900 transition-colors">
+                      <Type size={14} />
                     </div>
-                    <div className="text-[10px] text-stone-500 dark:text-zinc-400 leading-snug">
-                      {language === 'en' ? 'Generate clean dummy text & HTML tags' : 'Generator teks dummy & tag HTML'}
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-stone-900 dark:text-zinc-100">
+                        Lorem Ipsum Generator
+                      </div>
+                      <div className="text-[10px] text-stone-500 dark:text-zinc-400">
+                        {language === 'en' ? 'Dummy text & HTML tags' : 'Teks dummy & tag HTML'}
+                      </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+
+                  <Link
+                    to="/tools/json-formatter"
+                    onClick={() => setToolsDropdownOpen(false)}
+                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800/80 transition-colors group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200 flex items-center justify-center shrink-0 group-hover:bg-stone-900 group-hover:text-white dark:group-hover:bg-zinc-100 dark:group-hover:text-zinc-900 transition-colors">
+                      <Code2 size={14} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-stone-900 dark:text-zinc-100">
+                        JSON Formatter & Validator
+                      </div>
+                      <div className="text-[10px] text-stone-500 dark:text-zinc-400">
+                        {language === 'en' ? 'Beautify & check syntax' : 'Format & cek sintaks'}
+                      </div>
+                    </div>
+                  </Link>
+
+                  <Link
+                    to="/tools/base64"
+                    onClick={() => setToolsDropdownOpen(false)}
+                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800/80 transition-colors group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200 flex items-center justify-center shrink-0 group-hover:bg-stone-900 group-hover:text-white dark:group-hover:bg-zinc-100 dark:group-hover:text-zinc-900 transition-colors">
+                      <Binary size={14} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-stone-900 dark:text-zinc-100">
+                        Base64 Encoder & Decoder
+                      </div>
+                      <div className="text-[10px] text-stone-500 dark:text-zinc-400">
+                        {language === 'en' ? 'Text & File conversion' : 'Konversi teks & berkas'}
+                      </div>
+                    </div>
+                  </Link>
+
+                  <Link
+                    to="/tools/css-gradient"
+                    onClick={() => setToolsDropdownOpen(false)}
+                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800/80 transition-colors group"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-stone-100 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200 flex items-center justify-center shrink-0 group-hover:bg-stone-900 group-hover:text-white dark:group-hover:bg-zinc-100 dark:group-hover:text-zinc-900 transition-colors">
+                      <Palette size={14} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-stone-900 dark:text-zinc-100">
+                        CSS Gradient Generator
+                      </div>
+                      <div className="text-[10px] text-stone-500 dark:text-zinc-400">
+                        {language === 'en' ? 'CSS & Tailwind gradients' : 'Gradien CSS & Tailwind'}
+                      </div>
+                    </div>
+                  </Link>
+                </div>
 
                 <div className="my-1 border-t border-stone-100 dark:border-zinc-800" />
 
                 <Link
                   to="/tools"
                   onClick={() => setToolsDropdownOpen(false)}
-                  className="flex items-center justify-between p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs font-semibold text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                  className="flex items-center justify-between p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs font-semibold text-stone-700 dark:text-zinc-300 hover:text-stone-950 dark:hover:text-white transition-colors"
                 >
                   <span className="flex items-center gap-2">
-                    <Wrench size={13} className="text-rose-500" />
-                    <span>{language === 'en' ? 'View All Tools' : 'Lihat Semua Tool'}</span>
+                    <Wrench size={13} className="text-stone-500" />
+                    <span>{language === 'en' ? 'View All Tools Hub' : 'Lihat Pusat Tool'}</span>
                   </span>
                   <ArrowUpRight size={13} />
                 </Link>

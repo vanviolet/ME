@@ -24,6 +24,9 @@ import { IssuesPage } from './components/IssuesPage';
 import { AdminVerificationPage } from './components/AdminVerificationPage';
 import { ToolsIndexPage } from './components/ToolsIndexPage';
 import { LoremIpsumPage } from './components/LoremIpsumPage';
+import { JsonFormatterPage } from './components/tools/JsonFormatterPage';
+import { Base64Page } from './components/tools/Base64Page';
+import { CssGradientPage } from './components/tools/CssGradientPage';
 import { AiChatFloating } from './components/AiChatFloating';
 import { TextSelectionPopover } from './components/TextSelectionPopover';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
@@ -94,6 +97,9 @@ export default function App() {
               <Route path="/admin" element={<AdminVerificationPage />} />
               <Route path="/tools" element={<ToolsIndexPage />} />
               <Route path="/tools/lorem-ipsum" element={<LoremIpsumPage />} />
+              <Route path="/tools/json-formatter" element={<JsonFormatterPage />} />
+              <Route path="/tools/base64" element={<Base64Page />} />
+              <Route path="/tools/css-gradient" element={<CssGradientPage />} />
               {/* Fallback */}
               <Route path="*" element={<HomePage />} />
             </Routes>

@@ -2,21 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { Seo } from './Seo';
 import {
-  Wrench,
   FileText,
   Copy,
   Check,
-  RefreshCw,
   Download,
   Code,
-  Sparkles,
   Sliders,
   Type,
-  List,
-  Layers,
   ArrowLeft,
-  BookOpen,
-  CheckCircle2,
   Terminal,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -182,8 +175,8 @@ export const LoremIpsumPage: React.FC = () => {
   }, [generatedText]);
 
   // Copy handler
-  const handleCopy = (contentToCopy = generatedText) => {
-    navigator.clipboard.writeText(contentToCopy);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -202,99 +195,93 @@ export const LoremIpsumPage: React.FC = () => {
   return (
     <div className="min-h-screen pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-8">
       <Seo
-        title={language === 'en' ? 'Lorem Ipsum Generator — Online Tools' : 'Generator Lorem Ipsum — Tool Pengembang'}
+        title={language === 'en' ? 'Lorem Ipsum Generator — Tools' : 'Generator Lorem Ipsum — Tool Pengembang'}
         description={
           language === 'en'
-            ? 'Free online Lorem Ipsum generator tool with customizable paragraph counts, HTML tags, tech jargon, and Indonesian placeholders.'
-            : 'Tool generator Lorem Ipsum gratis dengan kustomisasi jumlah paragraf, tag HTML, istilah teknis pengembang, dan placeholder Nusantara.'
+            ? 'Clean and minimalist online Lorem Ipsum generator tool.'
+            : 'Tool generator Lorem Ipsum minimalis dan bersih.'
         }
         url="/tools/lorem-ipsum"
       />
 
-      {/* Breadcrumb & Header */}
+      {/* Breadcrumb & Sleek Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-400">
-          <Link to="/" className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors">
+        <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-500 font-mono">
+          <Link to="/" className="hover:text-stone-900 dark:hover:text-zinc-200 transition-colors">
             {language === 'en' ? 'Home' : 'Beranda'}
           </Link>
           <span>/</span>
-          <Link to="/tools" className="hover:text-rose-600 dark:hover:text-rose-400 transition-colors">
-            {language === 'en' ? 'Tools' : 'Perkakas Tool'}
+          <Link to="/tools" className="hover:text-stone-900 dark:hover:text-zinc-200 transition-colors">
+            {language === 'en' ? 'Tools' : 'Perkakas'}
           </Link>
           <span>/</span>
-          <span className="text-stone-900 dark:text-zinc-100 font-medium">Lorem Ipsum Generator</span>
+          <span className="text-stone-900 dark:text-zinc-100 font-medium">Lorem Ipsum</span>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-6">
           <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 shadow-xs">
-                <Type size={20} />
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
-                Lorem Ipsum Generator
-              </h1>
-            </div>
-            <p className="text-xs sm:text-sm text-stone-600 dark:text-zinc-400">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
+              Lorem Ipsum Generator
+            </h1>
+            <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400">
               {language === 'en'
-                ? 'Generate clean placeholder text for designs, wireframes, HTML mockups, and software prototypes.'
-                : 'Buat teks placeholder (dummy text) bersih untuk desain web, wireframe, antarmuka HTML, dan contoh aplikasi.'}
+                ? 'Minimalist dummy text generator for design mockups, prototypes, and developers.'
+                : 'Generator teks dummy minimalis untuk maket desain, prototipe, dan pengembang.'}
             </p>
           </div>
 
           <Link
             to="/tools"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:border-rose-500/50 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-semibold transition-all shadow-xs self-start sm:self-auto"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:text-stone-950 dark:hover:text-white text-xs font-medium transition-colors shadow-xs self-start sm:self-auto"
           >
-            <ArrowLeft size={14} />
-            <span>{language === 'en' ? 'All Developer Tools' : 'Semua Perkakas Tool'}</span>
+            <ArrowLeft size={13} />
+            <span>{language === 'en' ? 'All Tools' : 'Semua Perkakas'}</span>
           </Link>
         </div>
       </div>
 
-      {/* Main Grid: Controls & Output */}
+      {/* Main Layout Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Generator Controls Settings */}
-        <div className="lg:col-span-5 space-y-6 bg-white dark:bg-zinc-900/90 p-5 sm:p-6 rounded-3xl border border-stone-200 dark:border-zinc-800 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-bold text-stone-900 dark:text-zinc-100 pb-3 border-b border-stone-100 dark:border-zinc-800">
-            <Sliders size={16} className="text-rose-500" />
-            <span>{language === 'en' ? 'Generator Controls' : 'Pengaturan Generator'}</span>
+        {/* Minimal Controls Panel */}
+        <div className="lg:col-span-5 space-y-6 bg-white dark:bg-zinc-900/90 p-5 sm:p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-xs">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 pb-3 border-b border-stone-100 dark:border-zinc-800">
+            <Sliders size={14} />
+            <span>{language === 'en' ? 'Configuration' : 'Konfigurasi'}</span>
           </div>
 
-          {/* Preset Vocabulary Style */}
+          {/* Preset Selection */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300 block">
-              {language === 'en' ? 'Vocabulary Preset' : 'Gaya Kosakata Teks'}
+              {language === 'en' ? 'Vocabulary Preset' : 'Preset Kosakata'}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: 'latin', label: 'Classic Latin', icon: '📜' },
-                { id: 'tech', label: 'Tech & Dev Jargon', icon: '💻' },
-                { id: 'indonesian', label: 'Indonesian / Nusantara', icon: '🇮🇩' },
-                { id: 'startup', label: 'Startup & SaaS', icon: '🚀' },
+                { id: 'latin', label: 'Classic Latin' },
+                { id: 'tech', label: 'Tech & Dev Jargon' },
+                { id: 'indonesian', label: 'Nusantara / Bahasa' },
+                { id: 'startup', label: 'Startup & SaaS' },
               ].map(item => (
                 <button
                   key={item.id}
                   onClick={() => setPreset(item.id as any)}
-                  className={`px-3 py-2.5 rounded-xl border text-xs font-medium text-left flex items-center gap-2 transition-all ${
+                  className={`px-3 py-2 rounded-xl border text-xs font-medium text-left transition-all ${
                     preset === item.id
-                      ? 'border-rose-500 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold shadow-xs'
+                      ? 'border-stone-900 dark:border-zinc-100 bg-stone-900 text-stone-50 dark:bg-zinc-100 dark:text-zinc-900 font-semibold shadow-xs'
                       : 'border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-800/40 text-stone-700 dark:text-zinc-300 hover:border-stone-300 dark:hover:border-zinc-700'
                   }`}
                 >
-                  <span className="text-sm">{item.icon}</span>
                   <span className="truncate">{item.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Type Selector (Paragraphs, Sentences, Words, Lists) */}
+          {/* Generation Unit */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300 block">
-              {language === 'en' ? 'Generate Unit' : 'Satuan Generasi'}
+              {language === 'en' ? 'Generate Unit' : 'Satuan'}
             </label>
-            <div className="grid grid-cols-4 gap-1.5 bg-stone-100 dark:bg-zinc-800/80 p-1 rounded-2xl border border-stone-200 dark:border-zinc-700">
+            <div className="grid grid-cols-4 gap-1 bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl border border-stone-200 dark:border-zinc-700">
               {[
                 { id: 'paragraphs', label: language === 'en' ? 'Paragraph' : 'Paragraf' },
                 { id: 'sentences', label: language === 'en' ? 'Sentence' : 'Kalimat' },
@@ -304,9 +291,9 @@ export const LoremIpsumPage: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setType(item.id as any)}
-                  className={`py-2 text-[11px] font-semibold rounded-xl transition-all text-center ${
+                  className={`py-1.5 text-[11px] font-medium rounded-lg transition-all text-center ${
                     type === item.id
-                      ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-xs'
+                      ? 'bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
                       : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
                   }`}
                 >
@@ -316,11 +303,11 @@ export const LoremIpsumPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Count Slider & Number Input */}
+          {/* Quantity Slider */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-semibold text-stone-700 dark:text-zinc-300">
-              <span>{language === 'en' ? 'Quantity Amount' : 'Jumlah Generasi'}</span>
-              <span className="px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold border border-rose-500/20">
+              <span>{language === 'en' ? 'Quantity' : 'Jumlah'}</span>
+              <span className="font-mono text-stone-900 dark:text-zinc-100 font-bold">
                 {count} {type}
               </span>
             </div>
@@ -331,7 +318,7 @@ export const LoremIpsumPage: React.FC = () => {
                 max={type === 'words' ? 300 : type === 'sentences' ? 30 : 20}
                 value={count}
                 onChange={e => setCount(Math.max(1, parseInt(e.target.value) || 1))}
-                className="flex-1 accent-rose-600 cursor-pointer h-2 bg-stone-200 dark:bg-zinc-700 rounded-lg"
+                className="flex-1 accent-stone-900 dark:accent-zinc-100 cursor-pointer h-1.5 bg-stone-200 dark:bg-zinc-700 rounded-lg"
               />
               <input
                 type="number"
@@ -339,52 +326,46 @@ export const LoremIpsumPage: React.FC = () => {
                 max={500}
                 value={count}
                 onChange={e => setCount(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-16 px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs font-bold text-stone-900 dark:text-zinc-100 text-center focus:outline-none focus:ring-2 focus:ring-rose-500"
+                className="w-16 px-2 py-1 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs font-mono text-stone-900 dark:text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-stone-400"
               />
             </div>
           </div>
 
-          {/* Options Toggles & HTML Wrappers */}
+          {/* HTML Wrapper */}
           <div className="space-y-4 pt-2 border-t border-stone-100 dark:border-zinc-800">
-            {/* HTML Wrapper Selector */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300 flex items-center gap-1.5">
-                <Code size={13} className="text-rose-500" />
-                <span>HTML Markup Wrapper</span>
+              <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300 block">
+                HTML Wrapper
               </label>
               <select
                 value={wrapper}
                 onChange={e => setWrapper(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs font-semibold text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs font-medium text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-stone-400"
               >
-                <option value="none">{language === 'en' ? 'Plain Text (No HTML tags)' : 'Teks Biasa (Tanpa tag HTML)'}</option>
-                <option value="p">{language === 'en' ? 'Wrap in <p> Paragraph tags' : 'Bungkus tag <p> Paragraf'}</option>
-                <option value="div">{language === 'en' ? 'Wrap in <div> Containers' : 'Bungkus tag <div> Kontainer'}</option>
-                <option value="ul">{language === 'en' ? 'Wrap in <ul> <li> List items' : 'Bungkus tag <ul> <li> Item Daftar'}</option>
+                <option value="none">{language === 'en' ? 'Plain Text (No HTML)' : 'Teks Biasa (Tanpa HTML)'}</option>
+                <option value="p">{language === 'en' ? 'Paragraphs <p>' : 'Paragraf <p>'}</option>
+                <option value="div">{language === 'en' ? 'Containers <div>' : 'Kontainer <div>'}</option>
+                <option value="ul">{language === 'en' ? 'List Items <ul> <li>' : 'Item Daftar <ul> <li>'}</option>
               </select>
             </div>
 
-            {/* Start with Lorem Checkbox */}
+            {/* Checkbox */}
             {preset === 'latin' && (
-              <label className="flex items-center gap-2.5 cursor-pointer text-xs text-stone-700 dark:text-zinc-300 select-none">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-stone-700 dark:text-zinc-300 select-none">
                 <input
                   type="checkbox"
                   checked={startWithLorem}
                   onChange={e => setStartWithLorem(e.target.checked)}
-                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-stone-300 dark:border-zinc-700 accent-rose-600"
+                  className="w-4 h-4 rounded text-stone-900 focus:ring-stone-400 border-stone-300 dark:border-zinc-700 accent-stone-900 dark:accent-zinc-100"
                 />
-                <span>
-                  {language === 'en'
-                    ? 'Start with "Lorem ipsum dolor sit amet..."'
-                    : 'Mulai dengan "Lorem ipsum dolor sit amet..."'}
-                </span>
+                <span>{language === 'en' ? 'Start with "Lorem ipsum..."' : 'Mulai dengan "Lorem ipsum..."'}</span>
               </label>
             )}
 
-            {/* Uppercase / Lowercase mode */}
+            {/* Casing */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300 block">
-                {language === 'en' ? 'Text Case' : 'Huruf Kapital'}
+                {language === 'en' ? 'Capitalization' : 'Huruf Kapital'}
               </label>
               <div className="grid grid-cols-3 gap-1 bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl border border-stone-200 dark:border-zinc-700">
                 {[
@@ -397,7 +378,7 @@ export const LoremIpsumPage: React.FC = () => {
                     onClick={() => setUppercaseMode(item.id as any)}
                     className={`py-1 text-[11px] font-medium rounded-lg transition-all text-center ${
                       uppercaseMode === item.id
-                        ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
+                        ? 'bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
                         : 'text-stone-500 dark:text-zinc-400'
                     }`}
                   >
@@ -409,19 +390,17 @@ export const LoremIpsumPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Output Preview & Action Bar */}
+        {/* Right Output Area */}
         <div className="lg:col-span-7 space-y-4">
-          {/* Card Header & Controls */}
-          <div className="bg-white dark:bg-zinc-900/90 rounded-3xl border border-stone-200 dark:border-zinc-800 p-4 sm:p-5 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100 dark:border-zinc-800">
-              {/* Output Tabs & Stats */}
+          <div className="bg-white dark:bg-zinc-900/90 rounded-2xl border border-stone-200 dark:border-zinc-800 p-4 sm:p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100 dark:border-zinc-800">
               <div className="flex items-center gap-2">
                 <div className="flex items-center bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl border border-stone-200 dark:border-zinc-700">
                   <button
                     onClick={() => setActiveTab('preview')}
-                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 ${
                       activeTab === 'preview'
-                        ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-xs'
+                        ? 'bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 font-semibold shadow-xs'
                         : 'text-stone-500 dark:text-zinc-400'
                     }`}
                   >
@@ -430,9 +409,9 @@ export const LoremIpsumPage: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setActiveTab('code')}
-                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                    className={`px-3 py-1 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 ${
                       activeTab === 'code'
-                        ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 shadow-xs'
+                        ? 'bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 font-semibold shadow-xs'
                         : 'text-stone-500 dark:text-zinc-400'
                     }`}
                   >
@@ -441,44 +420,35 @@ export const LoremIpsumPage: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="hidden sm:flex items-center gap-3 text-[11px] text-stone-500 dark:text-zinc-400 font-medium ml-2">
-                  <span>
-                    <strong className="text-stone-900 dark:text-zinc-200">{stats.wordCount}</strong> {language === 'en' ? 'words' : 'kata'}
-                  </span>
+                <div className="hidden sm:flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-400 font-mono ml-2">
+                  <span><strong>{stats.wordCount}</strong> words</span>
                   <span>•</span>
-                  <span>
-                    <strong className="text-stone-900 dark:text-zinc-200">{stats.charCount}</strong> {language === 'en' ? 'chars' : 'karakter'}
-                  </span>
+                  <span><strong>{stats.charCount}</strong> chars</span>
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleCopy()}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shadow-xs ${
-                    copied
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-rose-600 hover:bg-rose-700 text-white'
-                  }`}
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 hover:opacity-90 transition-opacity shadow-xs"
                 >
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                  <span>{copied ? (language === 'en' ? 'Copied!' : 'Tersalin!') : (language === 'en' ? 'Copy Text' : 'Salin Teks')}</span>
+                  {copied ? <Check size={13} /> : <Copy size={13} />}
+                  <span>{copied ? (language === 'en' ? 'Copied' : 'Tersalin') : (language === 'en' ? 'Copy' : 'Salin')}</span>
                 </button>
 
                 <button
                   onClick={handleDownload}
-                  className="p-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
-                  title={language === 'en' ? 'Download .txt file' : 'Unduh berkas .txt'}
+                  className="p-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-stone-900 dark:hover:text-white transition-colors"
+                  title={language === 'en' ? 'Download TXT' : 'Unduh TXT'}
                 >
-                  <Download size={14} />
+                  <Download size={13} />
                 </button>
               </div>
             </div>
 
-            {/* Text Output Box */}
+            {/* Output Display */}
             {activeTab === 'preview' ? (
-              <div className="p-4 sm:p-6 rounded-2xl bg-stone-50 dark:bg-zinc-950/70 border border-stone-200/80 dark:border-zinc-800 text-stone-800 dark:text-zinc-200 text-sm leading-relaxed max-h-[500px] overflow-y-auto space-y-4 font-reading-sans selection:bg-rose-500/20">
+              <div className="p-4 sm:p-5 rounded-xl bg-stone-50 dark:bg-zinc-950/70 border border-stone-200/80 dark:border-zinc-800 text-stone-800 dark:text-zinc-200 text-sm leading-relaxed max-h-[500px] overflow-y-auto space-y-4 font-reading-sans">
                 {generatedText.split('\n\n').map((paragraph, index) => (
                   <p key={index} className="leading-relaxed">
                     {paragraph}
@@ -486,37 +456,13 @@ export const LoremIpsumPage: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <div className="relative">
-                <textarea
-                  readOnly
-                  value={generatedText}
-                  rows={14}
-                  className="w-full p-4 rounded-2xl bg-zinc-950 text-zinc-100 text-xs font-mono leading-relaxed border border-zinc-800 focus:outline-none focus:ring-1 focus:ring-rose-500 selection:bg-rose-500/40"
-                />
-              </div>
+              <textarea
+                readOnly
+                value={generatedText}
+                rows={14}
+                className="w-full p-4 rounded-xl bg-zinc-950 text-zinc-100 text-xs font-mono leading-relaxed border border-zinc-800 focus:outline-none"
+              />
             )}
-
-            {/* Footer Stats Mobile */}
-            <div className="flex sm:hidden items-center justify-between text-xs text-stone-500 dark:text-zinc-400 pt-2 border-t border-stone-100 dark:border-zinc-800">
-              <span>{stats.wordCount} {language === 'en' ? 'words' : 'kata'}</span>
-              <span>{stats.charCount} {language === 'en' ? 'characters' : 'karakter'}</span>
-              <span>{stats.paragraphCount} {language === 'en' ? 'blocks' : 'blok'}</span>
-            </div>
-          </div>
-
-          {/* Tips / Info Box */}
-          <div className="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/20 flex items-start gap-3">
-            <Sparkles size={18} className="text-rose-500 shrink-0 mt-0.5" />
-            <div className="text-xs text-stone-600 dark:text-zinc-300 space-y-1">
-              <strong className="font-semibold text-stone-900 dark:text-zinc-100 block">
-                {language === 'en' ? 'Pro Tip for Developers & Designers' : 'Tips Pengembang & Desainer'}
-              </strong>
-              <p>
-                {language === 'en'
-                  ? 'Use the HTML markup option to directly inject valid paragraph tags <p> or list items <li> into your code editors, Figma components, or CMS mockups.'
-                  : 'Gunakan opsi wrapper HTML untuk memasukkan tag <p> atau <li> langsung ke komponen React, HTML, atau mockup Figma Anda.'}
-              </p>
-            </div>
           </div>
         </div>
       </div>
