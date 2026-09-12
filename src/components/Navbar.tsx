@@ -86,14 +86,14 @@ export const Navbar: React.FC = () => {
           to="/"
           className="group flex items-center gap-2.5 text-left shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 rounded-lg"
         >
-          <span className="w-8 h-8 rounded-lg bg-stone-900 text-stone-100 dark:bg-zinc-100 dark:text-zinc-900 font-mono text-xs font-bold flex items-center justify-center transition-transform group-hover:scale-105 shadow-xs">
+          <span className="w-8 h-8 rounded-lg bg-stone-900 text-stone-100 dark:bg-zinc-100 dark:text-zinc-900 text-xs font-bold flex items-center justify-center transition-transform group-hover:scale-105 shadow-xs">
             MI
           </span>
           <span className="flex flex-col">
             <span className="text-sm font-semibold tracking-tight text-stone-900 dark:text-zinc-100 leading-tight">
               Muchamad Irvan
             </span>
-            <span className="text-[10px] font-mono text-stone-500 dark:text-zinc-400">
+            <span className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
               Software Engineer
             </span>
           </span>
@@ -192,7 +192,7 @@ export const Navbar: React.FC = () => {
             <button
               id="lang-toggle-en"
               onClick={() => setLanguage('en')}
-              className={`px-2 py-1 text-[11px] font-mono rounded transition-colors ${
+              className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors ${
                 language === 'en'
                   ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
                   : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
@@ -204,7 +204,7 @@ export const Navbar: React.FC = () => {
             <button
               id="lang-toggle-id"
               onClick={() => setLanguage('id')}
-              className={`px-2 py-1 text-[11px] font-mono rounded transition-colors ${
+              className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors ${
                 language === 'id'
                   ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
                   : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
@@ -259,7 +259,7 @@ export const Navbar: React.FC = () => {
         >
           {/* Mobile Preferences: Language & Theme Switcher */}
           <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 space-y-3">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-stone-500 dark:text-zinc-400 font-semibold block px-0.5">
+            <span className="text-[11px] uppercase tracking-wider text-stone-500 dark:text-zinc-400 font-semibold block px-0.5">
               {language === 'en' ? 'Quick Preferences' : 'Pengaturan Cepat'}
             </span>
             <div className="grid grid-cols-2 gap-2.5">
@@ -267,7 +267,7 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl border border-stone-200 dark:border-zinc-700">
                 <button
                   onClick={() => setLanguage('en')}
-                  className={`flex-1 py-1.5 text-xs font-mono font-medium rounded-lg transition-all text-center ${
+                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-center ${
                     language === 'en'
                       ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
                       : 'text-stone-500 dark:text-zinc-400'
@@ -277,7 +277,7 @@ export const Navbar: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setLanguage('id')}
-                  className={`flex-1 py-1.5 text-xs font-mono font-medium rounded-lg transition-all text-center ${
+                  className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all text-center ${
                     language === 'id'
                       ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
                       : 'text-stone-500 dark:text-zinc-400'
@@ -290,7 +290,7 @@ export const Navbar: React.FC = () => {
               {/* Theme Toggle Button */}
               <button
                 onClick={toggleTheme}
-                className="flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 text-xs font-mono text-stone-800 dark:text-zinc-200 font-medium hover:bg-stone-200 dark:hover:bg-zinc-700 transition-colors"
+                className="flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 text-xs text-stone-800 dark:text-zinc-200 font-medium hover:bg-stone-200 dark:hover:bg-zinc-700 transition-colors"
               >
                 {theme === 'dark' ? (
                   <>
@@ -308,7 +308,7 @@ export const Navbar: React.FC = () => {
           </div>
           {/* Knowledge & Community Section */}
           <div>
-            <span className="text-[11px] font-mono uppercase tracking-wider text-rose-600 dark:text-rose-400 font-semibold block mb-2 px-1">
+            <span className="text-[11px] uppercase tracking-wider text-rose-600 dark:text-rose-400 font-semibold block mb-2 px-1">
               {language === 'en' ? 'Knowledge & Community' : 'Pengetahuan & Komunitas'}
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -324,7 +324,7 @@ export const Navbar: React.FC = () => {
                 <BookOpen size={16} className="text-rose-500 shrink-0" />
                 <div className="text-left">
                   <div className="text-xs font-semibold">{language === 'en' ? 'Articles' : 'Artikel'}</div>
-                  <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
+                  <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
                     {language === 'en' ? 'Tech & AI Insights' : 'Catatan Rekayasa'}
                   </div>
                 </div>
@@ -342,7 +342,7 @@ export const Navbar: React.FC = () => {
                 <Compass size={16} className="text-rose-500 shrink-0" />
                 <div className="text-left">
                   <div className="text-xs font-semibold">Vanpedia</div>
-                  <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
+                  <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
                     {language === 'en' ? 'Glossary & Terms' : 'Kamus Istilah'}
                   </div>
                 </div>
@@ -360,7 +360,7 @@ export const Navbar: React.FC = () => {
                 <MessageSquare size={16} className="text-rose-500 shrink-0" />
                 <div className="text-left">
                   <div className="text-xs font-semibold">{language === 'en' ? 'Q&A Discussions' : 'Tanya & Diskusi'}</div>
-                  <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
+                  <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
                     Stack Overflow Style
                   </div>
                 </div>
@@ -375,7 +375,7 @@ export const Navbar: React.FC = () => {
                   <ShieldCheck size={16} className="text-rose-500 shrink-0" />
                   <div className="text-left">
                     <div className="text-xs font-semibold">{language === 'en' ? 'Admin Verification Center' : 'Pusat Verifikasi Admin'}</div>
-                    <div className="text-[10px] text-rose-500/80 font-mono">
+                    <div className="text-[10px] text-rose-500/80 font-medium">
                       Moderasi vanviolet.js@gmail.com
                     </div>
                   </div>
@@ -386,7 +386,7 @@ export const Navbar: React.FC = () => {
 
           {/* Portfolio Anchors Section */}
           <div>
-            <span className="text-[11px] font-mono uppercase tracking-wider text-stone-500 dark:text-zinc-400 font-semibold block mb-2 px-1">
+            <span className="text-[11px] uppercase tracking-wider text-stone-500 dark:text-zinc-400 font-semibold block mb-2 px-1">
               {language === 'en' ? 'Portfolio Sections' : 'Bagian Portofolio'}
             </span>
             <div className="grid grid-cols-2 gap-2">

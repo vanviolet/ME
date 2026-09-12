@@ -81,7 +81,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 text-stone-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-500/30 transition-all ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 text-stone-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-500/30 transition-all ${
           isOpen ? 'ring-2 ring-rose-500/30 border-rose-500/40 text-rose-600 dark:text-rose-400' : ''
         }`}
         title="Tambahkan Emoticon / Emoji"
@@ -95,7 +95,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
         <div className="absolute left-0 bottom-full mb-2 z-50 w-72 sm:w-80 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl p-3 animate-in fade-in zoom-in-95 duration-150 text-xs">
           {/* Header */}
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-stone-100 dark:border-zinc-800">
-            <div className="flex items-center gap-1.5 text-stone-700 dark:text-zinc-300 font-mono font-semibold text-xs">
+            <div className="flex items-center gap-1.5 text-stone-700 dark:text-zinc-300 font-semibold text-xs">
               <Sparkles size={13} className="text-rose-500" />
               <span>Pilih Emoticon</span>
             </div>
@@ -115,7 +115,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
                 key={cat.name}
                 type="button"
                 onClick={() => setActiveTab(idx)}
-                className={`px-2 py-1 rounded-lg text-[11px] font-mono whitespace-nowrap transition-colors ${
+                className={`px-2 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors ${
                   activeTab === idx
                     ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
                     : 'text-stone-500 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800'
@@ -142,7 +142,7 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({
           </div>
 
           {/* Quick Frequent Bar at bottom */}
-          <div className="mt-2 pt-2 border-t border-stone-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-stone-400 font-mono">
+          <div className="mt-2 pt-2 border-t border-stone-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-stone-400">
             <span>Klik emoji untuk menyisipkan</span>
             <button
               type="button"

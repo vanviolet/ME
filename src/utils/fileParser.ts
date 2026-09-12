@@ -301,28 +301,28 @@ Rangkuman kesimpulan dan arah pengembangan selanjutnya.
  */
 export function downloadVanpediaTemplate(): void {
   const content = `---
-term_id: "Machine Learning"
-term_en: "Machine Learning"
-slug: "machine-learning"
+term_id: "Backpropagation"
+term_en: "Backpropagation Algorithm"
+slug: "backpropagation"
 category: "Learning (AI)"
-phonetic: "/məˈʃiːn ˈlɜːrnɪŋ/"
-definition_id: "Cabang dari kecerdasan buatan (AI) yang berfokus pada penggunaan data dan algoritma untuk meniru cara manusia belajar, dengan meningkatkan akurasi seiring waktu secara bertahap."
-definition_en: "A branch of artificial intelligence (AI) and computer science which focuses on the use of data and algorithms to imitate the way that humans learn, gradually improving its accuracy."
-formula: "y = wx + b"
+phonetic: "/ˈbækˌprɑːpəˈɡeɪʃən/"
+definition_id: "Algoritma optimasi berbasis gradien untuk melatih jaringan saraf tiruan dengan menghitung gradien fungsi kerugian terhadap setiap bobot menggunakan aturan rantai kalkulus."
+definition_en: "A gradient-based optimization algorithm used to train artificial neural networks by computing gradients of the loss function with respect to weights using calculus chain rule."
+formula: "\\\\frac{\\\\partial L}{\\\\partial w_{ij}} = \\\\frac{\\\\partial L}{\\\\partial y} \\\\cdot \\\\frac{\\\\partial y}{\\\\partial z} \\\\cdot \\\\frac{\\\\partial z}{\\\\partial w_{ij}}"
 is_ai_assisted: true
-ai_model: "Gemini 3.7 Flash"
+ai_model: "Gemini 3.8 Flash (Firebase AI Logic)"
 examples:
-  - "Sistem rekomendasi pada e-commerce"
-  - "Pengenalan gambar pada aplikasi medis"
+  - "Pelatihan model deep learning untuk klasifikasi citra"
+  - "Penyesuaian bobot pada transformer dan LLM"
 ---
 
-# Penjelasan Mendalam Istilah
+# Penjelasan Istilah
 
-## Karakteristik Akustik & Teori
-Uraikan secara mendalam bagaimana istilah ini bekerja, baik dari sudut pandang fisika gelombang, matematika, maupun implementasi kode perangkat lunak.
+## Konsep Inti & Prinsip Kerja
+Jelaskan prinsip dasar bagaimana konsep ini bekerja secara ringkas, jelas, dan akurat tanpa bertele-tele.
 
-## Contoh Penerapan
-Tuliskan contoh kasus konkret dalam arsitektur sistem atau seni musik.
+## Contoh Penerapan di Industri
+Tuliskan contoh kasus nyata dalam rekayasa perangkat lunak, arsitektur sistem, atau kecerdasan buatan.
 `;
 
   const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
@@ -357,9 +357,9 @@ export function generateChatGptArticlePrompt(data: {
   targetLanguage?: 'id' | 'en' | 'both';
   targetModel?: string;
 }): AiPromptResult {
-  const modelName = data.targetModel || 'ChatGPT (GPT-4o)';
-  const prompt = `Anda adalah seorang Penulis Teknis Senior, Arsitek Sistem, dan Peneliti AI.
-Tolong buatkan draf artikel teknis yang sangat mendalam, akurat, dan komprehensif berdasarkan garis besar ide berikut:
+  const modelName = data.targetModel || 'Gemini 3.8 Flash';
+  const prompt = `Anda adalah seorang Penulis Teknis Senior dan Arsitek Rekayasa Perangkat Lunak.
+Tolong buatkan draf artikel teknis yang mendalam, terstruktur rapi, berbobot, dan aplikatif berdasarkan garis besar ide berikut:
 
 - Judul / Topik Garis Besar: "${data.outlineTitle}"
 - Kategori Artikel: "${data.category}"
@@ -375,43 +375,37 @@ category: "${data.category}"
 tags: "tag1, tag2, tag3, tag4"
 summary_id: "[Ringkasan padat 2-3 kalimat dalam Bahasa Indonesia yang menjelaskan problem, solusi, dan intisari]"
 summary_en: "[Concise 2-3 sentence summary in English]"
-read_time: "7 min read"
+read_time: "6 min read"
 is_ai_assisted: true
 ai_model: "${modelName}"
-author_name: "Nama Anda"
-author_role: "Author / Engineer"
+author_name: "Muchamad Irvan"
+author_role: "Software Engineer"
 ---
 
 # [Judul Utama Artikel]
 
 ## 1. Pengantar & Latar Belakang Masalah
-[Jelaskan motivasi teknis mengapa topik ini penting, masalah yang dihadapi, dan solusi yang ditawarkan.]
+[Tuliskan latar belakang masalah mengapa topik ini krusial untuk dipahami. Hubungkan konsep atau istilah penting dengan format tautan Vanpedia seperti [[nama-istilah]]].
 
-## 2. Konsep Inti & Landasan Teoretis
-[Jelaskan arsitektur teknis secara gamblang. Jika relevan, sertakan formula matematis LaTeX atau analogi visual. Bila menyebutkan istilah teknis, hubungkan dengan format [[istilah-slug]] (misal: [[backpropagation]], [[floating-point-arithmetic]], dll).]
+## 2. Arsitektur & Prinsip Kerja
+[Jelaskan mekanisme kerja sistem secara konseptual. Sertakan formula matematis bila relevan, contoh: $$f(x) = \\sigma(W \\cdot x + b)$$].
 
-## 3. Implementasi Kode Nyata (Production-Ready)
-[Berikan contoh kode TypeScript/Python/Arsitektur yang bersih, memiliki tipe data, dan komentar instruktif.]
+## 3. Implementasi Kode Nyata
+[Sajikan contoh kode produksi yang fungsional, bersih, dan bertipe data lengkap].
 
-\`\`\`typescript
-// Contoh kode implementasi nyata
-\`\`\`
+## 4. Analisis Trade-offs & Praktik Terbaik
+- **Kelebihan**: [Keunggulan arsitektural atau performa]
+- **Keterbatasan / Trade-off**: [Trade-off komputasi atau kompleksitas]
+- **Praktik Terbaik**: [Rekomendasi teknis di lingkungan produksi]
 
-## 4. Trade-Offs, Bottlenecks & Best Practices
-- **Keunggulan**: ...
-- **Trade-off & Batasan**: ...
-- **Tips Implementasi di Produksi**: ...
-
-## 5. Kesimpulan & Referensi
-[Rangkuman padat dan wawasan penutup.]
-
-Tolong buat artikel ini secara berbobot, berstandar engineering tinggi, dan lengkap tanpa memotong kode atau penjelasan.`;
+## 5. Kesimpulan
+[Rangkuman esensial dan wawasan penutup].`;
 
   const encoded = encodeURIComponent(prompt);
 
   return {
     prompt,
-    url: `https://chatgpt.com/?q=${encoded}`,
+    url: `https://gemini.google.com/app?text=${encoded}`,
     chatGptUrl: `https://chatgpt.com/?q=${encoded}`,
     claudeUrl: `https://claude.ai/new?q=${encoded}`,
     v0Url: `https://v0.dev/chat?q=${encoded}`,
@@ -430,48 +424,45 @@ export function generateChatGptVanpediaPrompt(data: {
   details?: string;
   targetModel?: string;
 }): AiPromptResult {
-  const modelName = data.targetModel || 'Gemini 3.7 Flash';
-  const prompt = `Anda adalah seorang Leksikografer Teknis dan Arsitek Rekayasa Perangkat Lunak.
-Tolong buatkan entri kamus istilah teknis komprehensif untuk kamus "Vanpedia" berdasarkan istilah berikut:
+  const modelName = data.targetModel || 'Gemini 3.8 Flash';
+  const prompt = `Anda adalah seorang Leksikografer Teknis Rekayasa Perangkat Lunak dan AI.
+Tolong buatkan entri kamus istilah teknis untuk "Vanpedia" yang RINGKAS, PADAT, AKURAT, dan SANGAT JELAS (tidak perlu banyak-banyak contentnya tapi jelas, tidak bertele-tele, tanpa metafora audio/musik):
 
 - Nama Istilah: "${data.termName}"
 - Kategori: "${data.category}"
 ${data.details ? `- Catatan Khusus: "${data.details}"` : ''}
 
-Format keluaran HARUS berformat Markdown dengan YAML Frontmatter persis seperti struktur berikut (langsung outputkan markdown tanpa basa-basi):
+Format keluaran HARUS berformat Markdown dengan YAML Frontmatter persis seperti struktur berikut (langsung outputkan markdown tanpa teks pengantar):
 
 ---
 term_id: "[Nama Istilah Bahasa Indonesia]"
 term_en: "[Term Name in English]"
 slug: "[slug-ramah-url-huruf-kecil-tanpa-spasi]"
 category: "${data.category}"
-phonetic: "/[simbol fonetik]/ (contoh: /ˈtraɪtoʊn/)"
-definition_id: "[Definisi presisi 1-2 kalimat dalam Bahasa Indonesia yang formal dan ilmiah]"
+phonetic: "/[simbol fonetik IPA]/"
+definition_id: "[Definisi presisi 1-2 kalimat dalam Bahasa Indonesia yang lugas dan mudah dipahami]"
 definition_en: "[Formal 1-2 sentence definition in English]"
-formula: "[Model matematis, rumus frekuensi, atau formulasi algoritma jika ada]"
+formula: "[Formula matematis, notasi algoritma, atau kosongkan jika tidak ada]"
 is_ai_assisted: true
 ai_model: "${modelName}"
 examples:
-  - "[Contoh nyata 1]"
-  - "[Contoh nyata 2]"
+  - "[Contoh konkret 1 di industri software/AI/sistem]"
+  - "[Contoh konkret 2 di industri software/AI/sistem]"
 ---
 
-# Penjelasan Komprehensif
+# Penjelasan Istilah
 
-## 1. Landasan Konseptual & Mekanisme
-[Jelaskan cara kerja, asal-usul teoretis, dan mekanismenya secara detail.]
+## Konsep Inti & Prinsip Kerja
+[Uraikan esensi istilah, prinsip dasar, dan mekanismenya secara padat dan jelas dalam 1-2 paragraf. Tidak perlu bertele-tele.]
 
-## 2. Implementasi & Relevansi Industri
-[Bagaimana konsep ini digunakan di dunia nyata: di AI, software engineering, keamanan siber, dll.]
-
-## 3. Kesalahan Konsep yang Sering Terjadi (Common Misconceptions)
-[Uraikan kekeliruan umum yang sering dipahami orang mengenai istilah ini.]`;
+## Contoh Penerapan Praktis
+[Jelaskan bagaimana konsep ini diterapkan secara nyata pada sistem industri modern.]`;
 
   const encoded = encodeURIComponent(prompt);
 
   return {
     prompt,
-    url: `https://chatgpt.com/?q=${encoded}`,
+    url: `https://gemini.google.com/app?text=${encoded}`,
     chatGptUrl: `https://chatgpt.com/?q=${encoded}`,
     claudeUrl: `https://claude.ai/new?q=${encoded}`,
     v0Url: `https://v0.dev/chat?q=${encoded}`,
@@ -480,3 +471,4 @@ examples:
     geminiUrl: `https://gemini.google.com/app?text=${encoded}`,
   };
 }
+

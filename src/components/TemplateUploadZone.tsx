@@ -10,18 +10,21 @@ import {
 } from '../utils/fileParser';
 
 interface TemplateUploadZoneProps {
-  mode: 'article' | 'vanpedia';
+  mode?: 'article' | 'vanpedia';
+  type?: 'article' | 'vanpedia';
   onArticleLoaded?: (data: ParsedArticleFile) => void;
   onVanpediaLoaded?: (data: ParsedVanpediaFile) => void;
-  onOpenAiHelper: () => void;
+  onOpenAiHelper?: () => void;
 }
 
 export const TemplateUploadZone: React.FC<TemplateUploadZoneProps> = ({
   mode,
+  type,
   onArticleLoaded,
   onVanpediaLoaded,
   onOpenAiHelper,
 }) => {
+  const activeMode = mode || type || 'article';
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -32,26 +35,26 @@ export const TemplateUploadZone: React.FC<TemplateUploadZoneProps> = ({
       setStatusMessage(null);
       setFileName(file.name);
 
-      if (mode === 'article') {
+      if (activeMode === 'article') {
         const parsed = await parseArticleFile(file);
         if (onArticleLoaded) onArticleLoaded(parsed);
         setStatusMessage({
           type: 'success',
-          text: `File "${file.name}" berhasil diunggah! Formulir dan Rich Editor telah terisi otomatis.`,
+          text: `File "${file.name}" berhasil diunggah! Formulir dan editor terisi otomatis.`,
         });
       } else {
         const parsed = await parseVanpediaFile(file);
         if (onVanpediaLoaded) onVanpediaLoaded(parsed);
         setStatusMessage({
           type: 'success',
-          text: `File "${file.name}" berhasil diunggah! Istilah Vanpedia telah terisi otomatis.`,
+          text: `File "${file.name}" berhasil diunggah! Istilah Vanpedia terisi otomatis.`,
         });
       }
     } catch (err: any) {
       console.error('Failed to parse template file:', err);
       setStatusMessage({
         type: 'error',
-        text: `Gagal membaca file: ${err.message || 'Format tidak valid'}. Pastikan menggunakan format Markdown dengan Frontmatter atau JSON.`,
+        text: `Gagal membaca file: ${err.message || 'Format tidak valid'}. Pastikan format Markdown frontmatter atau JSON.`,
       });
     }
   };
@@ -71,7 +74,7 @@ export const TemplateUploadZone: React.FC<TemplateUploadZoneProps> = ({
   };
 
   const handleDownload = () => {
-    if (mode === 'article') {
+    if (activeMode === 'article') {
       downloadArticleTemplate();
     } else {
       downloadVanpediaTemplate();
@@ -79,34 +82,34 @@ export const TemplateUploadZone: React.FC<TemplateUploadZoneProps> = ({
   };
 
   return (
-    <div className="space-y-3 font-mono text-xs">
+    <div className="space-y-3 text-xs">
       {/* Action Shortcut Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl bg-stone-100/70 dark:bg-zinc-900/60 border border-stone-200 dark:border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-stone-50 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800">
         <div className="flex items-center gap-2">
-          <span className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
-            <Sparkles size={14} />
-          </span>
+          <Sparkles className="w-4 h-4 text-stone-500 dark:text-zinc-400 shrink-0" />
           <span className="font-semibold text-stone-800 dark:text-zinc-200">
             Opsi Cepat Pembuatan:
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onOpenAiHelper}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold transition-colors shadow-xs"
-          >
-            <Bot size={13} />
-            <span>🤖 Buat dengan ChatGPT</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {onOpenAiHelper && (
+            <button
+              type="button"
+              onClick={onOpenAiHelper}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-medium transition-colors"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Firebase AI Logic</span>
+            </button>
+          )}
 
           <button
             type="button"
             onClick={handleDownload}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-700 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:bg-stone-50 dark:hover:bg-zinc-700 transition-colors"
           >
-            <Download size={13} />
+            <Download className="w-3.5 h-3.5 text-stone-500 dark:text-zinc-400" />
             <span>Unduh Template (.md)</span>
           </button>
         </div>
@@ -121,10 +124,10 @@ export const TemplateUploadZone: React.FC<TemplateUploadZoneProps> = ({
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`p-5 rounded-2xl border-2 border-dashed text-center cursor-pointer transition-all ${
+        className={`p-5 rounded-xl border-2 border-dashed text-center cursor-pointer transition-all ${
           isDragging
-            ? 'border-rose-500 bg-rose-50/50 dark:bg-rose-950/20 scale-[0.99]'
-            : 'border-stone-300 dark:border-zinc-700 bg-stone-50/40 dark:bg-zinc-950/30 hover:border-rose-400 hover:bg-stone-50 dark:hover:bg-zinc-900/40'
+            ? 'border-stone-400 bg-stone-100 dark:bg-zinc-800'
+            : 'border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900/40 hover:border-stone-400 dark:hover:border-zinc-600'
         }`}
       >
         <input
@@ -137,7 +140,7 @@ export const TemplateUploadZone: React.FC<TemplateUploadZoneProps> = ({
 
         <div className="flex flex-col items-center justify-center gap-2">
           <div className="p-2.5 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400">
-            <UploadCloud size={20} className="text-rose-500" />
+            <UploadCloud className="w-5 h-5 text-stone-500 dark:text-zinc-400" />
           </div>
 
           <div>
@@ -150,8 +153,8 @@ export const TemplateUploadZone: React.FC<TemplateUploadZoneProps> = ({
           </div>
 
           {fileName && (
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-200/70 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 text-[11px] font-mono mt-1">
-              <FileText size={12} />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 text-[11px] mt-1 border border-stone-200 dark:border-zinc-700">
+              <FileText className="w-3.5 h-3.5 text-stone-500" />
               <span>{fileName}</span>
             </div>
           )}
@@ -168,9 +171,9 @@ export const TemplateUploadZone: React.FC<TemplateUploadZoneProps> = ({
           }`}
         >
           {statusMessage.type === 'success' ? (
-            <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
           ) : (
-            <AlertCircle size={16} className="text-rose-500 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
           )}
           <span>{statusMessage.text}</span>
         </div>

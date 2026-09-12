@@ -40,6 +40,7 @@ import {
   Flag,
   Trash2,
   User,
+  ChevronDown,
 } from 'lucide-react';
 import { Seo } from './Seo';
 import { exportToPdf } from '../utils/pdfExport';
@@ -239,7 +240,7 @@ export const VanpediaPage: React.FC = () => {
       <article className="py-24 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto min-h-screen">
         {/* Pending Verification Notice Banner */}
         {isPending && (
-          <div className="mb-8 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+          <div className="mb-8 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-medium">
             <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
               <Clock3 size={16} className="text-amber-600 shrink-0 animate-pulse" />
               <span>
@@ -263,14 +264,14 @@ export const VanpediaPage: React.FC = () => {
         )}
 
         {feedback && (
-          <div className="mb-8 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-mono flex items-center justify-between">
+          <div className="mb-8 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between">
             <span>{feedback}</span>
             <button onClick={() => setFeedback(null)}>✕</button>
           </div>
         )}
 
         {/* Breadcrumb Navigation */}
-        <nav className="flex items-center gap-2 text-xs font-mono text-stone-500 dark:text-zinc-400 mb-8">
+        <nav className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-400 mb-8">
           <Link to="/" className="hover:text-stone-900 dark:hover:text-zinc-100">
             {language === 'en' ? 'Home' : 'Beranda'}
           </Link>
@@ -292,7 +293,7 @@ export const VanpediaPage: React.FC = () => {
                 {term.category}
               </span>
               <span className="text-stone-400 dark:text-zinc-600">•</span>
-              <span className="text-xs font-mono text-stone-600 dark:text-zinc-300 font-semibold flex items-center gap-1">
+              <span className="text-xs text-stone-600 dark:text-zinc-300 font-semibold flex items-center gap-1">
                 <User size={13} className="text-rose-600 dark:text-rose-400" />
                 <span>{term.authorName || term.authorEmail?.split('@')[0] || 'Contributor'}</span>
               </span>
@@ -303,7 +304,7 @@ export const VanpediaPage: React.FC = () => {
                 <button
                   onClick={handleDeleteTerm}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/40 bg-red-50/50 dark:bg-red-950/30 text-xs font-mono font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/40 bg-red-50/50 dark:bg-red-950/30 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                   title={language === 'en' ? 'Delete term' : 'Hapus istilah'}
                 >
                   <Trash2 size={13} />
@@ -312,7 +313,7 @@ export const VanpediaPage: React.FC = () => {
               )}
               <button
                 onClick={handleShare}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 text-xs text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
               >
                 {copied ? <Check size={13} className="text-emerald-500" /> : <Share2 size={13} />}
                 <span>{copied ? (language === 'en' ? 'Copied' : 'Tersalin') : (language === 'en' ? 'Share' : 'Bagikan')}</span>
@@ -321,7 +322,7 @@ export const VanpediaPage: React.FC = () => {
               <button
                 onClick={handleDownloadPdf}
                 disabled={downloading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-800 text-xs text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
               >
                 <Download size={13} />
                 <span>{downloading ? (language === 'en' ? 'Exporting...' : 'Mengunduh...') : 'PDF'}</span>
@@ -330,7 +331,7 @@ export const VanpediaPage: React.FC = () => {
               {/* Report Term Button */}
               <button
                 onClick={() => setIsReportModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded-lg border border-stone-200 dark:border-zinc-800 text-stone-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/30 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg border border-stone-200 dark:border-zinc-800 text-stone-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/30 transition-colors"
                 title={language === 'en' ? 'Report issue with this Vanpedia entry' : 'Laporkan kesalahan pada istilah ini'}
               >
                 <Flag size={13} />
@@ -350,7 +351,7 @@ export const VanpediaPage: React.FC = () => {
                 {dropdownOpen && aiLinks && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-                    <div className="absolute right-0 z-20 mt-1 w-56 origin-top-right rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl py-1.5 text-xs font-mono">
+                    <div className="absolute right-0 z-20 mt-1 w-56 origin-top-right rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl py-1.5 text-xs">
                       <a
                         href={aiLinks.chatGptUrl}
                         target="_blank"
@@ -434,7 +435,7 @@ export const VanpediaPage: React.FC = () => {
           {term.formula && (
             <div className="mt-4 p-4 rounded-xl bg-stone-100/80 dark:bg-zinc-900/80 border border-stone-200 dark:border-zinc-800 text-stone-800 dark:text-zinc-200 flex items-center justify-between gap-4">
               <div className="w-full">
-                <span className="text-[10px] uppercase tracking-wider text-stone-400 dark:text-zinc-500 block mb-1 font-mono">
+                <span className="text-[10px] uppercase tracking-wider text-stone-400 dark:text-zinc-500 block mb-1">
                   {language === 'en' ? 'Mathematical Formulation / Concept' : 'Formula Matematis / Notasi Simbol'}
                 </span>
                 <div
@@ -448,7 +449,7 @@ export const VanpediaPage: React.FC = () => {
 
           {/* AI Assistance Metadata Banner */}
           {(term.isAiAssisted || term.aiModel) && (
-            <div className="mt-4 p-3.5 rounded-xl bg-purple-500/5 dark:bg-purple-950/20 border border-purple-500/20 flex items-center gap-3 text-xs font-mono">
+            <div className="mt-4 p-3.5 rounded-xl bg-purple-500/5 dark:bg-purple-950/20 border border-purple-500/20 flex items-center gap-3 text-xs">
               <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0">
                 <Sparkles size={14} />
               </div>
@@ -521,7 +522,7 @@ export const VanpediaPage: React.FC = () => {
                   <span className="font-medium text-xs sm:text-sm text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400">
                     {t(rt.title)}
                   </span>
-                  <span className="ml-2 text-[10px] font-mono uppercase text-stone-400">
+                  <span className="ml-2 text-[10px] uppercase text-stone-400">
                     {rt.category}
                   </span>
                 </Link>
@@ -545,7 +546,7 @@ export const VanpediaPage: React.FC = () => {
                   className="p-5 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 hover:border-rose-500/30 transition-all group flex flex-col justify-between"
                 >
                   <div>
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-rose-500">
+                    <span className="text-[10px] uppercase tracking-wider text-rose-500">
                       {art.category}
                     </span>
                     <h3 className="font-semibold text-sm sm:text-base text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 mt-1 transition-colors">
@@ -569,7 +570,7 @@ export const VanpediaPage: React.FC = () => {
         <div className="pt-8 border-t border-stone-200 dark:border-zinc-800 flex items-center justify-between">
           <Link
             to="/vanpedia"
-            className="inline-flex items-center gap-2 text-xs font-mono text-rose-600 dark:text-rose-400 hover:underline"
+            className="inline-flex items-center gap-2 text-xs text-rose-600 dark:text-rose-400 hover:underline"
           >
             <ArrowLeft size={14} />
             <span>{language === 'en' ? 'Back to All Vanpedia Terms' : 'Kembali ke Semua Istilah Vanpedia'}</span>
@@ -577,7 +578,7 @@ export const VanpediaPage: React.FC = () => {
 
           <button
             onClick={() => setIsReportModalOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-mono text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
           >
             <Flag size={13} />
             <span>{language === 'en' ? 'Report issue with this term' : 'Laporkan istilah ini'}</span>
@@ -794,17 +795,17 @@ export const VanpediaIndexPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-mono uppercase tracking-widest text-rose-500 font-semibold">
+                <span className="text-xs uppercase tracking-widest text-rose-500 font-semibold">
                   {language === 'en' ? 'Vanpedia — Technical Glossary' : 'Vanpedia — Kamus Istilah Teknis'}
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[10px] font-mono border border-rose-500/20 font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[10px] border border-rose-500/20 font-bold">
                   {terms.length} Istilah
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100 mt-2">
                 {language === 'en' ? 'Concepts and Terms, Defined.' : 'Konsep dan Istilah, Terdefinisi.'}
               </h1>
-              <p className="text-sm text-stone-600 dark:text-zinc-400 max-w-2xl mt-2 font-mono">
+              <p className="text-sm text-stone-600 dark:text-zinc-400 max-w-2xl mt-2">
                 {language === 'en'
                   ? 'Click any highlighted term in an article to jump here. Each entry features exact mathematical models, practical examples, and cross-references.'
                   : 'Setiap kata teknis dalam artikel dapat diklik untuk membuka penjelasan di sini. Dilengkapi model matematika, contoh nyata, dan keterkaitan sistem.'}
@@ -815,7 +816,7 @@ export const VanpediaIndexPage: React.FC = () => {
               {isAdmin && (
                 <Link
                   to="/admin"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-mono font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors"
                 >
                   <ShieldCheck size={15} />
                   <span>Admin Hub</span>
@@ -824,7 +825,7 @@ export const VanpediaIndexPage: React.FC = () => {
 
               <button
                 onClick={handleOpenAddTerm}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-xs font-mono font-semibold hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-xs font-semibold hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs"
               >
                 <Plus size={15} />
                 <span>{language === 'en' ? 'Contribute Term' : 'Tambah Istilah'}</span>
@@ -833,7 +834,7 @@ export const VanpediaIndexPage: React.FC = () => {
           </div>
 
           {feedback && (
-            <div className="mt-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-mono flex items-center justify-between">
+            <div className="mt-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between">
               <span>{feedback}</span>
               <button onClick={() => setFeedback(null)}>✕</button>
             </div>
@@ -857,19 +858,19 @@ export const VanpediaIndexPage: React.FC = () => {
                   ? 'Search terms (e.g. tritone, backpropagation, floating-point)...'
                   : 'Cari istilah (misal: tritone, backpropagation, floating-point)...'
               }
-              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-colors font-mono"
+              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-colors"
             />
           </div>
 
           {/* Category Menu Tabs */}
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <div className="flex items-center gap-1.5 text-xs font-mono text-stone-500 dark:text-zinc-400 mr-1">
+            <div className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-zinc-400 mr-1">
               <Filter size={13} />
               <span>{language === 'en' ? 'Categories:' : 'Kategori:'}</span>
             </div>
             <button
               onClick={() => setActiveCategory('all')}
-              className={`px-3 py-1.5 text-xs font-mono rounded-xl transition-all ${
+              className={`px-3 py-1.5 text-xs rounded-xl transition-all ${
                 activeCategory === 'all'
                   ? 'bg-rose-600 text-white font-semibold shadow-xs'
                   : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
@@ -883,7 +884,7 @@ export const VanpediaIndexPage: React.FC = () => {
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
-                  className={`px-3 py-1.5 text-xs font-mono rounded-xl transition-all ${
+                  className={`px-3 py-1.5 text-xs rounded-xl transition-all ${
                     activeCategory === cat
                       ? 'bg-rose-600 text-white font-semibold shadow-xs'
                       : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
@@ -898,13 +899,13 @@ export const VanpediaIndexPage: React.FC = () => {
 
         {/* Count and Pagination Summary */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-          <p className="text-xs font-mono text-stone-500 dark:text-zinc-400">
+          <p className="text-xs text-stone-500 dark:text-zinc-400">
             {language === 'en'
               ? `Showing ${filteredTerms.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, filteredTerms.length)} of ${filteredTerms.length} terms`
               : `Menampilkan ${filteredTerms.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, filteredTerms.length)} dari ${filteredTerms.length} istilah`}
           </p>
           {totalPages > 1 && (
-            <p className="text-xs font-mono text-stone-400 dark:text-zinc-500">
+            <p className="text-xs text-stone-400 dark:text-zinc-500">
               {language === 'en' ? `Page ${currentPage} of ${totalPages}` : `Halaman ${currentPage} dari ${totalPages}`}
             </p>
           )}
@@ -926,11 +927,11 @@ export const VanpediaIndexPage: React.FC = () => {
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20 font-semibold">
+                    <span className="text-[10px] uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/20 font-semibold">
                       {term.category}
                     </span>
                     {isPending && (
-                      <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1">
                         <Clock3 size={11} />
                         PENDING
                       </span>
@@ -943,7 +944,7 @@ export const VanpediaIndexPage: React.FC = () => {
 
                   {term.formula && (
                     <div
-                      className="mt-2 px-2.5 py-1 rounded-lg bg-stone-100/90 dark:bg-zinc-800/80 border border-stone-200/80 dark:border-zinc-700/80 text-xs text-rose-600 dark:text-rose-400 font-mono overflow-x-hidden text-ellipsis whitespace-nowrap inline-block max-w-full"
+                      className="mt-2 px-2.5 py-1 rounded-lg bg-stone-100/90 dark:bg-zinc-800/80 border border-stone-200/80 dark:border-zinc-700/80 text-xs text-rose-600 dark:text-rose-400 overflow-x-hidden text-ellipsis whitespace-nowrap inline-block max-w-full"
                       dangerouslySetInnerHTML={{ __html: renderInlineFormula(term.formula) }}
                     />
                   )}
@@ -953,7 +954,7 @@ export const VanpediaIndexPage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="mt-5 pt-3.5 border-t border-stone-100 dark:border-zinc-800/80 flex items-center justify-between text-xs font-mono text-stone-500 dark:text-zinc-400">
+                <div className="mt-5 pt-3.5 border-t border-stone-100 dark:border-zinc-800/80 flex items-center justify-between text-xs text-stone-500 dark:text-zinc-400">
                   <span className="text-stone-400">/{term.slug}</span>
                   <span className="group-hover:translate-x-1 transition-transform text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1">
                     Baca Term →
@@ -966,14 +967,14 @@ export const VanpediaIndexPage: React.FC = () => {
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 font-mono text-xs">
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 text-xs">
             <button
               onClick={() => {
                 setCurrentPage(prev => Math.max(1, prev - 1));
                 window.scrollTo({ top: 350, behavior: 'smooth' });
               }}
               disabled={currentPage === 1}
-              className="px-4 py-2 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
             >
               ← {language === 'en' ? 'Previous' : 'Sebelumnya'}
             </button>
@@ -1003,7 +1004,7 @@ export const VanpediaIndexPage: React.FC = () => {
                 window.scrollTo({ top: 350, behavior: 'smooth' });
               }}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium"
             >
               {language === 'en' ? 'Next' : 'Berikutnya'} →
             </button>
@@ -1011,7 +1012,7 @@ export const VanpediaIndexPage: React.FC = () => {
         )}
 
         {filteredTerms.length === 0 && (
-          <div className="py-16 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl font-mono text-xs">
+          <div className="py-16 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl text-xs">
             <p className="text-stone-600 dark:text-zinc-400 mb-3">
               {language === 'en'
                 ? 'No terms match your search.'
@@ -1022,7 +1023,7 @@ export const VanpediaIndexPage: React.FC = () => {
                 setSearchQuery('');
                 setActiveCategory('all');
               }}
-              className="text-xs font-mono text-rose-600 dark:text-rose-400 underline"
+              className="text-xs text-rose-600 dark:text-rose-400 font-semibold underline"
             >
               {language === 'en' ? 'Reset Filters' : 'Reset Filter'}
             </button>
@@ -1035,10 +1036,10 @@ export const VanpediaIndexPage: React.FC = () => {
             <div className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-3xl max-w-xl w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
               <div className="flex items-center justify-between border-b border-stone-100 dark:border-zinc-800 pb-4">
                 <div>
-                  <h2 className="text-lg font-bold font-mono text-stone-900 dark:text-zinc-100">
+                  <h2 className="text-lg font-bold text-stone-900 dark:text-zinc-100">
                     {language === 'en' ? 'Contribute Vanpedia Term' : 'Tambah Istilah Vanpedia Baru'}
                   </h2>
-                  <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono mt-0.5">
+                  <p className="text-xs text-stone-500 dark:text-zinc-400 mt-0.5">
                     {user?.email === adminEmail
                       ? (language === 'en' ? 'Publishing with Admin authority.' : 'Dipublikasikan langsung dengan akun Administrator.')
                       : (language === 'en' ? `Will be reviewed by ${adminEmail}. Email notification sent.` : `Akan ditinjau oleh ${adminEmail}. Notifikasi email terkirim otomatis.`)}
@@ -1058,7 +1059,7 @@ export const VanpediaIndexPage: React.FC = () => {
                 onOpenAiHelper={() => setIsAiModalOpen(true)}
               />
 
-              <form onSubmit={handleAddTermSubmit} className="space-y-4 text-xs font-mono">
+              <form onSubmit={handleAddTermSubmit} className="space-y-4 text-xs">
                 <div>
                   <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
                     {language === 'en' ? 'Term Name (Indonesian) *' : 'Nama Istilah (Bahasa Indonesia) *'}
@@ -1068,7 +1069,7 @@ export const VanpediaIndexPage: React.FC = () => {
                     required
                     value={newTitleId}
                     onChange={e => setNewTitleId(e.target.value)}
-                    placeholder="Contoh: Interval Tritone"
+                    placeholder="Contoh: Backpropagation"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                   />
                 </div>
@@ -1081,7 +1082,7 @@ export const VanpediaIndexPage: React.FC = () => {
                     type="text"
                     value={newTitleEn}
                     onChange={e => setNewTitleEn(e.target.value)}
-                    placeholder="Example: Tritone Interval"
+                    placeholder="Example: Backpropagation"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                   />
                 </div>
@@ -1095,7 +1096,7 @@ export const VanpediaIndexPage: React.FC = () => {
                       type="text"
                       value={newSlug}
                       onChange={e => setNewSlug(e.target.value)}
-                      placeholder="tritone"
+                      placeholder="backpropagation"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                     />
                   </div>
@@ -1104,18 +1105,20 @@ export const VanpediaIndexPage: React.FC = () => {
                     <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
                       {language === 'en' ? 'Category' : 'Kategori'}
                     </label>
-                    <select
-                      value={newCategory}
-                      onChange={e => setNewCategory(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
-                    >
-                      <option value="Theory Music">Theory Music</option>
-                      <option value="Learning (AI)">Learning (AI)</option>
-                      <option value="Architecture">Architecture</option>
-                      <option value="Security">Security</option>
-                      <option value="Fakta Unik">Fakta Unik</option>
-                      <option value="General">General</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={newCategory}
+                        onChange={e => setNewCategory(e.target.value)}
+                        className="w-full appearance-none pl-3.5 pr-10 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30 text-xs cursor-pointer shadow-xs"
+                      >
+                        <option value="General">General</option>
+                        <option value="Learning (AI)">Learning (AI)</option>
+                        <option value="Architecture">Architecture</option>
+                        <option value="Security">Security</option>
+                        <option value="Fakta Unik">Fakta Unik</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-stone-400 dark:text-zinc-500 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+                    </div>
                   </div>
                 </div>
 
@@ -1144,7 +1147,7 @@ export const VanpediaIndexPage: React.FC = () => {
                     type="text"
                     value={newFormula}
                     onChange={e => setNewFormula(e.target.value)}
-                    placeholder="f2 = f1 * 2^(6/12)"
+                    placeholder="E = 1/2 * (y - t)^2"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                   />
                 </div>
@@ -1157,7 +1160,7 @@ export const VanpediaIndexPage: React.FC = () => {
                     rows={2}
                     value={newExamples}
                     onChange={e => setNewExamples(e.target.value)}
-                    placeholder="B ke F = tritone (dalam akor Dominan G7)&#10;Resolusi tritone ke 3rd dan root akor C Major"
+                    placeholder="Gradient descent dalam perhitungan loss fungsi backpropagation"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
                   />
                 </div>
@@ -1183,20 +1186,23 @@ export const VanpediaIndexPage: React.FC = () => {
                       <label className="block text-stone-600 dark:text-zinc-400 font-medium mb-1">
                         {language === 'en' ? 'AI Model Used' : 'Model AI yang Digunakan'}
                       </label>
-                      <select
-                        value={aiModel}
-                        onChange={e => setAiModel(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs"
-                      >
-                        <option value="Gemini 3.7 Flash">Gemini 3.7 Flash</option>
-                        <option value="Gemini 2.5 Pro">Gemini 2.5 Pro</option>
-                        <option value="ChatGPT (GPT-4o)">ChatGPT (GPT-4o)</option>
-                        <option value="Claude 3.7 Sonnet">Claude 3.7 Sonnet</option>
-                        <option value="v0 by Vercel">v0 by Vercel</option>
-                        <option value="Scira AI">Scira AI</option>
-                        <option value="GLM-4 / Zhipu AI">GLM-4 / Zhipu AI</option>
-                        <option value="DeepSeek R1 / V3">DeepSeek R1 / V3</option>
-                      </select>
+                      <div className="relative">
+                        <select
+                          value={aiModel}
+                          onChange={e => setAiModel(e.target.value)}
+                          className="w-full appearance-none pl-3.5 pr-10 py-2 rounded-lg border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/30 cursor-pointer"
+                        >
+                          <option value="Gemini 3.7 Flash">Gemini 3.7 Flash</option>
+                          <option value="Gemini 2.5 Pro">Gemini 2.5 Pro</option>
+                          <option value="ChatGPT (GPT-4o)">ChatGPT (GPT-4o)</option>
+                          <option value="Claude 3.7 Sonnet">Claude 3.7 Sonnet</option>
+                          <option value="v0 by Vercel">v0 by Vercel</option>
+                          <option value="Scira AI">Scira AI</option>
+                          <option value="GLM-4 / Zhipu AI">GLM-4 / Zhipu AI</option>
+                          <option value="DeepSeek R1 / V3">DeepSeek R1 / V3</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-stone-400 dark:text-zinc-500 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+                      </div>
                     </div>
                   )}
                 </div>

@@ -28,6 +28,7 @@ import {
   LogIn,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   HelpCircle,
   AlertCircle,
   CornerDownRight,
@@ -474,10 +475,10 @@ export const IssuesPage: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 pb-8 border-b border-stone-200 dark:border-zinc-800">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-mono uppercase tracking-widest text-rose-500 font-semibold">
+              <span className="text-xs uppercase tracking-widest text-rose-500 font-semibold">
                 {language === 'en' ? 'Community & Discussions' : 'Komunitas & Tanya Jawab'}
               </span>
-              <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-bold">
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1 font-bold">
                 <Sparkles size={11} />
                 <span>Q&A Stack Overflow Style</span>
               </span>
@@ -485,7 +486,7 @@ export const IssuesPage: React.FC = () => {
             <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100">
               {language === 'en' ? 'Questions & Issues' : 'Tanya & Diskusi Teknis'}
             </h1>
-            <p className="text-sm text-stone-600 dark:text-zinc-400 mt-2 max-w-xl font-mono">
+            <p className="text-sm text-stone-600 dark:text-zinc-400 mt-2 max-w-xl">
               {language === 'en'
                 ? 'Ask questions about system design, AI algorithms, database concurrency, and web engineering. Open for community answers.'
                 : 'Ajukan pertanyaan tentang arsitektur sistem, algoritma AI, konkurensi database, dan rekayasa web. Dibuka untuk diskusi komunitas.'}
@@ -495,7 +496,7 @@ export const IssuesPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={handleOpenAskModal}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs sm:text-sm transition-all shadow-xs shrink-0 font-mono font-semibold"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs sm:text-sm transition-all shadow-xs shrink-0"
             >
               <Plus size={16} />
               <span>{language === 'en' ? 'Ask a Question' : 'Ajukan Pertanyaan'}</span>
@@ -505,7 +506,7 @@ export const IssuesPage: React.FC = () => {
 
         {/* Feedback Alert */}
         {feedback && (
-          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-mono flex items-center justify-between">
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
               <span>{feedback}</span>
@@ -515,7 +516,7 @@ export const IssuesPage: React.FC = () => {
         )}
 
         {/* User Auth Banner */}
-        <div className="mb-8 p-3.5 rounded-xl border border-rose-500/20 bg-rose-50/50 dark:bg-rose-950/10 text-xs text-stone-600 dark:text-zinc-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
+        <div className="mb-8 p-3.5 rounded-xl border border-rose-500/20 bg-rose-50/50 dark:bg-rose-950/10 text-xs text-stone-600 dark:text-zinc-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-2.5">
             <ShieldCheck size={16} className="text-rose-500 shrink-0 mt-0.5" />
             <p>
@@ -544,7 +545,7 @@ export const IssuesPage: React.FC = () => {
                 setSelectedIssueId(null);
                 navigate('/issues');
               }}
-              className="inline-flex items-center gap-2 text-xs font-mono text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors"
+              className="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 transition-colors font-medium"
             >
               <ArrowLeft size={14} />
               <span>{language === 'en' ? 'Back to All Questions' : 'Kembali ke Semua Pertanyaan'}</span>
@@ -573,10 +574,10 @@ export const IssuesPage: React.FC = () => {
                       >
                         <ThumbsUp size={18} className={userHasVoted ? 'fill-rose-500 text-rose-500' : ''} />
                       </button>
-                      <span className="font-mono text-base font-bold text-stone-900 dark:text-zinc-100">
+                      <span className="text-base font-bold text-stone-900 dark:text-zinc-100">
                         {votesCount}
                       </span>
-                      <span className="text-[10px] text-stone-500 dark:text-zinc-400 uppercase font-mono font-semibold">
+                      <span className="text-[10px] text-stone-500 dark:text-zinc-400 uppercase font-semibold">
                         votes
                       </span>
                     </div>
@@ -587,7 +588,7 @@ export const IssuesPage: React.FC = () => {
                 <div className="flex-1 space-y-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full font-semibold border ${
+                      className={`text-[10px] uppercase px-2.5 py-0.5 rounded-full font-semibold border ${
                         selectedIssue.status === 'solved'
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                           : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
@@ -601,8 +602,8 @@ export const IssuesPage: React.FC = () => {
                         ? 'Open Question'
                         : 'Belum Terjawab'}
                     </span>
-                    <span className="text-xs font-mono text-stone-400 dark:text-zinc-500">•</span>
-                    <span className="text-xs font-mono text-stone-500 dark:text-zinc-400">
+                    <span className="text-xs text-stone-400 dark:text-zinc-500">•</span>
+                    <span className="text-xs text-stone-500 dark:text-zinc-400">
                       {selectedIssue.category}
                     </span>
                   </div>
@@ -615,7 +616,7 @@ export const IssuesPage: React.FC = () => {
                     {selectedIssue.description}
                   </p>
 
-                  <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-stone-200 dark:border-zinc-800 text-xs font-mono">
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-stone-200 dark:border-zinc-800 text-xs">
                     <div className="flex flex-wrap gap-1.5">
                       {(selectedIssue.tags || []).map(t => (
                         <span
@@ -651,7 +652,7 @@ export const IssuesPage: React.FC = () => {
                 </h3>
 
                 {isCurrentQuestionAuthor && (
-                  <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-semibold">
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 font-semibold">
                     {language === 'en' ? 'You are the Author (Can mark solution)' : 'Anda Pembuat Pertanyaan (Bisa tandai solusi)'}
                   </span>
                 )}
@@ -688,7 +689,7 @@ export const IssuesPage: React.FC = () => {
                           >
                             <ThumbsUp size={15} className={userHasVotedAns ? 'fill-rose-500 text-rose-500' : ''} />
                           </button>
-                          <span className="font-mono text-xs font-bold text-stone-900 dark:text-zinc-100">
+                          <span className="text-xs font-bold text-stone-900 dark:text-zinc-100">
                             {ansVotes}
                           </span>
                         </div>
@@ -699,7 +700,7 @@ export const IssuesPage: React.FC = () => {
                               {ans.authorAvatar ? (
                                 <img src={ans.authorAvatar} alt="" className="w-6 h-6 rounded-full" />
                               ) : (
-                                <div className="w-6 h-6 rounded-full bg-rose-500/10 text-rose-600 flex items-center justify-center font-mono text-[10px] font-bold">
+                                <div className="w-6 h-6 rounded-full bg-rose-500/10 text-rose-600 flex items-center justify-center text-[10px] font-bold">
                                   {ans.authorName.slice(0, 2).toUpperCase()}
                                 </div>
                               )}
@@ -708,13 +709,13 @@ export const IssuesPage: React.FC = () => {
                               </span>
 
                               {isAnswerByAuthor && (
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold border border-purple-500/20">
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold border border-purple-500/20">
                                   Question Author
                                 </span>
                               )}
 
                               {ans.isAccepted && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-mono font-bold border border-emerald-500/30">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
                                   <CheckCircle2 size={12} />
                                   <span>{language === 'en' ? 'Accepted Solution' : 'Solusi Terpilih'}</span>
                                 </span>
@@ -726,7 +727,7 @@ export const IssuesPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleMarkAccepted(selectedIssue.id, ans.id)}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-mono font-semibold transition-all shadow-xs ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all shadow-xs ${
                                   ans.isAccepted
                                     ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                                     : 'bg-stone-100 dark:bg-zinc-800 hover:bg-emerald-500/10 text-stone-700 dark:text-zinc-300 hover:text-emerald-600 border border-stone-200 dark:border-zinc-700'
@@ -751,7 +752,7 @@ export const IssuesPage: React.FC = () => {
                             {ans.content}
                           </p>
 
-                          <div className="text-[10px] font-mono text-stone-400">
+                          <div className="text-[10px] text-stone-400">
                             {new Date(ans.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', {
                               month: 'short',
                               day: 'numeric',
@@ -770,7 +771,7 @@ export const IssuesPage: React.FC = () => {
                   <div className="w-10 h-10 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-3">
                     <MessageSquare size={18} />
                   </div>
-                  <p className="text-xs text-stone-600 dark:text-zinc-400 font-mono">
+                  <p className="text-xs text-stone-600 dark:text-zinc-400">
                     {language === 'en'
                       ? 'No answers yet. Be the first to share your perspective!'
                       : 'Belum ada jawaban. Jadilah yang pertama memberikan solusi atau tanggapan!'}
@@ -784,13 +785,13 @@ export const IssuesPage: React.FC = () => {
                 className="mt-6 p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/60 shadow-xs space-y-3.5"
               >
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-stone-900 dark:text-zinc-100 font-mono flex items-center gap-1.5">
+                  <h4 className="text-sm font-bold text-stone-900 dark:text-zinc-100 flex items-center gap-1.5">
                     <CornerDownRight size={15} className="text-rose-500" />
                     <span>{language === 'en' ? 'Write Your Answer / Comment' : 'Tuliskan Jawaban / Komentar Anda'}</span>
                   </h4>
 
                   {user && (
-                    <span className="text-xs font-mono text-stone-500">
+                    <span className="text-xs text-stone-500">
                       {user.displayName || user.email}
                     </span>
                   )}
@@ -803,7 +804,7 @@ export const IssuesPage: React.FC = () => {
                       placeholder={language === 'en' ? 'Your Name or Handle (optional)' : 'Nama Anda (opsional)'}
                       value={answerAuthorName}
                       onChange={e => setAnswerAuthorName(e.target.value)}
-                      className="w-full sm:w-72 px-3.5 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-mono"
+                      className="w-full sm:w-72 px-3.5 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
                     />
                   </div>
                 )}
@@ -818,7 +819,7 @@ export const IssuesPage: React.FC = () => {
                   }
                   value={newAnswerText}
                   onChange={e => setNewAnswerText(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-mono leading-relaxed"
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 leading-relaxed"
                   required
                 />
 
@@ -831,7 +832,7 @@ export const IssuesPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={submittingAnswer || !newAnswerText.trim()}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 font-mono"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-50"
                   >
                     <Send size={13} />
                     <span>
@@ -863,12 +864,12 @@ export const IssuesPage: React.FC = () => {
                       ? 'Search questions by keyword or topic...'
                       : 'Cari pertanyaan berdasarkan topik atau kata kunci...'
                   }
-                  className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-colors font-mono"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-colors"
                 />
               </div>
 
               {/* Status & Tag Filters */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-1 text-xs font-mono">
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-1 text-xs">
                 <div className="flex items-center gap-2">
                   <span className="text-stone-500 dark:text-zinc-400">Status:</span>
                   <button
@@ -952,7 +953,7 @@ export const IssuesPage: React.FC = () => {
                   >
                     <div className="flex items-start gap-4">
                       {/* Stat Badges */}
-                      <div className="flex sm:flex-col items-center gap-2 shrink-0 text-center font-mono">
+                      <div className="flex sm:flex-col items-center gap-2 shrink-0 text-center">
                         <button
                           type="button"
                           onClick={(e) => handleVoteIssue(issue.id, e)}
@@ -983,11 +984,11 @@ export const IssuesPage: React.FC = () => {
                       {/* Question Summary */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20">
+                          <span className="text-[10px] uppercase px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/20">
                             {issue.category}
                           </span>
                           <span className="text-stone-400 dark:text-zinc-600 text-xs">•</span>
-                          <span className="text-[11px] font-mono text-stone-400">
+                          <span className="text-[11px] text-stone-400">
                             {new Date(issue.createdAt).toLocaleDateString(
                               language === 'en' ? 'en-US' : 'id-ID',
                               { month: 'short', day: 'numeric', year: 'numeric' },
@@ -1003,7 +1004,7 @@ export const IssuesPage: React.FC = () => {
                           {issue.description}
                         </p>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800/80 text-[11px] font-mono">
+                        <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-stone-100 dark:border-zinc-800/80 text-[11px]">
                           <div className="flex flex-wrap gap-1.5">
                             {(issue.tags || []).map(t => (
                               <span
@@ -1031,7 +1032,7 @@ export const IssuesPage: React.FC = () => {
               })}
 
               {filteredIssues.length === 0 && (
-                <div className="py-16 px-4 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl font-mono text-xs space-y-3">
+                <div className="py-16 px-4 text-center border border-dashed border-stone-300 dark:border-zinc-800 rounded-2xl text-xs space-y-3">
                   <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
                     <HelpCircle size={22} />
                   </div>
@@ -1053,7 +1054,7 @@ export const IssuesPage: React.FC = () => {
 
             {/* Q&A PAGINATION CONTROLS */}
             {totalPages > 1 && (
-              <div className="mt-8 pt-6 border-t border-stone-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs">
+              <div className="mt-8 pt-6 border-t border-stone-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
                 <div className="text-stone-500 dark:text-zinc-400">
                   {language === 'en' ? 'Showing' : 'Menampilkan'}{' '}
                   <span className="font-bold text-stone-900 dark:text-zinc-100">
@@ -1085,7 +1086,7 @@ export const IssuesPage: React.FC = () => {
                       <button
                         key={page}
                         onClick={() => handlePageChange(page)}
-                        className={`w-8 h-8 rounded-xl font-mono font-bold text-xs transition-all ${
+                        className={`w-8 h-8 rounded-xl font-bold text-xs transition-all ${
                           currentPage === page
                             ? 'bg-rose-600 text-white shadow-xs'
                             : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 hover:bg-stone-200 dark:hover:bg-zinc-700'
@@ -1116,10 +1117,10 @@ export const IssuesPage: React.FC = () => {
             <div className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-3xl max-w-xl w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
               <div className="flex items-center justify-between border-b border-stone-100 dark:border-zinc-800 pb-4">
                 <div>
-                  <h2 className="text-lg font-bold font-mono text-stone-900 dark:text-zinc-100">
+                  <h2 className="text-lg font-bold text-stone-900 dark:text-zinc-100">
                     {language === 'en' ? 'Ask a Technical Question' : 'Ajukan Pertanyaan Teknis'}
                   </h2>
-                  <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono mt-0.5">
+                  <p className="text-xs text-stone-500 dark:text-zinc-400 mt-0.5">
                     {language === 'en'
                       ? `Questions are published immediately and notify ${adminEmail}.`
                       : `Pertanyaan langsung dipublikasikan dan mengirimkan email ke ${adminEmail}.`}
@@ -1133,7 +1134,7 @@ export const IssuesPage: React.FC = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleCreateIssue} className="space-y-4 text-xs font-mono">
+              <form onSubmit={handleCreateIssue} className="space-y-4 text-xs">
                 <div>
                   <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
                     {language === 'en' ? 'Title *' : 'Judul Pertanyaan *'}
@@ -1157,18 +1158,20 @@ export const IssuesPage: React.FC = () => {
                     <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
                       {language === 'en' ? 'Category' : 'Kategori'}
                     </label>
-                    <select
-                      value={newCategory}
-                      onChange={e => setNewCategory(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
-                    >
-                      <option value="AI & Math">AI & Math</option>
-                      <option value="Theory Music">Theory Music</option>
-                      <option value="Architecture">Architecture</option>
-                      <option value="Database">Database</option>
-                      <option value="Security">Security</option>
-                      <option value="General">General</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={newCategory}
+                        onChange={e => setNewCategory(e.target.value)}
+                        className="w-full appearance-none pl-3.5 pr-10 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30 text-xs cursor-pointer shadow-xs"
+                      >
+                        <option value="General">General</option>
+                        <option value="AI & Math">AI & Math</option>
+                        <option value="Architecture">Architecture</option>
+                        <option value="Database">Database</option>
+                        <option value="Security">Security</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-stone-400 dark:text-zinc-500 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+                    </div>
                   </div>
 
                   <div>

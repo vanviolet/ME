@@ -51,7 +51,184 @@ async function startServer() {
     throw new Error("Maximum retry attempts reached");
   }
 
+  // --- Shared Persistent Storage for Public/Private Articles & Vanpedia ---
+  const fs = await import("fs");
+  const DATA_DIR = path.join(process.cwd(), "server-data");
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  const ARTICLES_FILE = path.join(DATA_DIR, "articles.json");
+  const VANPEDIA_FILE = path.join(DATA_DIR, "vanpedia.json");
+
+  function readJsonFile<T>(filePath: string, defaultValue: T): T {
+    try {
+      if (fs.existsSync(filePath)) {
+        const content = fs.readFileSync(filePath, "utf-8");
+        return JSON.parse(content);
+      }
+    } catch (err) {
+      console.warn(`Error reading ${filePath}:`, err);
+    }
+    return defaultValue;
+  }
+
+  function writeJsonFile<T>(filePath: string, data: T): void {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+    } catch (err) {
+      console.error(`Error writing ${filePath}:`, err);
+    }
+  }
+
   // --- API Routes (Mounted BEFORE Vite middleware) ---
+
+  // Articles Endpoints (Public articles are accessible to ALL users, guests, and unauthenticated visitors)
+  app.get("/api/articles", (req, res) => {
+    try {
+      const articles = readJsonFile<any[]>(ARTICLES_FILE, []);
+      const authorId = req.headers["x-author-id"] as string | undefined;
+      const isAdmin = req.headers["x-is-admin"] === "true";
+
+      if (isAdmin) {
+        res.json({ success: true, data: articles });
+        return;
+      }
+
+      // Public articles are visible to everyone (including non-logged-in visitors)
+      // Private articles are ONLY visible to their author
+      const visible = articles.filter((a) => {
+        const isOwner = Boolean(authorId && (a.authorId === authorId || a.author?.id === authorId));
+        if (isOwner) return true;
+        return a.visibility !== "private";
+      });
+
+      res.json({ success: true, data: visible });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/articles/:slug", (req, res) => {
+    try {
+      const { slug } = req.params;
+      const articles = readJsonFile<any[]>(ARTICLES_FILE, []);
+      const article = articles.find((a) => a.slug === slug);
+
+      if (!article) {
+        res.status(404).json({ error: "Article not found" });
+        return;
+      }
+
+      const authorId = req.headers["x-author-id"] as string | undefined;
+      const isAdmin = req.headers["x-is-admin"] === "true";
+      const isOwner = Boolean(authorId && (article.authorId === authorId || article.author?.id === authorId));
+
+      if (article.visibility === "private" && !isAdmin && !isOwner) {
+        res.status(403).json({ error: "This article is private" });
+        return;
+      }
+
+      res.json({ success: true, data: article });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/articles", (req, res) => {
+    try {
+      const article = req.body;
+      if (!article || !article.slug) {
+        res.status(400).json({ error: "Article slug and data are required." });
+        return;
+      }
+
+      const articles = readJsonFile<any[]>(ARTICLES_FILE, []);
+      const filtered = articles.filter((a) => a.slug !== article.slug);
+      filtered.unshift({
+        ...article,
+        updatedAt: new Date().toISOString(),
+        visibility: article.visibility === "private" ? "private" : "public",
+      });
+
+      writeJsonFile(ARTICLES_FILE, filtered);
+      res.json({ success: true, data: article });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Vanpedia Endpoints (Public terms are accessible to ALL users, guests, and unauthenticated visitors)
+  app.get("/api/vanpedia", (req, res) => {
+    try {
+      const terms = readJsonFile<any[]>(VANPEDIA_FILE, []);
+      const authorId = req.headers["x-author-id"] as string | undefined;
+      const isAdmin = req.headers["x-is-admin"] === "true";
+
+      if (isAdmin) {
+        res.json({ success: true, data: terms });
+        return;
+      }
+
+      const visible = terms.filter((t) => {
+        const isOwner = Boolean(authorId && t.authorId === authorId);
+        if (isOwner) return true;
+        return t.visibility !== "private";
+      });
+
+      res.json({ success: true, data: visible });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get("/api/vanpedia/:slug", (req, res) => {
+    try {
+      const { slug } = req.params;
+      const terms = readJsonFile<any[]>(VANPEDIA_FILE, []);
+      const term = terms.find((t) => t.slug === slug);
+
+      if (!term) {
+        res.status(404).json({ error: "Term not found" });
+        return;
+      }
+
+      const authorId = req.headers["x-author-id"] as string | undefined;
+      const isAdmin = req.headers["x-is-admin"] === "true";
+      const isOwner = Boolean(authorId && term.authorId === authorId);
+
+      if (term.visibility === "private" && !isAdmin && !isOwner) {
+        res.status(403).json({ error: "This term is private" });
+        return;
+      }
+
+      res.json({ success: true, data: term });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/vanpedia", (req, res) => {
+    try {
+      const term = req.body;
+      if (!term || !term.slug) {
+        res.status(400).json({ error: "Vanpedia term slug and data are required." });
+        return;
+      }
+
+      const terms = readJsonFile<any[]>(VANPEDIA_FILE, []);
+      const filtered = terms.filter((t) => t.slug !== term.slug);
+      filtered.unshift({
+        ...term,
+        updatedAt: new Date().toISOString(),
+        visibility: term.visibility === "private" ? "private" : "public",
+      });
+
+      writeJsonFile(VANPEDIA_FILE, filtered);
+      res.json({ success: true, data: term });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   // Health check endpoint
   app.get("/api/health", (_req, res) => {
@@ -73,22 +250,31 @@ async function startServer() {
       }
 
       const ai = getGeminiClient();
-      const prompt = `Anda adalah Asisten Penulis Teknis dan Arsitek Sistem (Firebase AI Logic).
-Tolong buatkan draf artikel teknis yang sangat mendalam, akurat, dan komprehensif berdasarkan input berikut:
+      const prompt = `Anda adalah Penulis Teknis dan Arsitek Sistem Senior (Firebase AI Logic).
+Tolong buatkan draf artikel teknis yang mendalam, terstruktur rapi, berbobot, dan aplikatif berdasarkan input berikut:
 - Topik / Judul: "${topic.trim()}"
 - Kategori: "${category}"
 ${keyPoints ? `- Poin-poin kunci: "${keyPoints}"` : ""}
 - Bahasa Utama: ${language === "en" ? "English" : "Bahasa Indonesia"}
 
-Format keluaran HARUS berformat JSON valid dengan struktur berikut:
+Ketentuan Konten:
+- Format Markdown terstruktur dengan heading jelas:
+  ## 1. Pengantar & Latar Belakang Masalah
+  ## 2. Arsitektur & Prinsip Kerja (sertakan formula LaTeX $$...$$ bila relevan dan sebutkan konsep terkait dengan format tautan [[slug-vanpedia]])
+  ## 3. Implementasi Kode Nyata (blok kode fungsional, berstandar produksi, lengkap dengan tipe data)
+  ## 4. Analisis Trade-offs & Praktik Terbaik
+  ## 5. Kesimpulan
+- Jangan menyertakan metafora musik atau audio, fokus pada rekayasa teknologi, AI, atau sistem umum.
+
+Format keluaran HARUS berformat JSON valid dengan properti:
 - titleId: Judul dalam Bahasa Indonesia
 - titleEn: Title in English
 - category: Kategori yang sesuai
-- tags: Array string tag teknis (3-5 tag)
+- tags: Array string 3-5 tag teknis relevan
 - summaryId: Ringkasan padat 2-3 kalimat dalam Bahasa Indonesia
 - summaryEn: Summary in English (2-3 sentences)
-- readTime: Estimasi waktu baca (contoh: "6 min read")
-- content: Isi artikel lengkap dalam format Markdown dengan heading (##), formula LaTeX jika ada ($$...$$), pemanggilan kata kunci Vanpedia dengan format [[slug]], dan blok kode implementasi nyata.`;
+- readTime: Estimasi waktu baca (contoh: "5 min read")
+- content: Isi artikel Markdown lengkap sesuai struktur di atas.`;
 
       const response = await callGeminiWithRetry(() =>
         ai.models.generateContent({
@@ -152,23 +338,32 @@ Format keluaran HARUS berformat JSON valid dengan struktur berikut:
       }
 
       const ai = getGeminiClient();
-      const prompt = `Anda adalah Leksikografer Teknis dan Ahli Rekayasa Perangkat Lunak (Firebase AI Logic).
-Tolong buatkan entri kamus ensiklopedia teknis untuk "Vanpedia" berdasarkan istilah berikut:
+      const prompt = `Anda adalah Leksikografer Teknis Rekayasa Perangkat Lunak dan AI (Firebase AI Logic).
+Tolong buatkan entri kamus istilah teknis untuk "Vanpedia" yang RINGKAS, PADAT, AKURAT, dan SANGAT JELAS (tidak bertele-tele, tidak panjang-panjang, fokus pada esensi dan pemahaman praktis):
 - Nama Istilah: "${termName.trim()}"
 - Kategori: "${category}"
-${details ? `- Catatan: "${details}"` : ""}
+${details ? `- Catatan Khusus: "${details}"` : ""}
+
+Ketentuan Format:
+- Jangan menyertakan metafora musik atau audio, fokus murni pada ilmu komputer, software engineering, AI, atau teknologi umum.
+- definitionId: Definisi formal 1-2 kalimat presisi dan mudah dipahami dalam Bahasa Indonesia.
+- definitionEn: Definisi formal 1-2 kalimat dalam Bahasa Inggris.
+- phonetic: Notasi fonetik standar IPA (misal: "/ˈbækˌprɑːpəˈɡeɪʃən/").
+- formula: Rumus/notasi matematis singkat jika relevan (kosongkan string jika tidak relevan).
+- examples: Array 2-3 contoh penerapan nyata dan singkat di industri modern.
+- content: Penjelasan singkat yang jelas dan padat (maksimal 2 sub-bab ringkas: "## Konsep Inti" dan "## Contoh Penerapan Praktis"). Tidak perlu uraian panjang yang melelahkan, utamakan kejelasan konsep.
 
 Keluaran HARUS berupa JSON dengan properti:
 - termId: Nama istilah dalam Bahasa Indonesia
 - termEn: Term name in English
-- slug: URL-friendly slug (huruf kecil, spasi diganti strip)
+- slug: URL-friendly slug (huruf kecil, strip pengganti spasi)
 - category: Kategori
-- phonetic: Notasi fonetik IPA (contoh: "/məˈʃiːn ˈlɜːrnɪŋ/")
-- definitionId: Definisi formal 1-2 kalimat dalam Bahasa Indonesia
+- phonetic: Notasi fonetik IPA
+- definitionId: Definisi presisi 1-2 kalimat dalam Bahasa Indonesia
 - definitionEn: Formal 1-2 sentence definition in English
-- formula: Formula matematis atau arsitektural (bisa dikosongkan bila tidak relevan)
-- examples: Array 2-3 contoh penerapan nyata
-- content: Penjelasan mendalam dalam Markdown (heading ## Konsep Inti, ## Implementasi di Industri, ## Kesalahan Pemahaman Umum)`;
+- formula: Formula singkat jika ada
+- examples: Array 2-3 string contoh nyata
+- content: Penjelasan ringkas dan jelas dalam format Markdown`;
 
       const response = await callGeminiWithRetry(() =>
         ai.models.generateContent({

@@ -24,6 +24,7 @@ import {
   Send,
   Bot,
   Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import { Seo } from './Seo';
 import { RichEditor } from './RichEditor';
@@ -275,13 +276,13 @@ export const ArticlesPage: React.FC = () => {
         <div className="mb-12">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <span className="text-xs font-mono uppercase tracking-widest text-rose-500 font-semibold">
+              <span className="text-xs uppercase tracking-widest text-rose-500 font-semibold">
                 {language === 'en' ? 'Articles & Writing' : 'Artikel & Catatan Teknis'}
               </span>
-              <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100 mt-2">
+              <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-zinc-100 mt-2">
                 {language === 'en' ? 'Engineering Updates.' : 'Catatan Rekayasa.'}
               </h1>
-              <p className="text-sm font-mono text-stone-500 dark:text-zinc-400 max-w-md mt-2">
+              <p className="text-sm text-stone-500 dark:text-zinc-400 max-w-md mt-2">
                 {language === 'en'
                   ? 'Reflections on system design, Web Audio math, biometric security, AI, and scaling infrastructure.'
                   : 'Tulisan teknis mengenai arsitektur sistem, Web Audio API, AI, keamanan biometrik, dan skalabilitas kampus.'}
@@ -289,11 +290,11 @@ export const ArticlesPage: React.FC = () => {
             </div>
 
             {/* Action buttons: Submit Article & Admin Link */}
-            <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
               {isAdmin && (
                 <Link
                   to="/admin"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-mono font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors"
                 >
                   <ShieldCheck size={15} />
                   <span>Admin Hub</span>
@@ -302,7 +303,7 @@ export const ArticlesPage: React.FC = () => {
 
               <button
                 onClick={handleOpenSubmit}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-xs font-mono font-semibold hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-xs font-semibold hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs"
               >
                 <Plus size={15} />
                 <span>{language === 'en' ? 'Submit Article' : 'Tulis Artikel'}</span>
@@ -312,7 +313,7 @@ export const ArticlesPage: React.FC = () => {
 
           {/* Feedback banner */}
           {feedbackBanner && (
-            <div className="mt-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-mono flex items-center justify-between">
+            <div className="mt-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between">
               <span>{feedbackBanner}</span>
               <button onClick={() => setFeedbackBanner(null)} className="hover:opacity-75 font-bold">✕</button>
             </div>
@@ -330,7 +331,7 @@ export const ArticlesPage: React.FC = () => {
             </div>
             <Link
               to="/vanpedia"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-mono font-semibold hover:bg-rose-50 dark:hover:bg-zinc-800 transition-colors shrink-0 shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-zinc-800 transition-colors shrink-0 shadow-xs self-start sm:self-auto"
             >
               <span>{language === 'en' ? 'Explore Vanpedia' : 'Buka Vanpedia'}</span>
               <ArrowUpRight size={13} />
@@ -344,19 +345,19 @@ export const ArticlesPage: React.FC = () => {
           <div className="relative">
             <Search
               size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-zinc-500"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 dark:text-zinc-500"
             />
             <input
               type="search"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder={language === 'en' ? 'Search articles...' : 'Cari artikel...'}
-              className="w-full pl-10 pr-3 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/50 text-stone-900 dark:text-zinc-100 placeholder-stone-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-colors font-mono"
+              className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 text-stone-900 dark:text-zinc-100 placeholder-stone-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-colors"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-zinc-500 hover:text-stone-600 dark:hover:text-zinc-300"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 dark:text-zinc-500 hover:text-stone-600 dark:hover:text-zinc-300"
               >
                 <X size={14} />
               </button>
@@ -365,7 +366,7 @@ export const ArticlesPage: React.FC = () => {
 
           {/* Category Filter */}
           <div className="flex flex-wrap gap-2 items-center">
-            <div className="flex items-center gap-1.5 text-xs font-mono text-stone-500 dark:text-zinc-400">
+            <div className="flex items-center gap-1.5 text-xs text-stone-500 dark:text-zinc-400">
               <Filter size={13} />
               <span>{language === 'en' ? 'Filter by:' : 'Filter:'}</span>
             </div>
@@ -373,7 +374,7 @@ export const ArticlesPage: React.FC = () => {
             {/* Category pills */}
             <button
               onClick={() => setActiveCategory('')}
-              className={`px-2.5 py-1 text-xs font-mono rounded-full transition-all ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
                 activeCategory === ''
                   ? 'bg-rose-600 text-white'
                   : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
@@ -385,7 +386,7 @@ export const ArticlesPage: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-2.5 py-1 text-xs font-mono rounded-full transition-all ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
                   activeCategory === cat
                     ? 'bg-rose-600 text-white'
                     : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
@@ -400,7 +401,7 @@ export const ArticlesPage: React.FC = () => {
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="text-xs font-mono text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 underline"
+              className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 underline"
             >
               {language === 'en' ? 'Clear all filters' : 'Hapus semua filter'}
             </button>
@@ -409,13 +410,13 @@ export const ArticlesPage: React.FC = () => {
 
         {/* Results Count & Current Page Indicator */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-          <p className="text-xs font-mono text-stone-500 dark:text-zinc-400">
+          <p className="text-xs text-stone-500 dark:text-zinc-400">
             {language === 'en'
               ? `Showing ${filteredArticles.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, filteredArticles.length)} of ${filteredArticles.length} articles`
               : `Menampilkan ${filteredArticles.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, filteredArticles.length)} dari ${filteredArticles.length} artikel`}
           </p>
           {totalPages > 1 && (
-            <p className="text-xs font-mono text-stone-400 dark:text-zinc-500">
+            <p className="text-xs text-stone-400 dark:text-zinc-500">
               {language === 'en' ? `Page ${currentPage} of ${totalPages}` : `Halaman ${currentPage} dari ${totalPages}`}
             </p>
           )}
@@ -447,7 +448,7 @@ export const ArticlesPage: React.FC = () => {
                 {isPending && (
                   <div 
                     onClick={(e) => e.stopPropagation()}
-                    className="p-3 rounded-xl bg-amber-100/90 dark:bg-amber-900/40 border border-amber-300/80 dark:border-amber-700/60 flex items-center justify-between gap-2 text-xs font-mono"
+                    className="p-3 rounded-xl bg-amber-100/90 dark:bg-amber-900/40 border border-amber-300/80 dark:border-amber-700/60 flex items-center justify-between gap-2 text-xs font-medium"
                   >
                     <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-200">
                       <Clock3 size={14} className="shrink-0 animate-pulse text-amber-600" />
@@ -459,9 +460,9 @@ export const ArticlesPage: React.FC = () => {
                           e.stopPropagation();
                           handleQuickApprove(post.id, e);
                         }}
-                        className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] flex items-center gap-1 shrink-0"
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shrink-0"
                       >
-                        <CheckCircle2 size={11} />
+                        <CheckCircle2 size={12} />
                         <span>Setujui</span>
                       </button>
                     )}
@@ -469,7 +470,7 @@ export const ArticlesPage: React.FC = () => {
                 )}
 
                 <div className="space-y-3 sm:space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-1 text-xs font-mono">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-1 text-xs">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold uppercase text-[10px] tracking-wider border border-rose-500/20 shrink-0">
                         {post.category}
@@ -484,7 +485,7 @@ export const ArticlesPage: React.FC = () => {
                         </span>
                       )}
                       {post.isAiAssisted && (
-                        <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] border border-blue-500/20 flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] border border-blue-500/20 flex items-center gap-1 font-medium">
                           <Bot size={11} />
                           <span>{post.aiModel || 'Gemini 3.7 Flash'}</span>
                         </span>
@@ -517,7 +518,7 @@ export const ArticlesPage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="pt-5 border-t border-stone-200/80 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
+                <div className="pt-5 border-t border-stone-200/80 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                   <div className="flex flex-wrap gap-1.5 items-center">
                     {post.tags.slice(0, 3).map(tg => (
                       <span
@@ -546,7 +547,7 @@ export const ArticlesPage: React.FC = () => {
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 font-mono text-xs">
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-3 text-xs font-medium">
             <button
               onClick={() => {
                 setCurrentPage(prev => Math.max(1, prev - 1));
@@ -593,14 +594,14 @@ export const ArticlesPage: React.FC = () => {
         {/* Empty State */}
         {filteredArticles.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-stone-600 dark:text-zinc-400 mb-4 font-mono text-sm">
+            <p className="text-stone-600 dark:text-zinc-400 mb-4 text-sm">
               {language === 'en'
                 ? 'No articles match your search. Try adjusting the filters.'
                 : 'Tidak ada artikel yang cocok. Coba sesuaikan filter.'}
             </p>
             <button
               onClick={clearFilters}
-              className="text-sm font-mono text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 underline"
+              className="text-sm text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 underline"
             >
               {language === 'en' ? 'Clear filters' : 'Hapus filter'}
             </button>
@@ -613,10 +614,10 @@ export const ArticlesPage: React.FC = () => {
             <div className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
               <div className="flex items-center justify-between border-b border-stone-100 dark:border-zinc-800 pb-4">
                 <div>
-                  <h2 className="text-lg font-bold font-mono text-stone-900 dark:text-zinc-100">
+                  <h2 className="text-lg font-bold text-stone-900 dark:text-zinc-100">
                     {language === 'en' ? 'Submit New Article' : 'Tulis & Ajukan Artikel Baru'}
                   </h2>
-                  <p className="text-xs text-stone-500 dark:text-zinc-400 font-mono mt-0.5">
+                  <p className="text-xs text-stone-500 dark:text-zinc-400 mt-0.5">
                     {user?.email === adminEmail
                       ? (language === 'en' ? 'Publishing with Admin authority (instant live).' : 'Dipublikasikan langsung dengan otoritas Admin.')
                       : (language === 'en' ? `Will be reviewed by ${adminEmail}. Email notification will be triggered.` : `Akan ditinjau oleh ${adminEmail}. Email notifikasi otomatis dikirimkan.`)}
@@ -636,7 +637,7 @@ export const ArticlesPage: React.FC = () => {
                 onOpenAiHelper={() => setIsAiModalOpen(true)}
               />
 
-              <form onSubmit={handleSubmitArticle} className="space-y-4 text-xs font-mono">
+              <form onSubmit={handleSubmitArticle} className="space-y-4 text-xs">
                 {/* Indonesian Title */}
                 <div>
                   <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
@@ -672,17 +673,20 @@ export const ArticlesPage: React.FC = () => {
                     <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
                       {language === 'en' ? 'Category' : 'Kategori'}
                     </label>
-                    <select
-                      value={newCategory}
-                      onChange={e => setNewCategory(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100"
-                    >
-                      <option value="Learning (AI)">Learning (AI)</option>
-                      <option value="Fakta Unik">Fakta Unik</option>
-                      <option value="Architecture">Architecture</option>
-                      <option value="Security">Security</option>
-                      <option value="General">General</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={newCategory}
+                        onChange={e => setNewCategory(e.target.value)}
+                        className="w-full appearance-none pl-3.5 pr-10 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30 text-xs cursor-pointer shadow-xs"
+                      >
+                        <option value="Learning (AI)">Learning (AI)</option>
+                        <option value="Fakta Unik">Fakta Unik</option>
+                        <option value="Architecture">Architecture</option>
+                        <option value="Security">Security</option>
+                        <option value="General">General</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-stone-400 dark:text-zinc-500 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+                    </div>
                   </div>
 
                   <div>
@@ -714,7 +718,7 @@ export const ArticlesPage: React.FC = () => {
                       </span>
                     </label>
                     {newIsAiAssisted && (
-                      <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-mono border border-blue-500/20">
+                      <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-semibold border border-blue-500/20">
                         Metadata AI Aktif
                       </span>
                     )}

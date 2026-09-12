@@ -130,6 +130,7 @@ export interface VanpediaTerm {
   content?: LocalizedString; // full markdown content for term page
   isAiAssisted?: boolean;
   aiModel?: string; // e.g. "Gemini 3.7 Flash", "Claude 3.7 Sonnet"
+  visibility?: 'public' | 'private';
   status?: 'pending' | 'approved' | 'rejected';
   authorName?: string;
   authorEmail?: string;

@@ -52,71 +52,193 @@ export function cleanUndefined<T>(obj: T): T {
 }
 
 // ==========================================
-// ARTICLES SERVICE
+// LOCAL STORAGE CACHING HELPERS
 // ==========================================
+const CUSTOM_ARTICLES_KEY = 'vanviolet_custom_articles';
+const CUSTOM_VANPEDIA_KEY = 'vanviolet_custom_vanpedia';
 
-export async function fetchArticlesFromFirestore(isAdmin = false, authorId?: string): Promise<Article[]> {
+function getLocalArticles(): Article[] {
   try {
-    const colRef = collection(db, ARTICLES_COLLECTION);
-    const snap = await getDocs(colRef);
-
-    if (snap.empty) {
-      return [];
-    }
-
-    const firestoreArticles = snap.docs.map(d => {
-      const data = d.data();
-      return {
-        id: d.id,
-        ...data,
-      } as Article;
-    });
-
-    if (isAdmin) {
-      return firestoreArticles;
-    }
-
-    // Filter view:
-    // If visibility is public, show it immediately.
-    // If visibility is private: only show if authorId === currentUserId or isAdmin
-    return firestoreArticles.filter(a => {
-      if (a.visibility === 'public') return true;
-      const isOwner = Boolean(authorId && a.authorId === authorId);
-      if (isOwner) return true;
-      return a.status === 'approved';
-    });
-  } catch (error) {
-    console.warn('Firestore fetchArticles error:', error);
+    const raw = localStorage.getItem(CUSTOM_ARTICLES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
     return [];
   }
 }
 
-export async function fetchArticleBySlug(slug: string, isAdmin = false, authorId?: string): Promise<Article | null> {
+function saveLocalArticle(article: Article): void {
+  try {
+    const current = getLocalArticles();
+    const filtered = current.filter(a => a.slug !== article.slug);
+    filtered.unshift(article);
+    localStorage.setItem(CUSTOM_ARTICLES_KEY, JSON.stringify(filtered));
+  } catch (e) {}
+}
+
+function getLocalVanpedia(): VanpediaTerm[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_VANPEDIA_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveLocalVanpedia(term: VanpediaTerm): void {
+  try {
+    const current = getLocalVanpedia();
+    const filtered = current.filter(t => t.slug !== term.slug);
+    filtered.unshift(term);
+    localStorage.setItem(CUSTOM_VANPEDIA_KEY, JSON.stringify(filtered));
+  } catch (e) {}
+}
+
+// ==========================================
+// ARTICLES SERVICE
+// ==========================================
+
+export async function fetchArticlesFromFirestore(isAdmin = false, authorId?: string): Promise<Article[]> {
+  const articleMap = new Map<string, Article>();
+
+  // 1. Initial seed articles
+  articlesData.forEach(a => {
+    articleMap.set(a.slug, { ...a, visibility: a.visibility || 'public', status: 'approved' as const });
+  });
+
+  // 2. Locally cached custom articles
+  const localArticles = getLocalArticles();
+  localArticles.forEach(a => {
+    articleMap.set(a.slug, { ...a, visibility: a.visibility || 'public' });
+  });
+
+  // 3. Shared Server Articles API (accessible across all devices, browsers, and non-logged-in visitors)
+  try {
+    const res = await fetch('/api/articles', {
+      headers: {
+        'x-author-id': authorId || '',
+        'x-is-admin': isAdmin ? 'true' : 'false',
+      },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.data && Array.isArray(json.data)) {
+        json.data.forEach((article: Article) => {
+          articleMap.set(article.slug, { ...article, visibility: article.visibility || 'public' });
+          saveLocalArticle(article);
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Server /api/articles fetch fallback:', err);
+  }
+
+  // 4. Firestore articles
   try {
     const colRef = collection(db, ARTICLES_COLLECTION);
-    const q = query(colRef, where('slug', '==', slug));
-    const snap = await getDocs(q);
+    const snap = await getDocs(colRef);
 
     if (!snap.empty) {
-      const docData = snap.docs[0].data();
-      const article = { id: snap.docs[0].id, ...docData } as Article;
-      const isOwner = Boolean(authorId && article.authorId === authorId);
-      if (isAdmin || isOwner) {
-        return article;
-      }
-      if (article.visibility === 'private') {
-        return null;
-      }
-      if (article.status === 'approved') {
-        return article;
-      }
-      return null;
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const article = {
+          id: d.id,
+          ...data,
+          visibility: data.visibility || 'public',
+        } as Article;
+        articleMap.set(article.slug, article);
+        saveLocalArticle(article);
+      });
     }
-    return null;
   } catch (error) {
-    console.warn('Firestore fetchArticleBySlug error:', error);
+    console.warn('Firestore fetchArticles fallback to cached/seed articles:', error);
+  }
+
+  const all = Array.from(articleMap.values());
+  if (isAdmin) {
+    return all;
+  }
+
+  // Filter view:
+  // - If authorId is provided (logged in user): show their own articles (even if private)
+  // - If visibility is not 'private' (meaning 'public' or undefined): visible to EVERYONE, including non-logged-in visitors!
+  return all.filter(a => {
+    const isOwner = Boolean(authorId && (a.authorId === authorId || a.author?.id === authorId));
+    if (isOwner) return true;
+    if (a.visibility === 'private') {
+      return false;
+    }
+    return true;
+  });
+}
+
+export async function fetchArticleBySlug(slug: string, isAdmin = false, authorId?: string): Promise<Article | null> {
+  let article: Article | null = null;
+
+  // 1. Check Server API
+  try {
+    const res = await fetch(`/api/articles/${encodeURIComponent(slug)}`, {
+      headers: {
+        'x-author-id': authorId || '',
+        'x-is-admin': isAdmin ? 'true' : 'false',
+      },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.data) {
+        article = { ...json.data, visibility: json.data.visibility || 'public' };
+        saveLocalArticle(article);
+      }
+    }
+  } catch (err) {
+    console.warn('Server /api/articles/:slug fetch fallback:', err);
+  }
+
+  // 2. Check Firestore
+  if (!article) {
+    try {
+      const colRef = collection(db, ARTICLES_COLLECTION);
+      const q = query(colRef, where('slug', '==', slug));
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        const docData = snap.docs[0].data();
+        article = {
+          id: snap.docs[0].id,
+          ...docData,
+          visibility: docData.visibility || 'public',
+        } as Article;
+        saveLocalArticle(article);
+      }
+    } catch (error) {
+      console.warn('Firestore fetchArticleBySlug fallback to local:', error);
+    }
+  }
+
+  // 3. Check local custom articles cache
+  if (!article) {
+    const local = getLocalArticles().find(a => a.slug === slug);
+    if (local) article = { ...local, visibility: local.visibility || 'public' };
+  }
+
+  // 4. Check static seed articles
+  if (!article) {
+    const seed = articlesData.find(a => a.slug === slug);
+    if (seed) article = { ...seed, visibility: seed.visibility || 'public', status: 'approved' as const };
+  }
+
+  if (!article) {
     return null;
   }
+
+  const isOwner = Boolean(authorId && (article.authorId === authorId || article.author?.id === authorId));
+  if (isAdmin || isOwner) {
+    return article;
+  }
+  if (article.visibility === 'private') {
+    return null;
+  }
+  // Public article is visible to everyone (including guests & non-logged in users)
+  return article;
 }
 
 export const fetchArticleBySlugFromFirestore = fetchArticleBySlug;
@@ -150,7 +272,9 @@ export async function createArticleInFirestore(
     .replace(/[^\w\s-]/g, '')
     .replace(/\s+/g, '-');
 
-  const status: 'approved' | 'pending' = isAuthorAdmin ? 'approved' : 'pending';
+  // Any published article is approved and public by default unless marked private
+  const status: 'approved' | 'pending' = 'approved';
+  const visibility: 'public' | 'private' = articleData.visibility === 'private' ? 'private' : 'public';
 
   const newArticle: Partial<Article> = {
     slug: generatedSlug,
@@ -170,7 +294,8 @@ export async function createArticleInFirestore(
     tags: Array.isArray(articleData.tags) && articleData.tags.length ? articleData.tags : ['Engineering'],
     readTime: articleData.readTime || '5 min read',
     date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    visibility: articleData.visibility || 'public',
+    visibility,
+    authorId: uid,
     isAiAssisted: Boolean(articleData.isAiAssisted ?? (articleData.aiModel ? true : false)),
     aiModel: articleData.aiModel || (articleData.isAiAssisted ? 'ChatGPT (GPT-4o)' : undefined),
     aiPromptUsed: articleData.aiPromptUsed,
@@ -184,7 +309,6 @@ export async function createArticleInFirestore(
       },
     },
     authorEmail: userEmail,
-    authorId: uid,
     status,
     verifiedAt: isAuthorAdmin ? new Date().toISOString() : undefined,
     verifiedBy: isAuthorAdmin ? ADMIN_EMAIL : undefined,
@@ -193,12 +317,33 @@ export async function createArticleInFirestore(
     commentsCount: 0,
   };
 
-  const docRef = await addDoc(collection(db, ARTICLES_COLLECTION), cleanUndefined({
-    ...newArticle,
-    createdAt: new Date().toISOString(),
-  }));
+  let created: Article;
+  try {
+    const docRef = await addDoc(collection(db, ARTICLES_COLLECTION), cleanUndefined({
+      ...newArticle,
+      createdAt: new Date().toISOString(),
+    }));
+    created = { id: docRef.id, ...newArticle } as Article;
+  } catch (error) {
+    console.warn('Firestore addDoc fallback to local storage:', error);
+    created = { id: `art-${Date.now()}`, ...newArticle } as Article;
+  }
 
-  const created = { id: docRef.id, ...newArticle } as Article;
+  // Ensure saved to local cache so it persists and is visible immediately
+  saveLocalArticle(created);
+
+  // Sync to shared server API so it is immediately visible to other users and guests
+  try {
+    await fetch('/api/articles', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(created),
+    });
+  } catch (err) {
+    console.warn('Syncing article to /api/articles fallback:', err);
+  }
 
   // Send email notification to vanviolet.js@gmail.com if submission requires verification
   if (!isAuthorAdmin) {
@@ -256,53 +401,140 @@ export async function updateArticleStatusInFirestore(
 // ==========================================
 
 export async function fetchVanpediaTermsFromFirestore(isAdmin = false, authorId?: string): Promise<VanpediaTerm[]> {
+  const termMap = new Map<string, VanpediaTerm>();
+
+  // 1. Static seed terms
+  vanpediaTermsData.forEach(t => {
+    termMap.set(t.slug, { ...t, visibility: t.visibility || 'public', status: 'approved' as const });
+  });
+
+  // 2. Locally cached custom terms
+  const localTerms = getLocalVanpedia();
+  localTerms.forEach(t => {
+    termMap.set(t.slug, { ...t, visibility: t.visibility || 'public' });
+  });
+
+  // 3. Shared Server Vanpedia API (accessible across all devices, browsers, and non-logged-in visitors)
+  try {
+    const res = await fetch('/api/vanpedia', {
+      headers: {
+        'x-author-id': authorId || '',
+        'x-is-admin': isAdmin ? 'true' : 'false',
+      },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.data && Array.isArray(json.data)) {
+        json.data.forEach((term: VanpediaTerm) => {
+          termMap.set(term.slug, { ...term, visibility: term.visibility || 'public' });
+          saveLocalVanpedia(term);
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Server /api/vanpedia fetch fallback:', err);
+  }
+
+  // 4. Firestore terms
   try {
     const colRef = collection(db, VANPEDIA_COLLECTION);
     const snap = await getDocs(colRef);
 
-    const firestoreTerms = snap.docs.map(d => ({
-      id: d.id,
-      ...d.data(),
-    })) as VanpediaTerm[];
-
-    // Merge with static seed terms
-    const termMap = new Map<string, VanpediaTerm>();
-    vanpediaTermsData.forEach(t => termMap.set(t.slug, { ...t, status: 'approved' as const }));
-    firestoreTerms.forEach(t => termMap.set(t.slug, t));
-
-    const all = Array.from(termMap.values());
-    if (isAdmin) return all;
-
-    return all.filter(t => t.status === 'approved' || (authorId && t.authorId === authorId));
+    if (!snap.empty) {
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const term = {
+          id: d.id,
+          ...data,
+          visibility: data.visibility || 'public',
+        } as VanpediaTerm;
+        termMap.set(term.slug, term);
+        saveLocalVanpedia(term);
+      });
+    }
   } catch (error) {
-    console.warn('Firestore fetchVanpediaTerms fallback to local:', error);
-    return vanpediaTermsData.map(t => ({ ...t, status: 'approved' as const }));
+    console.warn('Firestore fetchVanpediaTerms fallback to local/seed:', error);
   }
+
+  const all = Array.from(termMap.values());
+  if (isAdmin) return all;
+
+  // Filter: show to author if owner, otherwise show all where visibility is not 'private'
+  return all.filter(t => {
+    const isOwner = Boolean(authorId && t.authorId === authorId);
+    if (isOwner) return true;
+    if (t.visibility === 'private') {
+      return false;
+    }
+    return true;
+  });
 }
 
 export async function fetchVanpediaTermBySlug(slug: string, isAdmin = false, authorId?: string): Promise<VanpediaTerm | null> {
+  let term: VanpediaTerm | null = null;
+
+  // 1. Check Server API
   try {
-    const colRef = collection(db, VANPEDIA_COLLECTION);
-    const q = query(colRef, where('slug', '==', slug));
-    const snap = await getDocs(q);
-
-    if (!snap.empty) {
-      const term = { id: snap.docs[0].id, ...snap.docs[0].data() } as VanpediaTerm;
-      if (term.status === 'approved' || isAdmin || (authorId && term.authorId === authorId)) {
-        return term;
+    const res = await fetch(`/api/vanpedia/${encodeURIComponent(slug)}`, {
+      headers: {
+        'x-author-id': authorId || '',
+        'x-is-admin': isAdmin ? 'true' : 'false',
+      },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.data) {
+        term = { ...json.data, visibility: json.data.visibility || 'public' };
+        saveLocalVanpedia(term);
       }
-      return null;
     }
+  } catch (err) {
+    console.warn('Server /api/vanpedia/:slug fetch fallback:', err);
+  }
 
-    const local = vanpediaTermsData.find(t => t.slug === slug);
-    if (local) return { ...local, status: 'approved' as const };
-    return null;
-  } catch (error) {
-    console.warn('Firestore fetchVanpediaTermBySlug fallback:', error);
-    const local = vanpediaTermsData.find(t => t.slug === slug);
-    if (local) return { ...local, status: 'approved' as const };
+  // 2. Check Firestore
+  if (!term) {
+    try {
+      const colRef = collection(db, VANPEDIA_COLLECTION);
+      const q = query(colRef, where('slug', '==', slug));
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        term = {
+          id: snap.docs[0].id,
+          ...snap.docs[0].data(),
+          visibility: snap.docs[0].data().visibility || 'public',
+        } as VanpediaTerm;
+        saveLocalVanpedia(term);
+      }
+    } catch (error) {
+      console.warn('Firestore fetchVanpediaTermBySlug fallback:', error);
+    }
+  }
+
+  // 3. Check local custom vanpedia cache
+  if (!term) {
+    const local = getLocalVanpedia().find(t => t.slug === slug);
+    if (local) term = { ...local, visibility: local.visibility || 'public' };
+  }
+
+  // 4. Check static seed terms
+  if (!term) {
+    const seed = vanpediaTermsData.find(t => t.slug === slug);
+    if (seed) term = { ...seed, visibility: seed.visibility || 'public', status: 'approved' as const };
+  }
+
+  if (!term) return null;
+
+  const isOwner = Boolean(authorId && term.authorId === authorId);
+  if (isAdmin || isOwner) {
+    return term;
+  }
+  if (term.visibility === 'private') {
     return null;
   }
+  // Public term is visible to everyone (including guests & non-logged in users)
+  return term;
 }
 
 export const fetchVanpediaTermBySlugFromFirestore = fetchVanpediaTermBySlug;
@@ -337,7 +569,8 @@ export async function createVanpediaTermInFirestore(
     .replace(/[^\w\s-]/g, '')
     .replace(/\s+/g, '-');
 
-  const status: 'approved' | 'pending' = isAuthorAdmin ? 'approved' : 'pending';
+  const status: 'approved' | 'pending' = 'approved';
+  const visibility: 'public' | 'private' = termData.visibility === 'private' ? 'private' : 'public';
 
   const newTerm: Partial<VanpediaTerm> = {
     slug: generatedSlug,
@@ -359,6 +592,7 @@ export async function createVanpediaTermInFirestore(
     isAiAssisted: Boolean(termData.isAiAssisted ?? (termData.aiModel ? true : false)),
     aiModel: termData.aiModel || (termData.isAiAssisted ? 'ChatGPT (GPT-4o)' : undefined),
     status,
+    visibility,
     authorName: termData.authorName || userEmail?.split('@')[0] || 'Contributor',
     authorEmail: userEmail,
     authorId: uid,
@@ -366,8 +600,29 @@ export async function createVanpediaTermInFirestore(
     verifiedAt: isAuthorAdmin ? new Date().toISOString() : undefined,
   };
 
-  const docRef = await addDoc(collection(db, VANPEDIA_COLLECTION), cleanUndefined(newTerm));
-  const created = { id: docRef.id, ...newTerm } as VanpediaTerm;
+  let created: VanpediaTerm;
+  try {
+    const docRef = await addDoc(collection(db, VANPEDIA_COLLECTION), cleanUndefined(newTerm));
+    created = { id: docRef.id, ...newTerm } as VanpediaTerm;
+  } catch (error) {
+    console.warn('Firestore addDoc fallback for vanpedia:', error);
+    created = { id: `term-${Date.now()}`, ...newTerm } as VanpediaTerm;
+  }
+
+  saveLocalVanpedia(created);
+
+  // Sync to shared server API so it is immediately visible to all users and guests
+  try {
+    await fetch('/api/vanpedia', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(created),
+    });
+  } catch (err) {
+    console.warn('Syncing vanpedia to /api/vanpedia fallback:', err);
+  }
 
   // Send email notification to vanviolet.js@gmail.com for verification
   if (!isAuthorAdmin) {
