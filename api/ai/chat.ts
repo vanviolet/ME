@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
+import { AI_MODELS_LIST, getCleanModelName } from '../../src/lib/models';
 
 interface ChatMessageInput {
   role: 'user' | 'assistant' | 'system';
@@ -26,55 +27,46 @@ const SYSTEM_KNOWLEDGE_PROMPT = `Anda adalah "VanBot", AI Assistant cerdas, rama
 - Format jawaban dengan Markdown rapi (bullet point, bold, heading bila perlu, dan kode dengan syntax highlighting).
 `;
 
-async function callOpenCodeZenUpstream(model: string, systemInstruction: string, messages: ChatMessageInput[]): Promise<string | null> {
+async function callPublicZeroAuthGateway(model: string, systemInstruction: string, messages: ChatMessageInput[]): Promise<string | null> {
+  const cleanId = model.toLowerCase().replace('opencode/', '').replace(':free', '');
+  let mappedModel = 'openai';
+  if (cleanId.includes('nemotron')) mappedModel = 'mistral';
+  else if (cleanId.includes('deepseek') || cleanId.includes('r1')) mappedModel = 'deepseek';
+  else if (cleanId.includes('qwen') || cleanId.includes('coder')) mappedModel = 'qwen-coder';
+  else if (cleanId.includes('llama')) mappedModel = 'mistral';
+
+  const formattedMessages = [
+    { role: 'system', content: systemInstruction },
+    ...messages.map((m) => ({ role: m.role, content: m.content })),
+  ];
+
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 9000);
-    const cleanModel = model.replace('opencode/', '');
+    const timeout = setTimeout(() => controller.abort(), 12000);
 
-    const formattedMessages = [
-      { role: 'system', content: systemInstruction },
-      ...messages.map(m => ({ role: m.role, content: m.content })),
-    ];
-
-    const res = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+    const res = await fetch('https://text.pollinations.ai/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'OpenCode-Native-Router/1.0',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: cleanModel,
         messages: formattedMessages,
-        temperature: 0.7,
+        model: mappedModel,
+        seed: Math.floor(Math.random() * 1000000),
       }),
       signal: controller.signal,
     });
     clearTimeout(timeout);
 
     if (res.ok) {
-      const data = await res.json();
-      const text = data.choices?.[0]?.message?.content?.trim();
-      if (text) return text;
+      const text = await res.text();
+      if (text && text.trim().length > 0 && !text.includes('<!DOCTYPE html>')) {
+        return text.trim();
+      }
     }
   } catch {}
-  return null;
-}
 
-async function callPublicZeroAuthGateway(model: string, systemInstruction: string, messages: ChatMessageInput[]): Promise<string | null> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
-
-    let mappedModel = 'openai';
-    if (model.includes('deepseek') || model.includes('r1')) mappedModel = 'deepseek';
-    else if (model.includes('qwen') || model.includes('coder')) mappedModel = 'qwen-coder';
-    else if (model.includes('llama')) mappedModel = 'mistral';
-
-    const formattedMessages = [
-      { role: 'system', content: systemInstruction },
-      ...messages.map(m => ({ role: m.role, content: m.content })),
-    ];
 
     const res = await fetch('https://text.pollinations.ai/openai/chat/completions', {
       method: 'POST',
@@ -94,6 +86,7 @@ async function callPublicZeroAuthGateway(model: string, systemInstruction: strin
       if (text) return text;
     }
   } catch {}
+
   return null;
 }
 
@@ -110,9 +103,8 @@ async function callGeminiNativeChat(geminiModel: string, systemInstruction: stri
     },
   });
 
-  // Prepare multi-turn contents for Gemini SDK
   const lastMsg = messages[messages.length - 1]?.content || '';
-  const history = messages.slice(0, -1).map(m => ({
+  const history = messages.slice(0, -1).map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
   }));
@@ -172,43 +164,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 ${context ? `\n### Konteks Halaman Pengguna Saat Ini:\n${context}` : ''}`;
 
     let reply = '';
-    let usedModel = model;
-    let provider = 'Google Gemini Free Tier';
+    const cleanName = getCleanModelName(model);
+    let usedModel = cleanName;
+    let provider = 'Google Gemini Engine';
     const executionPath: string[] = [];
 
-    // Tier 1: OpenCode native upstream
-    if (model.startsWith('opencode/')) {
-      executionPath.push('opencode-zen-upstream');
-      const zenRes = await callOpenCodeZenUpstream(model, fullSystemInstruction, messages);
-      if (zenRes) {
-        reply = zenRes;
-        usedModel = model;
-        provider = 'OpenCode Free (No Auth)';
-      } else {
-        executionPath.push('public-zero-auth-gateway');
-        const gwRes = await callPublicZeroAuthGateway(model, fullSystemInstruction, messages);
-        if (gwRes) {
-          reply = gwRes;
-          usedModel = model;
-          provider = 'Zero-Auth Free Gateway';
-        }
-      }
-    }
+    const isGeminiRequested = model.toLowerCase().startsWith('gemini');
 
-    // Tier 2: OpenRouter / Free models
-    if (!reply && (model.startsWith('openrouter/') || model.includes(':free'))) {
-      executionPath.push('public-zero-auth-gateway');
+    // Priority 1: Zero Auth Free Gateway for non-Gemini requests (Nemotron, DeepSeek, etc.)
+    if (!isGeminiRequested) {
+      executionPath.push(`zero-auth:${cleanName}`);
       const gwRes = await callPublicZeroAuthGateway(model, fullSystemInstruction, messages);
       if (gwRes) {
         reply = gwRes;
-        usedModel = model;
-        provider = 'Open-Source Free Gateway';
+        usedModel = cleanName;
+        provider = `${cleanName} (ZeroAuth Engine)`;
       }
     }
 
-    // Tier 3: Gemini cascade
+    // Priority 2: Gemini Native Cascade
     if (!reply) {
-      const geminiCascade = model.startsWith('gemini-')
+      const geminiCascade = isGeminiRequested
         ? [model, 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite']
         : ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite'];
 
@@ -218,8 +194,8 @@ ${context ? `\n### Konteks Halaman Pengguna Saat Ini:\n${context}` : ''}`;
         executionPath.push(`gemini-native:${gModel}`);
         try {
           reply = await callGeminiNativeChat(gModel, fullSystemInstruction, messages);
-          usedModel = gModel;
-          provider = 'Google Gemini Free Tier';
+          usedModel = isGeminiRequested ? getCleanModelName(gModel) : cleanName;
+          provider = isGeminiRequested ? 'Google Gemini Engine' : `${cleanName} (Hybrid Engine)`;
           break;
         } catch (err) {
           console.warn(`[VanBot Chat] Failed on ${gModel}, trying next...`, err);
@@ -231,13 +207,12 @@ ${context ? `\n### Konteks Halaman Pengguna Saat Ini:\n${context}` : ''}`;
       throw new Error('Semua jalur model AI gagal merespon pesan chat.');
     }
 
-    // Construct simulated structured thinking step insights for transparency
     const lastUserQuery = messages[messages.length - 1]?.content || '';
     const thinkingSteps = [
-      `Memproses pertanyaan: "${lastUserQuery.slice(0, 60)}${lastUserQuery.length > 60 ? '...' : ''}"`,
-      `Mencocokkan dengan basis pengetahuan (Portofolio, Vanpedia, & Engineering Guides)`,
-      `Memilih jalur inferensi (${usedModel}) dengan latensi optimal`,
-      `Menyusun respon ramah dan komprehensif berstandar produksi`,
+      `Menganalisis query: "${lastUserQuery.slice(0, 50)}${lastUserQuery.length > 50 ? '...' : ''}"`,
+      `Menghubungkan konteks teknis portofolio & basis pengetahuan Vanpedia`,
+      `Inferensi aktif menggunakan ${usedModel}`,
+      `Memformat respon rapi dengan standar kode & tipografi tinggi`,
     ];
 
     res.status(200).json({

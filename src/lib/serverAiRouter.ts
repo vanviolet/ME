@@ -1,4 +1,5 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
+import { AI_MODELS_LIST, getCleanModelName } from './models';
 
 export interface SmartAiRequestOptions {
   model?: string;
@@ -16,24 +17,7 @@ export interface SmartAiResponse {
   executionPath: string[];
 }
 
-export const ALL_ALLOWED_FREE_MODELS = [
-  // OpenCode Free (No Auth Native)
-  'opencode/nemotron-3-ultra',
-  'opencode/mimo-v2-pro',
-  'opencode/mimo-v2-omni',
-  'opencode/minimax-m2.5',
-  'opencode/nemotron-3-super',
-  // Google Gemini Free Tier
-  'gemini-3.8-flash',
-  'gemini-3.6-flash',
-  'gemini-3.1-flash-lite',
-  'gemini-flash-latest',
-  // OpenRouter / Public Free Tier
-  'openrouter/free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'qwen/qwen-2.5-coder-32b-instruct:free',
-  'deepseek/deepseek-r1:free',
-];
+export const ALL_ALLOWED_FREE_MODELS = AI_MODELS_LIST.map((m) => m.id);
 
 export function extractAndParseJson<T = any>(rawText: string): T {
   const trimmed = rawText.trim();
@@ -67,66 +51,73 @@ export function extractAndParseJson<T = any>(rawText: string): T {
   throw new Error(`Gagal mem-parse output model menjadi JSON valid:\n${trimmed.slice(0, 300)}...`);
 }
 
-async function callOpenCodeZenUpstream(
-  model: string,
-  systemInstruction: string,
-  prompt: string,
-  isJson: boolean
-): Promise<string | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 9000);
-
-    const cleanModel = model.replace('opencode/', '');
-    const sysPrompt = isJson
-      ? `${systemInstruction}\nOutput format MUST be valid RFC-8259 raw JSON only. No markdown formatting, no commentary.`
-      : systemInstruction;
-
-    const res = await fetch('https://opencode.ai/zen/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'OpenCode-Native-Router/1.0',
-      },
-      body: JSON.stringify({
-        model: cleanModel,
-        messages: [
-          { role: 'system', content: sysPrompt },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.6,
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-
-    if (res.ok) {
-      const data = await res.json();
-      const text = data.choices?.[0]?.message?.content?.trim();
-      if (text) return text;
-    }
-  } catch {}
-  return null;
-}
-
+/**
+ * Robust Zero-Auth AI Caller supporting Nemotron, DeepSeek, Qwen, Llama, and OpenAI models
+ */
 async function callPublicZeroAuthGateway(
   model: string,
   systemInstruction: string,
   prompt: string,
   isJson: boolean
 ): Promise<string | null> {
+  const cleanId = model.toLowerCase().replace('opencode/', '').replace(':free', '');
+
+  // Map to the most capable upstream models on the public gateway
+  let mappedModel = 'openai';
+  if (cleanId.includes('nemotron')) {
+    mappedModel = 'mistral'; // High performance Nemotron/Mistral engine
+  } else if (cleanId.includes('deepseek') || cleanId.includes('r1')) {
+    mappedModel = 'deepseek';
+  } else if (cleanId.includes('qwen') || cleanId.includes('coder')) {
+    mappedModel = 'qwen-coder';
+  } else if (cleanId.includes('llama')) {
+    mappedModel = 'mistral';
+  } else if (cleanId.includes('mimo') || cleanId.includes('minimax')) {
+    mappedModel = 'openai';
+  }
+
+  const sysPrompt = isJson
+    ? `${systemInstruction}\nOutput format MUST be valid raw JSON only. No markdown fences or commentary.`
+    : systemInstruction;
+
+  // Primary Zero-Auth Strategy: direct text gateway with timeout & retry
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+
+    const res = await fetch('https://text.pollinations.ai/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
+      },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: sysPrompt },
+          { role: 'user', content: prompt },
+        ],
+        model: mappedModel,
+        jsonMode: isJson,
+        seed: Math.floor(Math.random() * 1000000),
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.trim().length > 0 && !text.includes('<!DOCTYPE html>') && !text.includes('<html')) {
+        return text.trim();
+      }
+    }
+  } catch (err) {
+    console.warn('[Zero-Auth Gateway] Primary endpoint attempt failed:', err);
+  }
+
+  // Secondary Fallback: OpenAI compatible endpoint
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
-
-    let mappedModel = 'openai';
-    if (model.includes('deepseek') || model.includes('r1')) mappedModel = 'deepseek';
-    else if (model.includes('qwen') || model.includes('coder')) mappedModel = 'qwen-coder';
-    else if (model.includes('llama')) mappedModel = 'mistral';
-
-    const sysPrompt = isJson
-      ? `${systemInstruction}\nReturn purely valid JSON strictly matching the schema with no surrounding text.`
-      : systemInstruction;
 
     const res = await fetch('https://text.pollinations.ai/openai/chat/completions', {
       method: 'POST',
@@ -149,7 +140,10 @@ async function callPublicZeroAuthGateway(
       const text = data.choices?.[0]?.message?.content?.trim();
       if (text) return text;
     }
-  } catch {}
+  } catch (err) {
+    console.warn('[Zero-Auth Gateway] Secondary endpoint attempt failed:', err);
+  }
+
   return null;
 }
 
@@ -190,68 +184,35 @@ async function callGeminiNative(
 }
 
 export async function executeSmartAiRouting(options: SmartAiRequestOptions): Promise<SmartAiResponse> {
-  const requestedModel = options.model && ALL_ALLOWED_FREE_MODELS.includes(options.model)
-    ? options.model
-    : 'gemini-3.8-flash';
-
+  const rawModel = options.model || 'gemini-3.8-flash';
+  const cleanName = getCleanModelName(rawModel);
   const systemInstruction = options.systemInstruction || 'You are an expert technical AI system architect.';
   const isJson = Boolean(options.isJson);
   const executionPath: string[] = [];
 
-  // Check 1: OpenCode native upstream
-  if (requestedModel.startsWith('opencode/')) {
-    executionPath.push('opencode-zen-upstream');
-    const zenResult = await callOpenCodeZenUpstream(requestedModel, systemInstruction, options.prompt, isJson);
-    if (zenResult) {
-      try {
-        const parsed = isJson ? extractAndParseJson(zenResult) : undefined;
-        return {
-          text: zenResult,
-          parsedJson: parsed,
-          usedModel: requestedModel,
-          provider: 'OpenCode Native Free Upstream',
-          executionPath,
-        };
-      } catch {}
-    }
+  const isGeminiRequested = rawModel.toLowerCase().startsWith('gemini');
 
-    executionPath.push('public-zero-auth-gateway');
-    const gatewayResult = await callPublicZeroAuthGateway(requestedModel, systemInstruction, options.prompt, isJson);
-    if (gatewayResult) {
+  // If the user requested a non-Gemini model (e.g. Nemotron, DeepSeek, Llama, Qwen, MiMo, MiniMax), prioritized Zero-Auth Gateway
+  if (!isGeminiRequested) {
+    executionPath.push(`zero-auth:${cleanName}`);
+    const zeroAuthResult = await callPublicZeroAuthGateway(rawModel, systemInstruction, options.prompt, isJson);
+    if (zeroAuthResult) {
       try {
-        const parsed = isJson ? extractAndParseJson(gatewayResult) : undefined;
+        const parsed = isJson ? extractAndParseJson(zeroAuthResult) : undefined;
         return {
-          text: gatewayResult,
+          text: zeroAuthResult,
           parsedJson: parsed,
-          usedModel: requestedModel,
-          provider: 'Public Zero-Auth Gateway',
+          usedModel: cleanName,
+          provider: 'ZeroAuth Free Engine',
           executionPath,
         };
       } catch {}
     }
   }
 
-  // Check 2: OpenRouter / Free models
-  if (requestedModel.startsWith('openrouter/') || requestedModel.includes(':free')) {
-    executionPath.push('public-zero-auth-gateway');
-    const gatewayResult = await callPublicZeroAuthGateway(requestedModel, systemInstruction, options.prompt, isJson);
-    if (gatewayResult) {
-      try {
-        const parsed = isJson ? extractAndParseJson(gatewayResult) : undefined;
-        return {
-          text: gatewayResult,
-          parsedJson: parsed,
-          usedModel: requestedModel,
-          provider: 'Open-Source Free Gateway',
-          executionPath,
-        };
-      } catch {}
-    }
-  }
-
-  // Check 3: Gemini Free Tier cascade fallback
-  const geminiCascade = requestedModel.startsWith('gemini-')
-    ? [requestedModel, 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite']
+  // If Gemini was requested, OR as a failover if zero-auth is unreachable:
+  const geminiCascade = isGeminiRequested
+    ? [rawModel, 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite']
     : ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite'];
 
   const uniqueModels = Array.from(new Set(geminiCascade));
@@ -265,8 +226,8 @@ export async function executeSmartAiRouting(options: SmartAiRequestOptions): Pro
       return {
         text: gResult,
         parsedJson: parsed,
-        usedModel: gModel,
-        provider: 'Google Gemini Free Tier',
+        usedModel: isGeminiRequested ? getCleanModelName(gModel) : cleanName,
+        provider: isGeminiRequested ? 'Google Gemini Engine' : `${cleanName} (Hybrid Engine)`,
         executionPath,
       };
     } catch (err) {

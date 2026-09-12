@@ -274,6 +274,15 @@ code, kbd, samp, pre {
   100% { transform: translateX(200%); }
 }
 
+@keyframes textPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.shimmer-text {
+  animation: textPulse 1.8s ease-in-out infinite;
+}
+
 
 
 
