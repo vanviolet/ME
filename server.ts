@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 import {
   executeSmartAiRouting,
   ALL_ALLOWED_FREE_MODELS,
-} from "./api/_lib/serverAiRouter";
+} from "./src/lib/serverAiRouter";
 
 dotenv.config();
 
