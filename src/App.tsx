@@ -22,6 +22,7 @@ import { VanpediaPage, VanpediaIndexPage } from './components/VanpediaPage';
 import { CreateVanpediaPage } from './components/CreateVanpediaPage';
 import { IssuesPage } from './components/IssuesPage';
 import { AdminVerificationPage } from './components/AdminVerificationPage';
+import { AiChatFloating } from './components/AiChatFloating';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import React from 'react';
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="*" element={<HomePage />} />
             </Routes>
             <Footer />
+            <AiChatFloating />
           </div>
         </Router>
       </PortfolioProvider>

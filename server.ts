@@ -205,6 +205,91 @@ async function startServer() {
     });
   });
 
+  // Chat with AI Endpoint (VanBot)
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const {
+        messages = [],
+        model = "gemini-3.8-flash",
+        context = "",
+        includeThinking = true,
+      } = req.body || {};
+
+      if (!Array.isArray(messages) || messages.length === 0) {
+        res.status(400).json({ error: "Messages array is required." });
+        return;
+      }
+
+      const SYSTEM_KNOWLEDGE_PROMPT = `Anda adalah "VanBot", AI Assistant cerdas, ramah, dan sangat kompeten di website portofolio Van (Software Engineer & AI System Architect).
+
+### Profil & Latar Belakang Van:
+- **Nama/Panggilan**: Van
+- **Keahlian Utama**: Arsitektur Full-Stack Modern (TypeScript, React 19, Next.js, Node.js/Express, Tailwind CSS), AI Engineering (Google Gemini API, DeepSeek, LangChain, PyTorch, Multi-tier LLM Cascades, Edge AI), dan Sistem Database Terdistribusi (PostgreSQL, Firebase Firestore, Vector DBs).
+- **Filosofi & Pendekatan**: Craftsmanship tinggi, Zero-AI Slop (menolak UI generic, mengutamakan tipografi presisi, matematika layout, dan performa tinggi), Resilient Systems, Clean Code.
+- **Fitur Spesial di Website**:
+  1. **Articles & Research**: Blog teknis mendalam tentang AI, rekayasa perangkat lunak, dan arsitektur sistem dengan visualisasi rumus matematika (KaTeX) dan kode produksi.
+  2. **Vanpedia (Tech Lexicon)**: Glosarium & ensiklopedia istilah teknis/AI interaktif dengan definisi bilingual, formula matematis, notasi fonetik IPA, dan contoh nyata.
+  3. **Issues / Problem Tracker**: Pelacak masalah sistem dan solusi rekayasa.
+  4. **Universal AI Studio Router**: Sistem routing AI multi-tier yang tangguh tanpa dependensi eksternal.
+
+### Peran & Gaya Komunikasi Anda:
+- Jawablah dengan nada ramah, profesional, solutif, dan sangat terstruktur.
+- Gunakan bahasa yang sama dengan yang digunakan pengguna (Bahasa Indonesia secara default, atau Bahasa Inggris jika user bertanya dalam bahasa Inggris).
+- Jika pengguna bertanya tentang pengalaman atau proyek Van, berikan penjelasan menarik dan arahkan mereka ke bagian yang relevan (Projects, Articles, atau Vanpedia).
+- Jika pengguna bertanya konsep teknis, jelaskan secara jelas, runtut, berikan contoh kode jika perlu, atau referensikan istilah di Vanpedia (gunakan format [[slug-istilah]] jika merujuk istilah teknis).
+- Format jawaban dengan Markdown rapi (bullet point, bold, heading bila perlu, dan kode dengan syntax highlighting).
+`;
+
+      const fullSystemInstruction = `${SYSTEM_KNOWLEDGE_PROMPT}
+${context ? `\n### Konteks Halaman Pengguna Saat Ini:\n${context}` : ""}`;
+
+      // Build conversation prompt from history
+      const formattedHistory = messages
+        .map((m: any) => `${m.role === "assistant" ? "Assistant" : "User"}: ${m.content}`)
+        .join("\n\n");
+      const prompt = `Berikut riwayat percakapan sejauh ini:\n\n${formattedHistory}\n\nJawablah pesan terakhir pengguna dengan ramah, akurat, dan komprehensif.`;
+
+      const routerRes = await executeSmartAiRouting({
+        model,
+        systemInstruction: fullSystemInstruction,
+        prompt,
+        isJson: false,
+      });
+
+      const lastUserQuery = messages[messages.length - 1]?.content || "";
+      const thinkingSteps = [
+        `Memproses pertanyaan: "${lastUserQuery.slice(0, 60)}${lastUserQuery.length > 60 ? "..." : ""}"`,
+        `Mencocokkan dengan basis pengetahuan (Portofolio, Vanpedia, & Engineering Guides)`,
+        `Memilih jalur inferensi (${routerRes.usedModel}) dengan latensi optimal`,
+        `Menyusun respon ramah dan komprehensif berstandar produksi`,
+      ];
+
+      res.json({
+        success: true,
+        data: {
+          message: {
+            role: "assistant",
+            content: routerRes.text,
+            createdAt: new Date().toISOString(),
+            model: routerRes.usedModel,
+            provider: routerRes.provider,
+          },
+          thinking: includeThinking
+            ? {
+                steps: thinkingSteps,
+                executionPath: routerRes.executionPath,
+                model: routerRes.usedModel,
+                provider: routerRes.provider,
+              }
+            : undefined,
+        },
+      });
+    } catch (err: any) {
+      console.error("Error in server /api/ai/chat:", err);
+      res.status(500).json({ error: err.message || "Failed to generate chat response" });
+    }
+  });
+
   // Generate Article Endpoint
   app.post("/api/ai/generate-article", async (req, res) => {
     try {
