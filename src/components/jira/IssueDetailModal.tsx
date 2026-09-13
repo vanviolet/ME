@@ -20,6 +20,8 @@ import {
   ChevronDown,
   User,
   Check,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import {
   JiraIssue,
@@ -36,6 +38,7 @@ import {
   formatMinutesToJira,
   parseJiraTimeToMinutes,
 } from './jiraUtils';
+import { callJiraAiAssist } from './jiraApi';
 
 export const IssueDetailModal: React.FC = () => {
   const {
@@ -69,6 +72,7 @@ export const IssueDetailModal: React.FC = () => {
   const [targetIssueId, setTargetIssueId] = useState('');
 
   const [isCopied, setIsCopied] = useState(false);
+  const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false);
 
   const assignee = members.find((m) => m.id === selectedIssue.assigneeId);
   const reporter = members.find((m) => m.id === selectedIssue.reporterId);
@@ -76,6 +80,48 @@ export const IssueDetailModal: React.FC = () => {
   const otherIssues = issues.filter(
     (i) => i.projectId === activeProject.id && i.id !== selectedIssue.id
   );
+
+  const handleAiGenerateSubtasks = async () => {
+    if (!selectedIssue) return;
+    setIsGeneratingSubtasks(true);
+    try {
+      const resultText = await callJiraAiAssist(
+        'generate_subtasks',
+        selectedIssue.title,
+        selectedIssue.description
+      );
+      let taskTitles: string[] = [];
+      try {
+        const cleaned = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        if (Array.isArray(parsed.subtasks)) {
+          taskTitles = parsed.subtasks;
+        } else if (Array.isArray(parsed)) {
+          taskTitles = parsed;
+        }
+      } catch {
+        taskTitles = resultText
+          .split('\n')
+          .map((l) => l.replace(/^[-*•0-9.)\s]+/, '').trim())
+          .filter((l) => l.length > 2 && !l.toLowerCase().startsWith('subtask'));
+      }
+
+      if (taskTitles.length > 0) {
+        const newItems = taskTitles.slice(0, 6).map((t, idx) => ({
+          id: `st-${Date.now()}-${idx}`,
+          title: t,
+          completed: false,
+        }));
+        updateIssue(selectedIssue.id, {
+          subtasks: [...selectedIssue.subtasks, ...newItems],
+        });
+      }
+    } catch (e) {
+      console.warn('AI subtask error:', e);
+    } finally {
+      setIsGeneratingSubtasks(false);
+    }
+  };
 
   const handleStatusChange = (newStatus: IssueStatus) => {
     updateIssue(selectedIssue.id, { status: newStatus });
@@ -241,6 +287,25 @@ export const IssueDetailModal: React.FC = () => {
                   Subtasks ({selectedIssue.subtasks.filter((s) => s.completed).length}/
                   {selectedIssue.subtasks.length})
                 </label>
+                <button
+                  type="button"
+                  onClick={handleAiGenerateSubtasks}
+                  disabled={isGeneratingSubtasks}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors disabled:opacity-50"
+                  title="Auto-breakdown issue into actionable engineering tasks using Gemini AI"
+                >
+                  {isGeneratingSubtasks ? (
+                    <>
+                      <Loader2 size={11} className="animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={11} />
+                      AI Subtasks
+                    </>
+                  )}
+                </button>
               </div>
 
               <div className="space-y-1.5">

@@ -24,6 +24,7 @@ async function startServer() {
   }
   const ARTICLES_FILE = path.join(DATA_DIR, "articles.json");
   const VANPEDIA_FILE = path.join(DATA_DIR, "vanpedia.json");
+  const JIRA_FILE = path.join(DATA_DIR, "jira.json");
 
   function readJsonFile<T>(filePath: string, defaultValue: T): T {
     try {
@@ -190,6 +191,79 @@ async function startServer() {
 
       writeJsonFile(VANPEDIA_FILE, filtered);
       res.json({ success: true, data: term });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // --- Jira Cloud Project Management Endpoints ---
+  app.get("/api/jira/data", (_req, res) => {
+    try {
+      const state = readJsonFile<any>(JIRA_FILE, null);
+      res.json({ success: true, state });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/jira/data", (req, res) => {
+    try {
+      const { state } = req.body || {};
+      if (!state) {
+        res.status(400).json({ error: "State is required." });
+        return;
+      }
+      writeJsonFile(JIRA_FILE, state);
+      res.json({ success: true, updatedAt: new Date().toISOString() });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/jira/reset", (_req, res) => {
+    try {
+      if (fs.existsSync(JIRA_FILE)) {
+        fs.unlinkSync(JIRA_FILE);
+      }
+      res.json({ success: true, message: "Jira data reset to demo state." });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/jira/ai-assist", async (req, res) => {
+    try {
+      const { action, prompt, context } = req.body || {};
+      if (!prompt) {
+        res.status(400).json({ error: "Prompt is required." });
+        return;
+      }
+
+      let systemInstruction =
+        "You are an expert Agile Scrum Master and Software Architect assistant for Jira.";
+      let userPrompt = prompt;
+
+      if (action === "generate_stories") {
+        systemInstruction +=
+          " Generate 3-4 professional user stories in JSON format with fields: title, description, acceptanceCriteria (array of strings), storyPoints (number like 1, 2, 3, 5, 8), priority ('highest'|'high'|'medium'|'low'), type ('story'|'task'|'bug'). Output valid JSON only with a 'stories' array.";
+        userPrompt = `Based on this feature requirement:\n${prompt}\n\nGenerate structured user stories in JSON.`;
+      } else if (action === "generate_subtasks") {
+        systemInstruction +=
+          " Break down the user story into 4-6 concise, actionable developer checklist subtasks. Output valid JSON only with a 'subtasks' array of string titles.";
+        userPrompt = `Issue Title: ${prompt}\nContext: ${context || ""}\n\nGenerate actionable subtask titles in JSON.`;
+      } else if (action === "sprint_retrospective") {
+        systemInstruction +=
+          " Produce an insightful Sprint Retrospective & velocity report formatted in Markdown: What went well, What could be improved, Action items, and Team velocity insights.";
+        userPrompt = `Sprint Data:\n${prompt}\n\nProvide an executive retrospective and summary.`;
+      }
+
+      const result = await executeSmartAiRouting({
+        prompt: userPrompt,
+        systemInstruction,
+        model: "gemini-2.5-flash",
+      });
+
+      res.json({ success: true, text: result.text });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

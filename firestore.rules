@@ -82,6 +82,11 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Jira Project Management Enterprise State
+    match /jira_state/{docId} {
+      allow read, write: if true;
+    }
+
     // Direct Contact Messages & Inquiries
     match /messages/{messageId} {
       allow read: if isAdmin();

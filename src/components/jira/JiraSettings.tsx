@@ -4,6 +4,8 @@ import {
   Settings,
   Save,
   Download,
+  Upload,
+  FileText,
   RotateCcw,
   Plus,
   Trash2,
@@ -16,9 +18,11 @@ import { initialJiraState } from './initialData';
 export const JiraSettings: React.FC = () => {
   const {
     activeProject,
-    setProjects,
-    exportProjectDataJson,
-    importProjectDataJson,
+    updateProject,
+    exportStateJson,
+    exportCsv,
+    importStateJson,
+    resetToDemo,
     members,
   } = useJira();
 
@@ -27,28 +31,22 @@ export const JiraSettings: React.FC = () => {
   const [leadId, setLeadId] = useState(activeProject.leadId);
   const [avatar, setAvatar] = useState(activeProject.avatar);
   const [isSaved, setIsSaved] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
 
   // Custom fields
   const [customFields, setCustomFields] = useState(activeProject.customFields || []);
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'select'>('text');
 
-  const handleSaveGeneral = (e: React.FormEvent) => {
+  const handleSaveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === activeProject.id
-          ? {
-              ...p,
-              name,
-              description,
-              leadId,
-              avatar,
-              customFields,
-            }
-          : p
-      )
-    );
+    await updateProject({
+      name,
+      description,
+      leadId,
+      avatar,
+      customFields,
+    });
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2500);
   };
@@ -62,28 +60,64 @@ export const JiraSettings: React.FC = () => {
       type: newFieldType,
       required: false,
     };
-    setCustomFields((prev) => [...prev, newField]);
+    const updated = [...customFields, newField];
+    setCustomFields(updated);
+    updateProject({ customFields: updated });
     setNewFieldName('');
   };
 
   const handleDeleteField = (id: string) => {
-    setCustomFields((prev) => prev.filter((f) => f.id !== id));
+    const updated = customFields.filter((f) => f.id !== id);
+    setCustomFields(updated);
+    updateProject({ customFields: updated });
   };
 
   const handleDownloadBackup = () => {
-    const jsonStr = exportProjectDataJson();
+    const jsonStr = exportStateJson();
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `jira-project-${activeProject.key}-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `jira-workspace-${activeProject.key}-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const handleResetData = () => {
-    if (window.confirm('Reset all Jira project data to fresh enterprise seed state?')) {
-      importProjectDataJson(JSON.stringify(initialJiraState));
+  const handleDownloadCsv = () => {
+    const csvStr = exportCsv();
+    const blob = new Blob([csvStr], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `jira-issues-${activeProject.key}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const content = ev.target?.result as string;
+      if (content) {
+        const success = await importStateJson(content);
+        if (success) {
+          setImportStatus('Import successful! Workspace restored.');
+          setTimeout(() => setImportStatus(null), 3000);
+        } else {
+          setImportStatus('Invalid JSON backup file.');
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleResetData = async () => {
+    if (window.confirm('Reset all Jira project data to fresh enterprise seed state? All issues and sprints will be reset to default.')) {
+      await resetToDemo();
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
     }
   };
 
@@ -268,10 +302,17 @@ export const JiraSettings: React.FC = () => {
           <span>Data Export & Storage Management</span>
         </h3>
         <p className="text-xs text-stone-500 dark:text-zinc-400">
-          All changes are persisted to browser storage in real-time. You can export the JSON payload or reset to the default demo state.
+          All changes are synchronized across Server API, Firestore cloud database, and local browser cache in real-time. You can export a snapshot, export spreadsheet CSVs, or restore from a backup file.
         </p>
 
-        <div className="flex items-center gap-3 pt-2">
+        {importStatus && (
+          <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-semibold border border-blue-200 dark:border-blue-900 flex items-center gap-2">
+            <Check size={14} />
+            <span>{importStatus}</span>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3 pt-2">
           <button
             onClick={handleDownloadBackup}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 text-stone-800 dark:text-zinc-200 text-xs font-semibold transition-colors"
@@ -281,8 +322,27 @@ export const JiraSettings: React.FC = () => {
           </button>
 
           <button
+            onClick={handleDownloadCsv}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 text-stone-800 dark:text-zinc-200 text-xs font-semibold transition-colors"
+          >
+            <FileText size={14} />
+            <span>Export Issues CSV</span>
+          </button>
+
+          <label className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 text-stone-800 dark:text-zinc-200 text-xs font-semibold transition-colors cursor-pointer">
+            <Upload size={14} />
+            <span>Restore Backup JSON</span>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+          </label>
+
+          <button
             onClick={handleResetData}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-semibold transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-600 dark:text-rose-400 text-xs font-semibold transition-colors ml-auto"
           >
             <RotateCcw size={14} />
             <span>Reset Demo Seed Data</span>

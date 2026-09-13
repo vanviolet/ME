@@ -18,9 +18,11 @@ import {
   JiraFullState,
   fetchJiraState,
   persistJiraState,
+  resetJiraServerData,
   exportJiraToJson,
   exportIssuesToCsv,
 } from './jiraApi';
+import { useAuth } from '../../context/AuthContext';
 import {
   INITIAL_WORKSPACE,
   INITIAL_PROJECTS,
@@ -147,6 +149,37 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCreateIssueDefaultSprintId(defaultSprintId);
     setIsCreateModalOpenState(open);
   };
+
+  const auth = useAuth();
+  const authUser = auth?.user;
+
+  // Sync authenticated user into Jira member list & default currentUser
+  useEffect(() => {
+    if (authUser && authUser.email) {
+      const existingMember = workspace.members?.find(
+        (m) => m.email.toLowerCase() === authUser.email?.toLowerCase()
+      );
+      if (existingMember) {
+        setCurrentUser(existingMember);
+      } else {
+        const newMember: JiraUser = {
+          id: authUser.uid,
+          name: authUser.displayName || authUser.email.split('@')[0],
+          email: authUser.email,
+          avatar:
+            authUser.photoURL ||
+            `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80`,
+          role: authUser.isAdmin ? 'admin' : 'member',
+          title: authUser.isAdmin ? 'Lead Architect / Workspace Admin' : 'Full-Stack Developer',
+        };
+        setWorkspace((prev) => ({
+          ...prev,
+          members: [...(prev.members || []), newMember],
+        }));
+        setCurrentUser(newMember);
+      }
+    }
+  }, [authUser]);
 
   // Load state on mount
   useEffect(() => {
@@ -718,6 +751,9 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetToDemo = async () => {
+    try {
+      await resetJiraServerData();
+    } catch {}
     setWorkspace(INITIAL_WORKSPACE);
     setProjects(INITIAL_PROJECTS);
     setIssues(INITIAL_ISSUES);

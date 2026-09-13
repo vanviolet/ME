@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useJira } from './JiraContext';
-import { X, Plus, Zap } from 'lucide-react';
+import { X, Plus, Zap, Sparkles, Loader2 } from 'lucide-react';
 import { IssueType, IssuePriority } from './types';
 import { getIssueTypeIcon, parseJiraTimeToMinutes } from './jiraUtils';
+import { callJiraAiAssist } from './jiraApi';
 
 export const CreateIssueModal: React.FC = () => {
   const {
     isCreateModalOpen,
     setIsCreateModalOpen,
-    createIssueModalSprintId,
+    createIssueDefaultSprintId,
     activeProject,
     sprints,
     issues,
@@ -24,16 +25,50 @@ export const CreateIssueModal: React.FC = () => {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<IssuePriority>('medium');
   const [assigneeId, setAssigneeId] = useState(currentUser.id);
-  const [sprintId, setSprintId] = useState(createIssueModalSprintId || '');
+  const [sprintId, setSprintId] = useState(createIssueDefaultSprintId || '');
   const [epicId, setEpicId] = useState('');
   const [storyPoints, setStoryPoints] = useState<string>('3');
   const [originalEstimate, setOriginalEstimate] = useState('2h');
   const [labels, setLabels] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [createAnother, setCreateAnother] = useState(false);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
 
   const epics = issues.filter((i) => i.projectId === activeProject.id && i.type === 'epic');
   const projectSprints = sprints.filter((s) => s.projectId === activeProject.id);
+
+  const handleAiGenerate = async () => {
+    if (!title.trim()) return;
+    setIsAiGenerating(true);
+    try {
+      const responseText = await callJiraAiAssist('generate_stories', title.trim(), `Project: ${activeProject.name}`);
+      try {
+        // Parse JSON if returned
+        const cleaned = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        const story = parsed.stories?.[0] || parsed;
+        if (story) {
+          if (story.description) {
+            let desc = story.description;
+            if (story.acceptanceCriteria && Array.isArray(story.acceptanceCriteria)) {
+              desc += `\n\n### Acceptance Criteria:\n` + story.acceptanceCriteria.map((c: string) => `- [ ] ${c}`).join('\n');
+            }
+            setDescription(desc);
+          }
+          if (story.storyPoints) setStoryPoints(String(story.storyPoints));
+          if (story.priority) setPriority(story.priority);
+        }
+      } catch {
+        // Fallback to raw text if not strictly json
+        setDescription(responseText);
+      }
+    } catch (e) {
+      console.warn('AI Story generator fallback:', e);
+      setDescription(`As a user, I want ${title.trim()} so that the system operates efficiently.\n\n### Acceptance Criteria:\n- [ ] Functional test passes\n- [ ] Edge cases handled\n- [ ] Unit test coverage >= 85%`);
+    } finally {
+      setIsAiGenerating(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,11 +168,32 @@ export const CreateIssueModal: React.FC = () => {
 
           {/* Description */}
           <div>
-            <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
-              Description
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-semibold text-stone-700 dark:text-zinc-300">
+                Description
+              </label>
+              <button
+                type="button"
+                onClick={handleAiGenerate}
+                disabled={isAiGenerating || !title.trim()}
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:hover:bg-purple-900/60 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Use Gemini AI to generate structured story and acceptance criteria from title"
+              >
+                {isAiGenerating ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={12} className="text-purple-500" />
+                    AI Generate Details
+                  </>
+                )}
+              </button>
+            </div>
             <textarea
-              rows={3}
+              rows={4}
               placeholder="Provide user story, acceptance criteria, or logs..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
