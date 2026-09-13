@@ -2,10 +2,19 @@ import React from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { profileData } from '../data/portfolioData';
 import { ArrowUp, Github, Instagram, Mail, BookOpen, Compass, MessageSquare, Wrench } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 export const Footer: React.FC = () => {
   const { language } = usePortfolio();
+  const location = useLocation();
+
+  // Hide footer on full-screen studio tools to ensure 0 window scroll
+  if (
+    location.pathname.startsWith('/tools/image-cropper') ||
+    location.pathname.startsWith('/tools/crop-image')
+  ) {
+    return null;
+  }
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });

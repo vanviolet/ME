@@ -408,7 +408,7 @@ export const ImageCropperPage: React.FC = () => {
   const currentFilterCss = getFilterString(filters);
 
   return (
-    <div className="w-full min-h-[calc(100vh-5rem)] pt-16 flex flex-col bg-zinc-950 text-zinc-100 select-none font-sans">
+    <div className="w-full h-screen max-h-screen pt-16 flex flex-col bg-zinc-950 text-zinc-100 select-none font-sans overflow-hidden">
       <Seo
         title={language === 'en' ? 'Full Width Image Editor & Cropper Studio' : 'Editor Foto Modern Fullwidth & Crop'}
         description={
@@ -419,8 +419,8 @@ export const ImageCropperPage: React.FC = () => {
         url="/tools/image-cropper"
       />
 
-      {/* TOP STUDIO TOOLBAR */}
-      <header className="w-full px-4 sm:px-6 py-3 bg-zinc-900 border-b border-zinc-800/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
+      {/* TOP DEDICATED STUDIO TOOLBAR / HEADER */}
+      <header className="w-full px-4 sm:px-6 py-2.5 bg-zinc-900 border-b border-zinc-800/80 flex items-center justify-between gap-3 shrink-0 h-14 z-10">
         <div className="flex items-center gap-3">
           <Link
             to="/tools"
@@ -431,14 +431,14 @@ export const ImageCropperPage: React.FC = () => {
           </Link>
 
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-            <h1 className="text-sm sm:text-base font-extrabold tracking-tight text-zinc-100 font-mono">
-              Modern Image Studio
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+            <h1 className="text-xs sm:text-sm font-extrabold tracking-tight text-zinc-100 font-mono">
+              Image Cropper & Photo Studio
             </h1>
           </div>
 
           {croppedResult && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl bg-zinc-950 border border-zinc-800 text-[11px] font-mono text-zinc-400">
+            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-zinc-950 border border-zinc-800 text-[11px] font-mono text-zinc-400">
               <span className="text-zinc-200 font-bold">{croppedResult.width} × {croppedResult.height} px</span>
               <span className="opacity-40">•</span>
               <span className="text-rose-400 font-bold">{(croppedResult.blob.size / 1024).toFixed(1)} KB</span>
@@ -449,7 +449,7 @@ export const ImageCropperPage: React.FC = () => {
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
           {/* Sample Photo Buttons */}
-          <div className="hidden md:flex items-center gap-1 mr-2">
+          <div className="hidden lg:flex items-center gap-1 mr-2">
             <span className="text-[11px] font-bold text-zinc-400">Sample:</span>
             {SAMPLE_IMAGES.map((sample, idx) => (
               <button
@@ -500,9 +500,9 @@ export const ImageCropperPage: React.FC = () => {
       </header>
 
       {/* MAIN WORKSPACE split into Un-obscured Canvas + Dedicated Studio Sidebar */}
-      <div className="w-full flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className="w-full flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
         {/* CENTER UN-OBSCURED CANVAS VIEWPORT */}
-        <main className="flex-1 relative bg-zinc-950 min-h-[420px] lg:min-h-[calc(100vh-9.5rem)] flex items-center justify-center overflow-hidden">
+        <main className="flex-1 relative bg-zinc-950 flex items-center justify-center overflow-hidden min-h-0 h-full">
           {imageSrc ? (
             <Cropper
               image={imageSrc}
@@ -557,7 +557,7 @@ export const ImageCropperPage: React.FC = () => {
         </main>
 
         {/* RIGHT DEDICATED STUDIO INSPECTOR PANEL */}
-        <aside className="w-full lg:w-[380px] bg-zinc-900 border-t lg:border-t-0 lg:border-l border-zinc-800 flex flex-col h-auto lg:h-[calc(100vh-9.5rem)] shrink-0 overflow-hidden">
+        <aside className="w-full lg:w-[380px] bg-zinc-900 border-t lg:border-t-0 lg:border-l border-zinc-800 flex flex-col h-[300px] lg:h-full shrink-0 overflow-hidden min-h-0">
           {/* Navigation Studio Tabs */}
           <div className="grid grid-cols-4 bg-zinc-950 p-1 border-b border-zinc-800 shrink-0">
             <button
