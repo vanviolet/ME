@@ -29,6 +29,7 @@ import { Base64Page } from './components/tools/Base64Page';
 import { CssGradientPage } from './components/tools/CssGradientPage';
 import { ImageCropperPage } from './components/tools/ImageCropperPage';
 import { JiraApp } from './components/jira/JiraApp';
+import { JiraProvider } from './components/jira/JiraContext';
 import { AiChatFloating } from './components/AiChatFloating';
 import { TextSelectionPopover } from './components/TextSelectionPopover';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
@@ -123,7 +124,9 @@ export default function App() {
     <AuthProvider>
       <PortfolioProvider>
         <Router>
-          <AppLayout />
+          <JiraProvider>
+            <AppLayout />
+          </JiraProvider>
         </Router>
       </PortfolioProvider>
     </AuthProvider>

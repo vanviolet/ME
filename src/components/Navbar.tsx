@@ -1,13 +1,39 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft, ShieldCheck, Wrench, ChevronDown, Type, Code2, Binary, Palette, Crop, Kanban } from 'lucide-react';
+import {
+  Menu,
+  X,
+  ArrowUpRight,
+  Sun,
+  Moon,
+  BookOpen,
+  Layers,
+  MessageSquare,
+  Compass,
+  ArrowLeft,
+  ShieldCheck,
+  Wrench,
+  ChevronDown,
+  Type,
+  Code2,
+  Binary,
+  Palette,
+  Crop,
+  Kanban,
+  Search,
+  Bell,
+  Check,
+  Plus,
+} from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthButton } from './AuthButton';
 import { useAuth } from '../context/AuthContext';
+import { useJira } from './jira/JiraContext';
 
 export const Navbar: React.FC = () => {
   const { language, setLanguage, theme, toggleTheme } = usePortfolio();
   const { isAdmin } = useAuth();
+  const jira = useJira();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
@@ -15,11 +41,27 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const toolsMenuRef = useRef<HTMLDivElement>(null);
 
+  const [isJiraProjectDropdownOpen, setIsJiraProjectDropdownOpen] = useState(false);
+  const [isJiraUserDropdownOpen, setIsJiraUserDropdownOpen] = useState(false);
+  const [isJiraNotifDropdownOpen, setIsJiraNotifDropdownOpen] = useState(false);
+  const jiraProjectMenuRef = useRef<HTMLDivElement>(null);
+  const jiraUserMenuRef = useRef<HTMLDivElement>(null);
+  const jiraNotifMenuRef = useRef<HTMLDivElement>(null);
+
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (toolsMenuRef.current && !toolsMenuRef.current.contains(event.target as Node)) {
         setToolsDropdownOpen(false);
+      }
+      if (jiraProjectMenuRef.current && !jiraProjectMenuRef.current.contains(event.target as Node)) {
+        setIsJiraProjectDropdownOpen(false);
+      }
+      if (jiraUserMenuRef.current && !jiraUserMenuRef.current.contains(event.target as Node)) {
+        setIsJiraUserDropdownOpen(false);
+      }
+      if (jiraNotifMenuRef.current && !jiraNotifMenuRef.current.contains(event.target as Node)) {
+        setIsJiraNotifDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -63,6 +105,7 @@ export const Navbar: React.FC = () => {
   const isVanpediaPage = location.pathname.startsWith('/vanpedia');
   const isForumPage = location.pathname.startsWith('/forum') || location.pathname.startsWith('/issues');
   const isToolsPage = location.pathname.startsWith('/tools');
+  const isJiraPage = location.pathname.startsWith('/tools/jira') || location.pathname.startsWith('/jira');
 
   // Key home anchors for desktop
   const homeNavAnchors = [
@@ -95,23 +138,36 @@ export const Navbar: React.FC = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3">
         {/* Brand / Monogram */}
-        <Link
-          id="nav-brand-logo"
-          to="/"
-          className="group flex items-center gap-2.5 text-left shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 rounded-lg"
-        >
-          <span className="w-8 h-8 rounded-lg bg-stone-900 text-stone-100 dark:bg-zinc-100 dark:text-zinc-900 text-xs font-bold flex items-center justify-center transition-transform group-hover:scale-105 shadow-xs">
-            MI
-          </span>
-          <span className="flex flex-col">
-            <span className="text-sm font-semibold tracking-tight text-stone-900 dark:text-zinc-100 leading-tight">
-              Muchamad Irvan
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Link
+            id="nav-brand-logo"
+            to="/"
+            className="group flex items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 rounded-lg"
+          >
+            <span className="w-8 h-8 rounded-lg bg-stone-900 text-stone-100 dark:bg-zinc-100 dark:text-zinc-900 text-xs font-bold flex items-center justify-center transition-transform group-hover:scale-105 shadow-xs">
+              MI
             </span>
-            <span className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
-              Software Engineer
+            <span className="flex flex-col">
+              <span className="text-sm font-semibold tracking-tight text-stone-900 dark:text-zinc-100 leading-tight">
+                Muchamad Irvan
+              </span>
+              <span className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
+                Software Engineer
+              </span>
             </span>
-          </span>
-        </Link>
+          </Link>
+
+          {isJiraPage && (
+            <div className="hidden sm:flex items-center gap-1.5 pl-2.5 border-l border-stone-200 dark:border-zinc-800">
+              <span className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold shadow-2xs shrink-0">
+                <Kanban size={11} />
+              </span>
+              <span className="text-xs font-bold text-stone-800 dark:text-zinc-200">
+                Jira Cloud
+              </span>
+            </div>
+          )}
+        </div>
 
         {/* Desktop Navigation (Only rendered at lg: / 1024px+ to avoid header squish on tablet) */}
         <nav
@@ -119,7 +175,197 @@ export const Navbar: React.FC = () => {
           aria-label="Main Navigation"
           className="hidden lg:flex items-center gap-1.5 bg-stone-100/80 dark:bg-zinc-900/80 p-1.5 rounded-full border border-stone-200/70 dark:border-zinc-800/70 shadow-xs"
         >
-          {isHomePage ? (
+          {isJiraPage ? (
+            /* Jira Mode: <- Portfolio link + Jira app menus */
+            <div className="flex items-center gap-1.5">
+              {/* <- Portfolio link */}
+              <Link
+                to="/"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full bg-stone-200/80 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200 hover:text-stone-950 dark:hover:text-white transition-colors"
+              >
+                <ArrowLeft size={13} />
+                <span>{language === 'en' ? 'Portfolio' : 'Portofolio'}</span>
+              </Link>
+
+              <span className="h-4 w-px bg-stone-300 dark:bg-zinc-700 mx-0.5" aria-hidden="true" />
+
+              {/* Project Switcher */}
+              <div className="relative" ref={jiraProjectMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsJiraProjectDropdownOpen(!isJiraProjectDropdownOpen)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-full bg-white dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 shadow-xs hover:bg-stone-50 dark:hover:bg-zinc-700/80 text-stone-800 dark:text-zinc-200 transition-colors cursor-pointer"
+                >
+                  <span className="text-sm leading-none">{jira.activeProject.avatar}</span>
+                  <span className="font-semibold truncate max-w-[130px]">{jira.activeProject.name}</span>
+                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    {jira.activeProject.key}
+                  </span>
+                  <ChevronDown size={12} className="text-stone-400" />
+                </button>
+
+                {isJiraProjectDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1.5 w-64 bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 py-1.5 text-xs animate-in fade-in duration-100">
+                    <div className="px-3 py-1.5 font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider text-[10px]">
+                      Projects ({jira.projects.length})
+                    </div>
+                    {jira.projects.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          jira.setActiveProjectId(p.id);
+                          setIsJiraProjectDropdownOpen(false);
+                        }}
+                        className="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{p.avatar}</span>
+                          <div>
+                            <div className="font-semibold text-stone-900 dark:text-zinc-100">{p.name}</div>
+                            <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
+                              Key: {p.key} • {p.template}
+                            </div>
+                          </div>
+                        </div>
+                        {p.id === jira.activeProject.id && <Check size={14} className="text-blue-600" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* + Create Button */}
+              <button
+                type="button"
+                onClick={() => jira.setIsCreateModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors cursor-pointer"
+              >
+                <Plus size={14} />
+                <span>{language === 'en' ? 'Create' : 'Buat'}</span>
+              </button>
+
+              {/* Quick Search */}
+              <button
+                type="button"
+                onClick={() => jira.setIsQuickSearchOpen(true)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-full bg-stone-100 dark:bg-zinc-800/80 text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 border border-stone-200/70 dark:border-zinc-700/70 transition-colors cursor-pointer"
+              >
+                <Search size={13} />
+                <span>{language === 'en' ? 'Search' : 'Cari'}</span>
+                <kbd className="px-1.5 py-0.2 text-[9px] font-mono bg-white dark:bg-zinc-700 border border-stone-200 dark:border-zinc-600 rounded text-stone-500 dark:text-zinc-300">
+                  ⌘K
+                </kbd>
+              </button>
+
+              {/* Quick Filter: My Issues */}
+              <button
+                type="button"
+                onClick={() => jira.setQuickFilter(jira.quickFilter === 'my' ? 'all' : 'my')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all cursor-pointer ${
+                  jira.quickFilter === 'my'
+                    ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                    : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-200/60 dark:hover:bg-zinc-800'
+                }`}
+              >
+                My Issues
+              </button>
+
+              {/* Notifications Bell */}
+              <div className="relative" ref={jiraNotifMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsJiraNotifDropdownOpen(!isJiraNotifDropdownOpen);
+                    if (!isJiraNotifDropdownOpen) jira.markNotificationsAsRead();
+                  }}
+                  className="relative p-1.5 rounded-full text-stone-600 dark:text-zinc-400 hover:bg-stone-200/70 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  title="Notifications"
+                >
+                  <Bell size={15} />
+                  {jira.notifications.filter((n) => !n.read).length > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white dark:ring-zinc-900" />
+                  )}
+                </button>
+
+                {isJiraNotifDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 p-2 text-xs">
+                    <div className="px-2 py-1.5 font-bold text-stone-900 dark:text-zinc-100 flex items-center justify-between border-b border-stone-100 dark:border-zinc-800 mb-1">
+                      <span>Activity & Alerts</span>
+                      <span className="text-[10px] font-normal text-stone-400">Real-time</span>
+                    </div>
+                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                      {jira.notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          className="p-2 rounded-lg hover:bg-stone-50 dark:hover:bg-zinc-800/50 transition-colors"
+                        >
+                          <div className="font-medium text-stone-800 dark:text-zinc-200">{n.title}</div>
+                          <div className="text-[10px] text-stone-400 dark:text-zinc-500 mt-0.5">{n.time}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Jira User Persona Switcher */}
+              <div className="relative" ref={jiraUserMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsJiraUserDropdownOpen(!isJiraUserDropdownOpen)}
+                  className="flex items-center gap-1.5 p-1 rounded-full hover:bg-stone-200/70 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  title={`Active user: ${jira.currentUser.name} (${jira.currentUser.role})`}
+                >
+                  <img
+                    src={jira.currentUser.avatar}
+                    alt={jira.currentUser.name}
+                    className="w-6 h-6 rounded-full object-cover ring-1 ring-stone-300 dark:ring-zinc-700"
+                  />
+                  <ChevronDown size={11} className="text-stone-400" />
+                </button>
+
+                {isJiraUserDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 py-1.5 text-xs">
+                    <div className="px-3 py-1.5 border-b border-stone-100 dark:border-zinc-800 mb-1">
+                      <div className="text-[10px] text-stone-400 dark:text-zinc-500 font-bold uppercase tracking-wider">
+                        Jira Persona (RBAC)
+                      </div>
+                      <div className="text-[11px] text-stone-600 dark:text-zinc-400">
+                        Switch role to test permissions:
+                      </div>
+                    </div>
+                    {jira.workspace.members.map((member) => (
+                      <button
+                        key={member.id}
+                        type="button"
+                        onClick={() => {
+                          jira.setCurrentUser(member);
+                          setIsJiraUserDropdownOpen(false);
+                        }}
+                        className="w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={member.avatar}
+                            alt={member.name}
+                            className="w-6 h-6 rounded-full object-cover"
+                          />
+                          <div>
+                            <div className="font-semibold text-stone-900 dark:text-zinc-100">{member.name}</div>
+                            <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
+                              {member.title} ({member.role})
+                            </div>
+                          </div>
+                        </div>
+                        {member.id === jira.currentUser.id && <Check size={14} className="text-blue-600" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : isHomePage ? (
             /* Home Page Section Anchors */
             <>
               <div className="flex items-center gap-1">
@@ -411,6 +657,28 @@ export const Navbar: React.FC = () => {
             <ArrowUpRight size={13} />
           </Link>
 
+          {/* Mobile Jira Quick Controls */}
+          {isJiraPage && (
+            <div className="flex lg:hidden items-center gap-1.5">
+              <Link
+                to="/"
+                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold rounded-lg bg-stone-200/80 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200 hover:text-stone-950 dark:hover:text-white"
+                title="Kembali ke Portofolio"
+              >
+                <ArrowLeft size={13} />
+                <span>Porto</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => jira.setIsCreateModalOpen(true)}
+                className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs"
+                title="Buat Issue Baru"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          )}
+
           {/* Mobile/Tablet Menu Button */}
           <button
             id="mobile-menu-btn"
@@ -478,6 +746,138 @@ export const Navbar: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {isJiraPage ? (
+            /* Jira Specific Mobile Drawer Content */
+            <div className="space-y-4">
+              {/* Return to Portfolio button */}
+              <Link
+                to="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between p-3.5 rounded-2xl bg-stone-200/80 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 font-semibold text-xs hover:bg-stone-300 dark:hover:bg-zinc-700 transition-colors shadow-xs"
+              >
+                <span className="flex items-center gap-2.5">
+                  <ArrowLeft size={16} />
+                  <span>{language === 'en' ? 'Return to Portfolio' : 'Kembali ke Portofolio'}</span>
+                </span>
+                <span className="text-[10px] uppercase font-mono text-stone-500 dark:text-zinc-400">vanviolet.my.id</span>
+              </Link>
+
+              {/* Active Project Switcher */}
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 space-y-2">
+                <span className="text-[11px] uppercase tracking-wider text-stone-500 dark:text-zinc-400 font-semibold block px-0.5">
+                  Jira Project
+                </span>
+                <div className="space-y-1.5">
+                  {jira.projects.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        jira.setActiveProjectId(p.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full p-2.5 rounded-xl text-left flex items-center justify-between transition-colors cursor-pointer ${
+                        p.id === jira.activeProject.id
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800'
+                          : 'hover:bg-stone-50 dark:hover:bg-zinc-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{p.avatar}</span>
+                        <div>
+                          <div className="text-xs font-semibold text-stone-900 dark:text-zinc-100">{p.name}</div>
+                          <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
+                            {p.key} • {p.template}
+                          </div>
+                        </div>
+                      </div>
+                      {p.id === jira.activeProject.id && <Check size={16} className="text-blue-600" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick Actions: Create & Search */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    jira.setIsCreateModalOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-2 p-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-xs cursor-pointer"
+                >
+                  <Plus size={16} />
+                  <span>{language === 'en' ? 'Create Issue' : 'Buat Issue'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    jira.setIsQuickSearchOpen(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-2 p-3 rounded-xl bg-stone-200/80 dark:bg-zinc-800 text-stone-800 dark:text-zinc-200 font-semibold text-xs cursor-pointer"
+                >
+                  <Search size={14} />
+                  <span>{language === 'en' ? 'Search (⌘K)' : 'Cari (⌘K)'}</span>
+                </button>
+              </div>
+
+              {/* Quick Filter: My Issues toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  jira.setQuickFilter(jira.quickFilter === 'my' ? 'all' : 'my');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full p-2.5 rounded-xl text-xs font-semibold text-center transition-colors cursor-pointer ${
+                  jira.quickFilter === 'my'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300'
+                }`}
+              >
+                {jira.quickFilter === 'my' ? '✓ Filter: My Issues Active' : 'Filter by My Issues'}
+              </button>
+
+              {/* Persona RBAC Switcher */}
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 space-y-2">
+                <span className="text-[11px] uppercase tracking-wider text-stone-500 dark:text-zinc-400 font-semibold block px-0.5">
+                  RBAC Persona (Active User)
+                </span>
+                <div className="space-y-1">
+                  {jira.workspace.members.map((member) => (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => {
+                        jira.setCurrentUser(member);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full p-2 rounded-xl text-left flex items-center justify-between transition-colors cursor-pointer ${
+                        member.id === jira.currentUser.id
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-semibold'
+                          : 'hover:bg-stone-50 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <img src={member.avatar} alt={member.name} className="w-6 h-6 rounded-full object-cover" />
+                        <div>
+                          <div className="text-xs">{member.name}</div>
+                          <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
+                            {member.title} ({member.role})
+                          </div>
+                        </div>
+                      </div>
+                      {member.id === jira.currentUser.id && <Check size={14} className="text-blue-600" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Standard Mobile Drawer Content */
+            <>
           {/* Knowledge & Community Section */}
           <div>
             <span className="text-[11px] uppercase tracking-wider text-rose-600 dark:text-rose-400 font-semibold block mb-2 px-1">
@@ -628,6 +1028,8 @@ export const Navbar: React.FC = () => {
               <ArrowUpRight size={14} />
             </Link>
           </div>
+          </>
+          )}
         </div>
       )}
     </header>

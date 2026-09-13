@@ -35,6 +35,9 @@ export const JiraBoard: React.FC = () => {
   const [swimlaneBy, setSwimlaneBy] = useState<'none' | 'epic' | 'assignee'>('none');
   const [isCompleteSprintModalOpen, setIsCompleteSprintModalOpen] = useState(false);
 
+  const isDraggingRef = React.useRef(false);
+  const dragSourceIdRef = React.useRef<string | null>(null);
+
   const columns = activeProject.columns || [
     { status: 'todo', name: 'To Do', color: '' },
     { status: 'in_progress', name: 'In Progress', limit: 4, color: '' },
@@ -45,29 +48,48 @@ export const JiraBoard: React.FC = () => {
 
   // Drag handlers
   const handleDragStart = (e: React.DragEvent, issueId: string) => {
+    isDraggingRef.current = true;
+    dragSourceIdRef.current = issueId;
     e.dataTransfer.setData('text/plain', issueId);
+    e.dataTransfer.effectAllowed = 'move';
     setDraggedIssueId(issueId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIssueId(null);
+    setDragOverColumn(null);
+    setTimeout(() => {
+      isDraggingRef.current = false;
+      dragSourceIdRef.current = null;
+    }, 120);
   };
 
   const handleDragOver = (e: React.DragEvent, status: IssueStatus) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
     if (dragOverColumn !== status) {
       setDragOverColumn(status);
     }
   };
 
-  const handleDragLeave = () => {
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
     setDragOverColumn(null);
   };
 
   const handleDrop = (e: React.DragEvent, targetStatus: IssueStatus) => {
     e.preventDefault();
-    const issueId = e.dataTransfer.getData('text/plain') || draggedIssueId;
+    e.stopPropagation();
+    const issueId = e.dataTransfer.getData('text/plain') || dragSourceIdRef.current || draggedIssueId;
     if (issueId) {
       moveIssueStatus(issueId, targetStatus);
     }
     setDraggedIssueId(null);
     setDragOverColumn(null);
+    setTimeout(() => {
+      isDraggingRef.current = false;
+      dragSourceIdRef.current = null;
+    }, 120);
   };
 
   // Grouping / Swimlane definitions
@@ -85,7 +107,12 @@ export const JiraBoard: React.FC = () => {
         key={issue.id}
         draggable
         onDragStart={(e) => handleDragStart(e, issue.id)}
-        onClick={() => setSelectedIssue(issue)}
+        onDragEnd={handleDragEnd}
+        onDragOver={(e) => e.preventDefault()}
+        onClick={() => {
+          if (isDraggingRef.current) return;
+          setSelectedIssue(issue);
+        }}
         className={`group p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800/90 shadow-xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-700 transition-all cursor-grab active:cursor-grabbing select-none space-y-2.5 ${
           draggedIssueId === issue.id ? 'opacity-40 scale-95' : ''
         }`}

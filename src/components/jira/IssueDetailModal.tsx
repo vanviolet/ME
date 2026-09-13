@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJira } from './JiraContext';
 import {
   X,
@@ -55,8 +55,6 @@ export const IssueDetailModal: React.FC = () => {
     currentUser,
   } = useJira();
 
-  if (!selectedIssue) return null;
-
   const [activeTab, setActiveTab] = useState<'comments' | 'worklog' | 'history'>('comments');
   const [commentText, setCommentText] = useState('');
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
@@ -74,12 +72,21 @@ export const IssueDetailModal: React.FC = () => {
   const [isCopied, setIsCopied] = useState(false);
   const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false);
 
-  const assignee = members.find((m) => m.id === selectedIssue.assigneeId);
-  const reporter = members.find((m) => m.id === selectedIssue.reporterId);
+  // Reset transient modal state when issue selection changes
+  useEffect(() => {
+    setCommentText('');
+    setNewSubtaskTitle('');
+    setIsLoggingWork(false);
+    setIsLinkingOpen(false);
+    setActiveTab('comments');
+  }, [selectedIssue?.id]);
+
+  const assignee = selectedIssue ? members.find((m) => m.id === selectedIssue.assigneeId) : null;
+  const reporter = selectedIssue ? members.find((m) => m.id === selectedIssue.reporterId) : null;
   const epics = issues.filter((i) => i.projectId === activeProject.id && i.type === 'epic');
-  const otherIssues = issues.filter(
-    (i) => i.projectId === activeProject.id && i.id !== selectedIssue.id
-  );
+  const otherIssues = selectedIssue
+    ? issues.filter((i) => i.projectId === activeProject.id && i.id !== selectedIssue.id)
+    : [];
 
   const handleAiGenerateSubtasks = async () => {
     if (!selectedIssue) return;
@@ -124,18 +131,22 @@ export const IssueDetailModal: React.FC = () => {
   };
 
   const handleStatusChange = (newStatus: IssueStatus) => {
+    if (!selectedIssue) return;
     updateIssue(selectedIssue.id, { status: newStatus });
   };
 
   const handlePriorityChange = (newPriority: IssuePriority) => {
+    if (!selectedIssue) return;
     updateIssue(selectedIssue.id, { priority: newPriority });
   };
 
   const handleAssigneeChange = (userId: string) => {
+    if (!selectedIssue) return;
     updateIssue(selectedIssue.id, { assigneeId: userId || undefined });
   };
 
   const handleToggleSubtask = (subtaskId: string) => {
+    if (!selectedIssue) return;
     const updated = selectedIssue.subtasks.map((st) =>
       st.id === subtaskId ? { ...st, completed: !st.completed } : st
     );
@@ -144,7 +155,7 @@ export const IssueDetailModal: React.FC = () => {
 
   const handleAddSubtask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSubtaskTitle.trim()) return;
+    if (!selectedIssue || !newSubtaskTitle.trim()) return;
     const newSt = {
       id: `st-${Date.now()}`,
       title: newSubtaskTitle.trim(),
@@ -157,19 +168,21 @@ export const IssueDetailModal: React.FC = () => {
   };
 
   const handleDeleteSubtask = (subtaskId: string) => {
+    if (!selectedIssue) return;
     const updated = selectedIssue.subtasks.filter((st) => st.id !== subtaskId);
     updateIssue(selectedIssue.id, { subtasks: updated });
   };
 
   const handleAddCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim()) return;
+    if (!selectedIssue || !commentText.trim()) return;
     addComment(selectedIssue.id, commentText.trim());
     setCommentText('');
   };
 
   const handleLogWorkSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedIssue) return;
     const minutes = parseJiraTimeToMinutes(timeSpentInput);
     if (minutes > 0) {
       addWorklog(selectedIssue.id, minutes, worklogDesc.trim() || 'Work logged');
@@ -181,7 +194,7 @@ export const IssueDetailModal: React.FC = () => {
 
   const handleAddLink = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetIssueId) return;
+    if (!selectedIssue || !targetIssueId) return;
     const target = issues.find((i) => i.id === targetIssueId);
     if (!target) return;
 
@@ -205,10 +218,13 @@ export const IssueDetailModal: React.FC = () => {
   };
 
   const handleDeleteIssueConfirm = () => {
+    if (!selectedIssue) return;
     if (window.confirm(`Are you sure you want to permanently delete ${selectedIssue.key}?`)) {
       deleteIssue(selectedIssue.id);
     }
   };
+
+  if (!selectedIssue) return null;
 
   // Progress of logged work
   const originalEstimate = selectedIssue.originalEstimateMinutes || 120;

@@ -18,6 +18,7 @@ import {
   JiraFullState,
   fetchJiraState,
   persistJiraState,
+  subscribeJiraFirestore,
   resetJiraServerData,
   exportJiraToJson,
   exportIssuesToCsv,
@@ -121,7 +122,16 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [currentUser, setCurrentUser] = useState<JiraUser>(INITIAL_WORKSPACE.members[0]);
   const [currentTab, setCurrentTab] = useState<JiraTab>('board');
-  const [selectedIssue, setSelectedIssue] = useState<JiraIssue | null>(null);
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+
+  const selectedIssue = useMemo(() => {
+    if (!selectedIssueId) return null;
+    return issues.find((i) => i.id === selectedIssueId) || null;
+  }, [issues, selectedIssueId]);
+
+  const setSelectedIssue = (issue: JiraIssue | null) => {
+    setSelectedIssueId(issue ? issue.id : null);
+  };
 
   const [isCreateModalOpen, setIsCreateModalOpenState] = useState(false);
   const [createIssueDefaultSprintId, setCreateIssueDefaultSprintId] = useState<string | undefined>(undefined);
@@ -181,7 +191,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [authUser]);
 
-  // Load state on mount
+  // Load state on mount and attach real-time Firebase Firestore listener
   useEffect(() => {
     fetchJiraState().then((state) => {
       if (state) {
@@ -196,6 +206,21 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAuditLogs(state.auditLogs || INITIAL_AUDIT_LOGS);
       }
     });
+
+    const unsubscribe = subscribeJiraFirestore((cloudState) => {
+      if (cloudState && cloudState.issues) {
+        setIssues(cloudState.issues);
+        if (cloudState.sprints) setSprints(cloudState.sprints);
+        if (cloudState.projects) setProjects(cloudState.projects);
+        if (cloudState.workspace) setWorkspace(cloudState.workspace);
+        if (cloudState.comments) setComments(cloudState.comments);
+        if (cloudState.worklogs) setWorklogs(cloudState.worklogs);
+        if (cloudState.automations) setAutomations(cloudState.automations);
+        if (cloudState.auditLogs) setAuditLogs(cloudState.auditLogs);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Sync state to storage

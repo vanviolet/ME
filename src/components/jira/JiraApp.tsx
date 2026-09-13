@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { JiraProvider, useJira } from './JiraContext';
-import { JiraNavbar } from './JiraNavbar';
+import { useJira } from './JiraContext';
 import { JiraSidebar } from './JiraSidebar';
 import { JiraBoard } from './JiraBoard';
 import { JiraBacklog } from './JiraBacklog';
@@ -16,15 +15,12 @@ import { IssueDetailModal } from './IssueDetailModal';
 import { CreateIssueModal } from './CreateIssueModal';
 import { QuickSearchModal } from './QuickSearchModal';
 
-const JiraContent: React.FC = () => {
+export const JiraApp: React.FC = () => {
   const { currentTab } = useJira();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <div className="flex flex-col min-h-screen pt-16 bg-stone-100/60 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 font-sans">
-      {/* Top Jira Header */}
-      <JiraNavbar />
-
       {/* Main Workspace Layout: Sidebar + Active View */}
       <div className="flex-1 flex overflow-hidden">
         <JiraSidebar
@@ -51,14 +47,6 @@ const JiraContent: React.FC = () => {
       <CreateIssueModal />
       <QuickSearchModal />
     </div>
-  );
-};
-
-export const JiraApp: React.FC = () => {
-  return (
-    <JiraProvider>
-      <JiraContent />
-    </JiraProvider>
   );
 };
 
