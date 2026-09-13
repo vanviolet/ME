@@ -408,7 +408,7 @@ export const ImageCropperPage: React.FC = () => {
   const currentFilterCss = getFilterString(filters);
 
   return (
-    <div className="w-full h-screen max-h-screen pt-16 flex flex-col bg-zinc-950 text-zinc-100 select-none font-sans overflow-hidden">
+    <div className="w-full h-[100dvh] pt-20 sm:pt-22 lg:pt-24 flex flex-col bg-zinc-950 text-zinc-100 select-none font-sans overflow-hidden">
       <Seo
         title={language === 'en' ? 'Full Width Image Editor & Cropper Studio' : 'Editor Foto Modern Fullwidth & Crop'}
         description={
@@ -420,8 +420,8 @@ export const ImageCropperPage: React.FC = () => {
       />
 
       {/* TOP DEDICATED STUDIO TOOLBAR / HEADER */}
-      <header className="w-full px-4 sm:px-6 py-2.5 bg-zinc-900 border-b border-zinc-800/80 flex items-center justify-between gap-3 shrink-0 h-14 z-10">
-        <div className="flex items-center gap-3">
+      <header className="w-full px-4 sm:px-6 py-2.5 bg-zinc-900/90 backdrop-blur-md border-y border-zinc-800/80 flex items-center justify-between gap-3 shrink-0 h-14 z-10 shadow-sm">
+        <div className="flex items-center gap-3 min-w-0">
           <Link
             to="/tools"
             className="w-8 h-8 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors border border-zinc-700 shrink-0"
@@ -430,15 +430,15 @@ export const ImageCropperPage: React.FC = () => {
             <ArrowLeft size={15} />
           </Link>
 
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-            <h1 className="text-xs sm:text-sm font-extrabold tracking-tight text-zinc-100 font-mono">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+            <h1 className="text-xs sm:text-sm font-extrabold tracking-tight text-zinc-100 font-mono truncate">
               Image Cropper & Photo Studio
-            </h1>
+            </h1> 
           </div>
 
           {croppedResult && (
-            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-zinc-950 border border-zinc-800 text-[11px] font-mono text-zinc-400">
+            <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-zinc-950 border border-zinc-800 text-[11px] font-mono text-zinc-400 shrink-0">
               <span className="text-zinc-200 font-bold">{croppedResult.width} × {croppedResult.height} px</span>
               <span className="opacity-40">•</span>
               <span className="text-rose-400 font-bold">{(croppedResult.blob.size / 1024).toFixed(1)} KB</span>
@@ -447,9 +447,9 @@ export const ImageCropperPage: React.FC = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Sample Photo Buttons */}
-          <div className="hidden lg:flex items-center gap-1 mr-2">
+          <div className="hidden xl:flex items-center gap-1 mr-2">
             <span className="text-[11px] font-bold text-zinc-400">Sample:</span>
             {SAMPLE_IMAGES.map((sample, idx) => (
               <button
@@ -467,7 +467,7 @@ export const ImageCropperPage: React.FC = () => {
 
           <button
             onClick={handleReset}
-            className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors border border-zinc-700"
+            className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors border border-zinc-700"
           >
             <RefreshCw size={13} />
             <span className="hidden sm:inline">Reset</span>
@@ -482,19 +482,20 @@ export const ImageCropperPage: React.FC = () => {
           />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-bold flex items-center gap-1.5 transition-colors border border-zinc-700"
+            className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-bold flex items-center gap-1.5 transition-colors border border-zinc-700"
           >
             <Upload size={13} />
-            <span>Upload</span>
+            <span className="hidden xs:inline sm:inline">Upload</span>
           </button>
 
           <button
             onClick={handleDownload}
             disabled={!croppedResult || isProcessing}
-            className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-rose-600/30 transition-all active:scale-95 disabled:opacity-50"
+            className="px-3 sm:px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-rose-600/30 transition-all active:scale-95 disabled:opacity-50"
           >
             {downloadSuccess ? <CheckCircle2 size={15} /> : <Download size={15} />}
-            <span>{downloadSuccess ? 'Downloaded!' : 'Export Photo'}</span>
+            <span className="hidden sm:inline">{downloadSuccess ? 'Downloaded!' : 'Export Photo'}</span>
+            <span className="sm:hidden">{downloadSuccess ? 'Done' : 'Export'}</span>
           </button>
         </div>
       </header>

@@ -9,6 +9,7 @@ import {
   Palette,
   Crop,
   ArrowRight,
+  Kanban,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -16,6 +17,19 @@ export const ToolsIndexPage: React.FC = () => {
   const { language } = usePortfolio();
 
   const toolsList = [
+    {
+      id: 'jira',
+      title: 'Jira Cloud Project Management',
+      description:
+        language === 'en'
+          ? 'Enterprise-grade Agile issue tracking, Scrum & Kanban boards, sprint planning, roadmap Gantt, burndown reports, automations, and RBAC team permissions.'
+          : 'Manajemen proyek enterprise terinspirasi Jira: Kanban & Scrum board, perencanaan sprint, roadmap Gantt, laporan burndown, otomasi, dan izin tim RBAC.',
+      icon: Kanban,
+      category: 'Project & Engineering',
+      path: '/tools/jira',
+      status: 'active',
+      badge: language === 'en' ? 'Enterprise Flagship' : 'Tool Unggulan',
+    },
     {
       id: 'lorem-ipsum',
       title: 'Lorem Ipsum Generator',

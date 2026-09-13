@@ -28,6 +28,7 @@ import { JsonFormatterPage } from './components/tools/JsonFormatterPage';
 import { Base64Page } from './components/tools/Base64Page';
 import { CssGradientPage } from './components/tools/CssGradientPage';
 import { ImageCropperPage } from './components/tools/ImageCropperPage';
+import { JiraApp } from './components/jira/JiraApp';
 import { AiChatFloating } from './components/AiChatFloating';
 import { TextSelectionPopover } from './components/TextSelectionPopover';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
@@ -69,47 +70,60 @@ const ScrollHandler: React.FC = () => {
   return null;
 };
 
+const AppLayout: React.FC = () => {
+  const location = useLocation();
+  const isJira = location.pathname.startsWith('/tools/jira') || location.pathname.startsWith('/jira');
+
+  return (
+    <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 selection:bg-rose-500/20 selection:text-rose-600 dark:selection:bg-rose-500/30 dark:selection:text-rose-400 font-sans">
+      <Navbar />
+      <ScrollHandler />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/articles" element={<ArticlesPage />} />
+        <Route path="/article" element={<ArticlesPage />} />
+        <Route path="/articles/create" element={<CreateArticlePage />} />
+        <Route path="/articles/edit/:slug" element={<EditArticlePage />} />
+        <Route path="/articles/:slug/edit" element={<EditArticlePage />} />
+        <Route path="/articles/:slug" element={<ArticlePage />} />
+        <Route path="/article/:slug" element={<ArticlePage />} />
+        <Route path="/vanpedia" element={<VanpediaIndexPage />} />
+        <Route path="/vanpedia/create" element={<CreateVanpediaPage />} />
+        <Route path="/vanpedia/:slug" element={<VanpediaPage />} />
+        <Route path="/forum" element={<IssuesPage />} />
+        <Route path="/forum/:id" element={<IssuesPage />} />
+        <Route path="/issues" element={<IssuesPage />} />
+        <Route path="/issues/:id" element={<IssuesPage />} />
+        <Route path="/issue" element={<IssuesPage />} />
+        <Route path="/issue/:id" element={<IssuesPage />} />
+        <Route path="/admin" element={<AdminVerificationPage />} />
+        <Route path="/tools" element={<ToolsIndexPage />} />
+        <Route path="/tools/jira" element={<JiraApp />} />
+        <Route path="/tools/jira/*" element={<JiraApp />} />
+        <Route path="/jira" element={<JiraApp />} />
+        <Route path="/jira/*" element={<JiraApp />} />
+        <Route path="/tools/lorem-ipsum" element={<LoremIpsumPage />} />
+        <Route path="/tools/json-formatter" element={<JsonFormatterPage />} />
+        <Route path="/tools/base64" element={<Base64Page />} />
+        <Route path="/tools/css-gradient" element={<CssGradientPage />} />
+        <Route path="/tools/image-cropper" element={<ImageCropperPage />} />
+        <Route path="/tools/crop-image" element={<ImageCropperPage />} />
+        {/* Fallback */}
+        <Route path="*" element={<HomePage />} />
+      </Routes>
+      {!isJira && <Footer />}
+      {!isJira && <AiChatFloating />}
+      {!isJira && <TextSelectionPopover />}
+    </div>
+  );
+};
+
 export default function App() {
   return (
     <AuthProvider>
       <PortfolioProvider>
         <Router>
-          <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 selection:bg-rose-500/20 selection:text-rose-600 dark:selection:bg-rose-500/30 dark:selection:text-rose-400 font-sans">
-            <Navbar />
-            <ScrollHandler />
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/articles" element={<ArticlesPage />} />
-              <Route path="/article" element={<ArticlesPage />} />
-              <Route path="/articles/create" element={<CreateArticlePage />} />
-              <Route path="/articles/edit/:slug" element={<EditArticlePage />} />
-              <Route path="/articles/:slug/edit" element={<EditArticlePage />} />
-              <Route path="/articles/:slug" element={<ArticlePage />} />
-              <Route path="/article/:slug" element={<ArticlePage />} />
-              <Route path="/vanpedia" element={<VanpediaIndexPage />} />
-              <Route path="/vanpedia/create" element={<CreateVanpediaPage />} />
-              <Route path="/vanpedia/:slug" element={<VanpediaPage />} />
-              <Route path="/forum" element={<IssuesPage />} />
-              <Route path="/forum/:id" element={<IssuesPage />} />
-              <Route path="/issues" element={<IssuesPage />} />
-              <Route path="/issues/:id" element={<IssuesPage />} />
-              <Route path="/issue" element={<IssuesPage />} />
-              <Route path="/issue/:id" element={<IssuesPage />} />
-              <Route path="/admin" element={<AdminVerificationPage />} />
-              <Route path="/tools" element={<ToolsIndexPage />} />
-              <Route path="/tools/lorem-ipsum" element={<LoremIpsumPage />} />
-              <Route path="/tools/json-formatter" element={<JsonFormatterPage />} />
-              <Route path="/tools/base64" element={<Base64Page />} />
-              <Route path="/tools/css-gradient" element={<CssGradientPage />} />
-              <Route path="/tools/image-cropper" element={<ImageCropperPage />} />
-              <Route path="/tools/crop-image" element={<ImageCropperPage />} />
-              {/* Fallback */}
-              <Route path="*" element={<HomePage />} />
-            </Routes>
-            <Footer />
-            <AiChatFloating />
-            <TextSelectionPopover />
-          </div>
+          <AppLayout />
         </Router>
       </PortfolioProvider>
     </AuthProvider>

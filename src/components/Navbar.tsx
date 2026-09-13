@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft, ShieldCheck, Wrench, ChevronDown, Type, Code2, Binary, Palette, Crop } from 'lucide-react';
+import { Menu, X, ArrowUpRight, Sun, Moon, BookOpen, Layers, MessageSquare, Compass, ArrowLeft, ShieldCheck, Wrench, ChevronDown, Type, Code2, Binary, Palette, Crop, Kanban } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthButton } from './AuthButton';
 import { useAuth } from '../context/AuthContext';
@@ -227,6 +227,27 @@ export const Navbar: React.FC = () => {
                 </div>
 
                 <div className="space-y-0.5">
+                  <Link
+                    to="/tools/jira"
+                    onClick={() => setToolsDropdownOpen(false)}
+                    className="flex items-center gap-3 p-2 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 hover:bg-blue-100/80 dark:hover:bg-blue-900/40 border border-blue-200/60 dark:border-blue-800/60 transition-colors group mb-1"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                      <Kanban size={14} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                        <span>Jira Cloud PM</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[8px] font-bold uppercase font-mono">
+                          Flagship
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-blue-700/80 dark:text-blue-300/80">
+                        {language === 'en' ? 'Kanban, Sprints, Roadmap & RBAC' : 'Kanban, Sprint, Roadmap & RBAC'}
+                      </div>
+                    </div>
+                  </Link>
+
                   <Link
                     to="/tools/lorem-ipsum"
                     onClick={() => setToolsDropdownOpen(false)}
@@ -513,6 +534,23 @@ export const Navbar: React.FC = () => {
                   <div className="text-xs font-semibold">{language === 'en' ? 'Forum' : 'Forum Komunitas'}</div>
                   <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
                     Public & Private Threads
+                  </div>
+                </div>
+              </Link>
+
+              <Link
+                to="/tools/jira"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-3 rounded-xl border border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-3"
+              >
+                <Kanban size={16} className="text-blue-600 shrink-0" />
+                <div className="text-left">
+                  <div className="text-xs font-semibold flex items-center gap-1.5">
+                    <span>Jira Cloud PM</span>
+                    <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[9px] font-bold uppercase font-mono">Flagship</span>
+                  </div>
+                  <div className="text-[10px] text-blue-700/80 dark:text-blue-300/80 font-medium">
+                    Agile & Issue Tracker
                   </div>
                 </div>
               </Link>
