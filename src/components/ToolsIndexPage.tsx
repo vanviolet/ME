@@ -84,16 +84,16 @@ export const ToolsIndexPage: React.FC = () => {
     },
     {
       id: 'image-cropper',
-      title: 'Image Cropper & Editor',
+      title: 'Photo Editor & Design Studio',
       description:
         language === 'en'
-          ? 'Interactive image cropping with custom aspect ratios, rotation, zoom, circular avatar masks, and PNG/WEBP/JPEG export.'
-          : 'Potong foto interaktif dengan rasio aspek kustom, rotasi, zoom, avatar lingkaran, dan ekspor PNG, WEBP, JPEG.',
+          ? 'Full-featured photo editor with advanced typography formatting, filters, layer stacking, background removal, vector shapes, stickers, and 4K export.'
+          : 'Editor foto & studio desain grafis lengkap dengan pengaturan tipografi presisi, layer, filter warna, hapus background otomatis, bentuk vektor, dan ekspor 4K.',
       icon: Crop,
-      category: 'Media & Image',
+      category: 'Media & Design',
       path: '/tools/image-cropper',
       status: 'active',
-      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+      badge: language === 'en' ? 'Upgraded Studio' : 'Studio Baru',
     },
   ];
 

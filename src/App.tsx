@@ -74,6 +74,13 @@ const ScrollHandler: React.FC = () => {
 const AppLayout: React.FC = () => {
   const location = useLocation();
   const isJira = location.pathname.startsWith('/tools/jira') || location.pathname.startsWith('/jira');
+  const isPhotoEditor =
+    location.pathname.startsWith('/tools/image-cropper') ||
+    location.pathname.startsWith('/tools/crop-image') ||
+    location.pathname.startsWith('/tools/photo-editor') ||
+    location.pathname.startsWith('/photo-editor');
+
+  const isFullScreenStudio = isJira || isPhotoEditor;
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 selection:bg-rose-500/20 selection:text-rose-600 dark:selection:bg-rose-500/30 dark:selection:text-rose-400 font-sans">
@@ -109,12 +116,14 @@ const AppLayout: React.FC = () => {
         <Route path="/tools/css-gradient" element={<CssGradientPage />} />
         <Route path="/tools/image-cropper" element={<ImageCropperPage />} />
         <Route path="/tools/crop-image" element={<ImageCropperPage />} />
+        <Route path="/tools/photo-editor" element={<ImageCropperPage />} />
+        <Route path="/photo-editor" element={<ImageCropperPage />} />
         {/* Fallback */}
         <Route path="*" element={<HomePage />} />
       </Routes>
-      {!isJira && <Footer />}
-      {!isJira && <AiChatFloating />}
-      {!isJira && <TextSelectionPopover />}
+      {!isFullScreenStudio && <Footer />}
+      {!isFullScreenStudio && <AiChatFloating />}
+      {!isFullScreenStudio && <TextSelectionPopover />}
     </div>
   );
 };
