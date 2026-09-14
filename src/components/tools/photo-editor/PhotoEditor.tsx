@@ -29,6 +29,7 @@ import {
   applyImageAdjustments,
   createStarPoints,
   removeImageBackground,
+  removeImageBackgroundAI,
 } from './fabricUtils';
 import { TopNavbar } from './TopNavbar';
 import { LeftSidebar } from './LeftSidebar';
@@ -127,6 +128,7 @@ export const PhotoEditor: React.FC = () => {
   const [adjustments, setAdjustments] = useState<ImageAdjustments>(DEFAULT_ADJUSTMENTS);
   const [activeFilterId, setActiveFilterId] = useState<string>('normal');
   const [bgRemovalProcessing, setBgRemovalProcessing] = useState<boolean>(false);
+  const [bgRemovalStatus, setBgRemovalStatus] = useState<string>('');
 
   // Drawing mode
   const [isDrawingMode, setIsDrawingMode] = useState<boolean>(false);
@@ -926,7 +928,46 @@ export const PhotoEditor: React.FC = () => {
     saveStateToHistory();
   };
 
-  // Background Removal Tool
+  // Background Removal Tool (remove.bg AI Automatic & Chroma)
+  const handleAutoRemoveBackgroundAI = async () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const bgImage = getTargetImage();
+    if (!bgImage) {
+      alert('Please upload or select an image on the canvas first.');
+      return;
+    }
+
+    setBgRemovalProcessing(true);
+    setBgRemovalStatus('Analyzing image subject with AI...');
+    try {
+      const processedUrl = await removeImageBackgroundAI(bgImage, (status) => {
+        setBgRemovalStatus(status);
+      });
+      const newImg = await FabricImage.fromURL(processedUrl);
+      newImg.set({
+        left: bgImage.left,
+        top: bgImage.top,
+        scaleX: bgImage.scaleX,
+        scaleY: bgImage.scaleY,
+        angle: bgImage.angle,
+        originX: bgImage.originX,
+        originY: bgImage.originY,
+      });
+      applyCustomControlStyles(newImg);
+      canvas.remove(bgImage);
+      canvas.add(newImg);
+      canvas.sendObjectToBack(newImg);
+      canvas.renderAll();
+      saveStateToHistory();
+    } catch (err) {
+      console.error('AI BG Removal failed:', err);
+    } finally {
+      setBgRemovalProcessing(false);
+      setBgRemovalStatus('');
+    }
+  };
+
   const handleRemoveBackground = async (tolerance: number, replaceColor: string) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
@@ -934,6 +975,7 @@ export const PhotoEditor: React.FC = () => {
     if (!bgImage) return;
 
     setBgRemovalProcessing(true);
+    setBgRemovalStatus('Processing chroma eraser...');
     try {
       const processedUrl = await removeImageBackground(bgImage, tolerance, replaceColor);
       const newImg = await FabricImage.fromURL(processedUrl);
@@ -956,6 +998,7 @@ export const PhotoEditor: React.FC = () => {
       console.error('BG Removal failed:', err);
     } finally {
       setBgRemovalProcessing(false);
+      setBgRemovalStatus('');
     }
   };
 
@@ -1413,10 +1456,12 @@ export const PhotoEditor: React.FC = () => {
 
         {activeTab === 'bg-removal' && (
           <BgRemovalPanel
+            onAutoRemoveAI={handleAutoRemoveBackgroundAI}
             onRemoveBackground={handleRemoveBackground}
             onSetBackgroundColor={handleSetCanvasBg}
             onSetTransparentBackground={() => handleSetCanvasBg('transparent')}
             isProcessing={bgRemovalProcessing}
+            statusMessage={bgRemovalStatus}
           />
         )}
 
