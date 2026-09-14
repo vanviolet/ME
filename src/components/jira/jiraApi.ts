@@ -65,39 +65,39 @@ export function cleanForFirestore<T>(data: T): T {
 }
 
 /**
- * Filter out old dummy users (like Sarah Jenkins, Alex, Maya, David) and old dummy issues.
- * Ensures the workspace starts completely clean without fake data.
+ * Safely normalize incoming Firestore state, ensuring all array fields are well-formed
+ * and filtering out any legacy dummy mock records without deleting actual user-created data.
  */
 function sanitizeCleanState(rawState: JiraFullState, fallback: JiraFullState): JiraFullState {
   if (!rawState) return fallback;
 
-  // Check if it contains old dummy seed data
-  const hasDummyUsers = rawState.workspace?.members?.some((m) =>
-    ['user-sarah', 'user-alex', 'user-maya', 'user-david'].includes(m.id) ||
-    m.name === 'Sarah Jenkins'
-  );
-  const hasDummyIssues = rawState.issues?.some((i) =>
-    i.id === 'issue-nex-1' || i.id === 'issue-nex-101' || i.id === 'issue-nex-2'
+  // Filter out any legacy dummy mock users if they linger in Firestore
+  const rawMembers = Array.isArray(rawState.workspace?.members) ? rawState.workspace.members : [];
+  const cleanedMembers = rawMembers.filter(
+    (m) => !['user-sarah', 'user-alex', 'user-maya', 'user-david'].includes(m.id) && m.name !== 'Sarah Jenkins'
   );
 
-  if (hasDummyUsers || hasDummyIssues) {
-    return {
-      ...fallback,
-      projects: rawState.projects?.length ? rawState.projects : fallback.projects,
-      issues: [],
-      sprints: [],
-      comments: [],
-      worklogs: [],
-      versions: [],
-      auditLogs: [],
-      workspace: {
-        ...fallback.workspace,
-        members: INITIAL_WORKSPACE.members,
-      },
-    };
-  }
+  // Filter out any legacy dummy mock issues if they linger in Firestore
+  const rawIssues = Array.isArray(rawState.issues) ? rawState.issues : [];
+  const cleanedIssues = rawIssues.filter(
+    (i) => !['issue-nex-1', 'issue-nex-101', 'issue-nex-2'].includes(i.id)
+  );
 
-  return rawState;
+  return {
+    workspace: {
+      ...fallback.workspace,
+      ...(rawState.workspace || {}),
+      members: cleanedMembers.length > 0 ? cleanedMembers : fallback.workspace.members,
+    },
+    projects: Array.isArray(rawState.projects) && rawState.projects.length > 0 ? rawState.projects : fallback.projects,
+    issues: cleanedIssues,
+    sprints: Array.isArray(rawState.sprints) ? rawState.sprints : fallback.sprints,
+    comments: Array.isArray(rawState.comments) ? rawState.comments : fallback.comments,
+    worklogs: Array.isArray(rawState.worklogs) ? rawState.worklogs : fallback.worklogs,
+    versions: Array.isArray(rawState.versions) ? rawState.versions : fallback.versions,
+    automations: Array.isArray(rawState.automations) ? rawState.automations : fallback.automations,
+    auditLogs: Array.isArray(rawState.auditLogs) ? rawState.auditLogs : fallback.auditLogs,
+  };
 }
 
 /**

@@ -303,8 +303,8 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [authUser]);
 
-  // Sync state to storage
-  const syncStorage = (updates?: Partial<JiraFullState>) => {
+  // Sync state to cloud storage
+  const syncStorage = async (updates?: Partial<JiraFullState>) => {
     const currentState: JiraFullState = {
       workspace,
       projects,
@@ -317,7 +317,11 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
       auditLogs,
       ...updates,
     };
-    persistJiraState(currentState);
+    try {
+      await persistJiraState(currentState);
+    } catch (err) {
+      console.warn('Sync to Firebase Firestore failed:', err);
+    }
   };
 
   const activeProject = useMemo(() => {
@@ -459,7 +463,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const updated = [newIssue, ...issues];
     setIssues(updated);
-    syncStorage({ issues: updated });
+    await syncStorage({ issues: updated });
     addAuditLog(`Created issue ${key}`, `"${newIssue.title}" as ${newIssue.type}`, key);
 
     // Add notification
@@ -488,7 +492,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return i;
     });
     setIssues(updated);
-    syncStorage({ issues: updated });
+    await syncStorage({ issues: updated });
 
     const target = issues.find((i) => i.id === issueId);
     if (target) {
@@ -500,7 +504,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const target = issues.find((i) => i.id === issueId);
     const updated = issues.filter((i) => i.id !== issueId);
     setIssues(updated);
-    syncStorage({ issues: updated });
+    await syncStorage({ issues: updated });
     if (selectedIssue?.id === issueId) setSelectedIssue(null);
     if (target) {
       addAuditLog(`Deleted issue ${target.key}`, `Removed "${target.title}"`, target.key);
@@ -528,7 +532,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     setIssues(updated);
-    syncStorage({ issues: updated });
+    await syncStorage({ issues: updated });
     addAuditLog(
       `Transitioned ${target.key}`,
       `Changed status from ${oldStatus} to ${newStatus}`,
@@ -582,7 +586,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     setIssues(updated);
-    syncStorage({ issues: updated });
+    await syncStorage({ issues: updated });
   };
 
   const moveIssueSprint = async (issueId: string, sprintId: string | null) => {
@@ -601,7 +605,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     setIssues(updated);
-    syncStorage({ issues: updated });
+    await syncStorage({ issues: updated });
     addAuditLog(
       `Moved ${target.key}`,
       sprintId ? `Assigned to sprint` : `Moved to Backlog`,
@@ -679,7 +683,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     const updated = [...sprints, newSprint];
     setSprints(updated);
-    syncStorage({ sprints: updated });
+    await syncStorage({ sprints: updated });
     addAuditLog(`Created Sprint`, `Created "${name}"`);
     return newSprint;
   };
@@ -701,7 +705,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     setSprints(updatedSprints);
-    syncStorage({ sprints: updatedSprints });
+    await syncStorage({ sprints: updatedSprints });
     addAuditLog(`Started Sprint`, `Active with ${totalPoints} committed story points`);
   };
 
@@ -737,7 +741,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setIssues(updatedIssues);
     setSprints(updatedSprints);
-    syncStorage({ issues: updatedIssues, sprints: updatedSprints });
+    await syncStorage({ issues: updatedIssues, sprints: updatedSprints });
     addAuditLog(
       `Completed Sprint`,
       `Finished with ${completedPoints} points completed.`
