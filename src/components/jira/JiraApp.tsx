@@ -20,27 +20,30 @@ export const JiraApp: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex flex-col min-h-screen pt-16 bg-stone-100/60 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 font-sans">
-      {/* Main Workspace Layout: Sidebar + Active View */}
-      <div className="flex-1 flex overflow-hidden">
-        <JiraSidebar
-          isCollapsed={isSidebarCollapsed}
-          setIsCollapsed={setIsSidebarCollapsed}
-        />
+    <div className="min-h-screen pt-16 bg-stone-100/60 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 font-sans">
+      {/* Fixed Sidebar */}
+      <JiraSidebar
+        isCollapsed={isSidebarCollapsed}
+        setIsCollapsed={setIsSidebarCollapsed}
+      />
 
-        <main className="flex-1 overflow-y-auto relative">
-          {currentTab === 'dashboard' && <JiraDashboard />}
-          {currentTab === 'board' && <JiraBoard />}
-          {currentTab === 'backlog' && <JiraBacklog />}
-          {currentTab === 'roadmap' && <JiraRoadmap />}
-          {currentTab === 'calendar' && <JiraCalendar />}
-          {currentTab === 'reports' && <JiraReports />}
-          {currentTab === 'releases' && <JiraReleases />}
-          {currentTab === 'automations' && <JiraAutomations />}
-          {currentTab === 'team' && <JiraTeam />}
-          {currentTab === 'settings' && <JiraSettings />}
-        </main>
-      </div>
+      {/* Main Workspace View with dynamic margin for fixed sidebar */}
+      <main
+        className={`transition-all duration-300 ${
+          isSidebarCollapsed ? 'ml-14 sm:ml-16' : 'ml-56 sm:ml-64'
+        } min-h-[calc(100vh-4rem)] overflow-y-auto relative p-4 sm:p-6`}
+      >
+        {currentTab === 'dashboard' && <JiraDashboard />}
+        {currentTab === 'board' && <JiraBoard />}
+        {currentTab === 'backlog' && <JiraBacklog />}
+        {currentTab === 'roadmap' && <JiraRoadmap />}
+        {currentTab === 'calendar' && <JiraCalendar />}
+        {currentTab === 'reports' && <JiraReports />}
+        {currentTab === 'releases' && <JiraReleases />}
+        {currentTab === 'automations' && <JiraAutomations />}
+        {currentTab === 'team' && <JiraTeam />}
+        {currentTab === 'settings' && <JiraSettings />}
+      </main>
 
       {/* Global Modals */}
       <IssueDetailModal />

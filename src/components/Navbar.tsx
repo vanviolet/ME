@@ -294,73 +294,23 @@ export const Navbar: React.FC = () => {
                       <span>Activity & Alerts</span>
                       <span className="text-[10px] font-normal text-stone-400">Real-time</span>
                     </div>
-                    <div className="space-y-1 max-h-64 overflow-y-auto">
-                      {jira.notifications.map((n) => (
-                        <div
-                          key={n.id}
-                          className="p-2 rounded-lg hover:bg-stone-50 dark:hover:bg-zinc-800/50 transition-colors"
-                        >
-                          <div className="font-medium text-stone-800 dark:text-zinc-200">{n.title}</div>
-                          <div className="text-[10px] text-stone-400 dark:text-zinc-500 mt-0.5">{n.time}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Jira User Persona Switcher */}
-              <div className="relative" ref={jiraUserMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsJiraUserDropdownOpen(!isJiraUserDropdownOpen)}
-                  className="flex items-center gap-1.5 p-1 rounded-full hover:bg-stone-200/70 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                  title={`Active user: ${jira.currentUser.name} (${jira.currentUser.role})`}
-                >
-                  <img
-                    src={jira.currentUser.avatar}
-                    alt={jira.currentUser.name}
-                    className="w-6 h-6 rounded-full object-cover ring-1 ring-stone-300 dark:ring-zinc-700"
-                  />
-                  <ChevronDown size={11} className="text-stone-400" />
-                </button>
-
-                {isJiraUserDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 py-1.5 text-xs">
-                    <div className="px-3 py-1.5 border-b border-stone-100 dark:border-zinc-800 mb-1">
-                      <div className="text-[10px] text-stone-400 dark:text-zinc-500 font-bold uppercase tracking-wider">
-                        Jira Persona (RBAC)
+                    {jira.notifications.length === 0 ? (
+                      <div className="p-4 text-center text-stone-400 dark:text-zinc-500">
+                        {language === 'en' ? 'No recent notifications' : 'Belum ada notifikasi baru'}
                       </div>
-                      <div className="text-[11px] text-stone-600 dark:text-zinc-400">
-                        Switch role to test permissions:
-                      </div>
-                    </div>
-                    {jira.workspace.members.map((member) => (
-                      <button
-                        key={member.id}
-                        type="button"
-                        onClick={() => {
-                          jira.setCurrentUser(member);
-                          setIsJiraUserDropdownOpen(false);
-                        }}
-                        className="w-full px-3 py-1.5 text-left flex items-center justify-between hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={member.avatar}
-                            alt={member.name}
-                            className="w-6 h-6 rounded-full object-cover"
-                          />
-                          <div>
-                            <div className="font-semibold text-stone-900 dark:text-zinc-100">{member.name}</div>
-                            <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
-                              {member.title} ({member.role})
-                            </div>
+                    ) : (
+                      <div className="space-y-1 max-h-64 overflow-y-auto">
+                        {jira.notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className="p-2 rounded-lg hover:bg-stone-50 dark:hover:bg-zinc-800/50 transition-colors"
+                          >
+                            <div className="font-medium text-stone-800 dark:text-zinc-200">{n.title}</div>
+                            <div className="text-[10px] text-stone-400 dark:text-zinc-500 mt-0.5">{n.time}</div>
                           </div>
-                        </div>
-                        {member.id === jira.currentUser.id && <Check size={14} className="text-blue-600" />}
-                      </button>
-                    ))}
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -402,7 +352,10 @@ export const Navbar: React.FC = () => {
             </>
           )}
 
-          {/* Primary Hub: Articles */}
+          {/* Primary Hub: Articles, Vanpedia, Forum, Tools (Only shown outside Jira) */}
+          {!isJiraPage && (
+            <>
+              {/* Primary Hub: Articles */}
           <Link
             id="nav-link-articles"
             to="/articles"
@@ -601,6 +554,8 @@ export const Navbar: React.FC = () => {
               </div>
             )}
           </div>
+            </>
+          )}
         </nav>
 
         {/* Right Controls: Language, Theme, Contact CTA & Mobile Hamburger */}
@@ -647,15 +602,17 @@ export const Navbar: React.FC = () => {
           {/* Google OAuth Profile & Auth Control */}
           <AuthButton />
 
-          {/* Let's Talk CTA (Desktop) */}
-          <Link
-            id="nav-cta-contact"
-            to="/#contact"
-            className="hidden xl:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-full bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs"
-          >
-            <span>{language === 'en' ? "Let's Talk" : 'Hubungi'}</span>
-            <ArrowUpRight size={13} />
-          </Link>
+          {/* Let's Talk CTA (Desktop - hidden on Jira) */}
+          {!isJiraPage && (
+            <Link
+              id="nav-cta-contact"
+              to="/#contact"
+              className="hidden xl:inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-full bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 hover:bg-stone-800 dark:hover:bg-white transition-colors shadow-xs"
+            >
+              <span>{language === 'en' ? "Let's Talk" : 'Hubungi'}</span>
+              <ArrowUpRight size={13} />
+            </Link>
+          )}
 
           {/* Mobile Jira Quick Controls */}
           {isJiraPage && (
@@ -840,38 +797,34 @@ export const Navbar: React.FC = () => {
                 {jira.quickFilter === 'my' ? '✓ Filter: My Issues Active' : 'Filter by My Issues'}
               </button>
 
-              {/* Persona RBAC Switcher */}
+              {/* Authenticated Workspace User */}
               <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 space-y-2">
                 <span className="text-[11px] uppercase tracking-wider text-stone-500 dark:text-zinc-400 font-semibold block px-0.5">
-                  RBAC Persona (Active User)
+                  {language === 'en' ? 'Jira Workspace Lead' : 'Pengguna Workspace Jira'}
                 </span>
-                <div className="space-y-1">
-                  {jira.workspace.members.map((member) => (
-                    <button
-                      key={member.id}
-                      type="button"
-                      onClick={() => {
-                        jira.setCurrentUser(member);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`w-full p-2 rounded-xl text-left flex items-center justify-between transition-colors cursor-pointer ${
-                        member.id === jira.currentUser.id
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-semibold'
-                          : 'hover:bg-stone-50 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <img src={member.avatar} alt={member.name} className="w-6 h-6 rounded-full object-cover" />
-                        <div>
-                          <div className="text-xs">{member.name}</div>
-                          <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
-                            {member.title} ({member.role})
-                          </div>
-                        </div>
-                      </div>
-                      {member.id === jira.currentUser.id && <Check size={14} className="text-blue-600" />}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-3 p-2 rounded-xl bg-stone-50 dark:bg-zinc-800/50">
+                  {jira.currentUser.avatar ? (
+                    <img
+                      src={jira.currentUser.avatar}
+                      alt={jira.currentUser.name}
+                      className="w-9 h-9 rounded-full object-cover ring-2 ring-blue-500/20"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
+                      {jira.currentUser.name.slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold text-stone-900 dark:text-zinc-100 truncate">
+                      {jira.currentUser.name}
+                    </div>
+                    <div className="text-[10px] text-stone-500 dark:text-zinc-400 truncate">
+                      {jira.currentUser.email}
+                    </div>
+                    <div className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-medium">
+                      {jira.currentUser.role.toUpperCase()} • {jira.currentUser.title}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

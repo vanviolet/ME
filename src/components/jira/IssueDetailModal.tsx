@@ -53,6 +53,8 @@ export const IssueDetailModal: React.FC = () => {
     issues,
     activeProject,
     currentUser,
+    comments,
+    worklogs,
   } = useJira();
 
   const [activeTab, setActiveTab] = useState<'comments' | 'worklog' | 'history'>('comments');
@@ -88,6 +90,11 @@ export const IssueDetailModal: React.FC = () => {
     ? issues.filter((i) => i.projectId === activeProject.id && i.id !== selectedIssue.id)
     : [];
 
+  const issueComments = (comments || []).filter((c) => c.issueId === selectedIssue?.id);
+  const issueWorklogs = (worklogs || []).filter((w) => w.issueId === selectedIssue?.id);
+  const issueSubtasks = selectedIssue?.subtasks || [];
+  const issueLinks = selectedIssue?.linkedIssues || [];
+
   const handleAiGenerateSubtasks = async () => {
     if (!selectedIssue) return;
     setIsGeneratingSubtasks(true);
@@ -120,7 +127,7 @@ export const IssueDetailModal: React.FC = () => {
           completed: false,
         }));
         updateIssue(selectedIssue.id, {
-          subtasks: [...selectedIssue.subtasks, ...newItems],
+          subtasks: [...issueSubtasks, ...newItems],
         });
       }
     } catch (e) {
@@ -147,7 +154,7 @@ export const IssueDetailModal: React.FC = () => {
 
   const handleToggleSubtask = (subtaskId: string) => {
     if (!selectedIssue) return;
-    const updated = selectedIssue.subtasks.map((st) =>
+    const updated = issueSubtasks.map((st) =>
       st.id === subtaskId ? { ...st, completed: !st.completed } : st
     );
     updateIssue(selectedIssue.id, { subtasks: updated });
@@ -162,14 +169,14 @@ export const IssueDetailModal: React.FC = () => {
       completed: false,
     };
     updateIssue(selectedIssue.id, {
-      subtasks: [...selectedIssue.subtasks, newSt],
+      subtasks: [...issueSubtasks, newSt],
     });
     setNewSubtaskTitle('');
   };
 
   const handleDeleteSubtask = (subtaskId: string) => {
     if (!selectedIssue) return;
-    const updated = selectedIssue.subtasks.filter((st) => st.id !== subtaskId);
+    const updated = issueSubtasks.filter((st) => st.id !== subtaskId);
     updateIssue(selectedIssue.id, { subtasks: updated });
   };
 
@@ -300,8 +307,8 @@ export const IssueDetailModal: React.FC = () => {
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 font-mono">
-                  Subtasks ({selectedIssue.subtasks.filter((s) => s.completed).length}/
-                  {selectedIssue.subtasks.length})
+                  Subtasks ({issueSubtasks.filter((s) => s.completed).length}/
+                  {issueSubtasks.length})
                 </label>
                 <button
                   type="button"
@@ -325,7 +332,7 @@ export const IssueDetailModal: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                {selectedIssue.subtasks.map((st) => (
+                {issueSubtasks.map((st) => (
                   <div
                     key={st.id}
                     className="flex items-center justify-between gap-2 p-2 rounded-lg bg-stone-50 dark:bg-zinc-800/50 hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs transition-colors"
@@ -394,9 +401,9 @@ export const IssueDetailModal: React.FC = () => {
               </div>
 
               {/* Existing links */}
-              {selectedIssue.linkedIssues && selectedIssue.linkedIssues.length > 0 ? (
+              {issueLinks && issueLinks.length > 0 ? (
                 <div className="space-y-1.5">
-                  {selectedIssue.linkedIssues.map((link, idx) => (
+                  {issueLinks.map((link, idx) => (
                     <div
                       key={idx}
                       className="p-2 rounded-lg bg-stone-50 dark:bg-zinc-800/60 flex items-center justify-between text-xs"
@@ -482,7 +489,7 @@ export const IssueDetailModal: React.FC = () => {
                   }`}
                 >
                   <MessageSquare size={14} />
-                  <span>Comments ({selectedIssue.comments.length})</span>
+                  <span>Comments ({issueComments.length})</span>
                 </button>
 
                 <button
@@ -494,7 +501,7 @@ export const IssueDetailModal: React.FC = () => {
                   }`}
                 >
                   <Clock size={14} />
-                  <span>Worklogs ({selectedIssue.worklogs.length})</span>
+                  <span>Worklogs ({issueWorklogs.length})</span>
                 </button>
               </div>
 
@@ -502,7 +509,7 @@ export const IssueDetailModal: React.FC = () => {
               {activeTab === 'comments' && (
                 <div className="space-y-3">
                   <div className="space-y-2.5 max-h-60 overflow-y-auto">
-                    {selectedIssue.comments.map((comment) => (
+                    {issueComments.map((comment) => (
                       <div
                         key={comment.id}
                         className="flex items-start gap-2.5 p-2.5 rounded-xl bg-stone-50 dark:bg-zinc-800/40 text-xs"
@@ -525,6 +532,11 @@ export const IssueDetailModal: React.FC = () => {
                         </div>
                       </div>
                     ))}
+                    {issueComments.length === 0 && (
+                      <div className="text-xs text-stone-400 dark:text-zinc-500 italic py-2">
+                        No comments yet. Be the first to comment.
+                      </div>
+                    )}
                   </div>
 
                   {/* Add comment box */}
@@ -572,7 +584,7 @@ export const IssueDetailModal: React.FC = () => {
 
                   {/* List of worklogs */}
                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {selectedIssue.worklogs.map((wl) => (
+                    {issueWorklogs.map((wl) => (
                       <div
                         key={wl.id}
                         className="p-2.5 rounded-xl bg-stone-50 dark:bg-zinc-800/30 flex items-center justify-between text-xs"
@@ -595,10 +607,15 @@ export const IssueDetailModal: React.FC = () => {
                           </div>
                         </div>
                         <span className="text-[10px] font-mono text-stone-400">
-                          {new Date(wl.date).toLocaleDateString()}
+                          {new Date(wl.loggedAt || Date.now()).toLocaleDateString()}
                         </span>
                       </div>
                     ))}
+                    {issueWorklogs.length === 0 && (
+                      <div className="text-xs text-stone-400 dark:text-zinc-500 italic py-2">
+                        No work logged yet.
+                      </div>
+                    )}
                   </div>
 
                   {/* Log work trigger & form */}

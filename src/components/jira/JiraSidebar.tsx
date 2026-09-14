@@ -69,7 +69,7 @@ export const JiraSidebar: React.FC<{
 
   return (
     <aside
-      className={`bg-stone-50/70 dark:bg-zinc-950/80 border-r border-stone-200 dark:border-zinc-800 transition-all duration-300 flex flex-col justify-between shrink-0 select-none ${
+      className={`fixed left-0 top-16 bottom-0 z-20 bg-stone-50/95 dark:bg-zinc-950/95 backdrop-blur-md border-r border-stone-200 dark:border-zinc-800 transition-all duration-300 flex flex-col justify-between shrink-0 select-none ${
         isCollapsed ? 'w-14 sm:w-16' : 'w-56 sm:w-64'
       }`}
     >

@@ -61,7 +61,7 @@ export const JiraBoard: React.FC = () => {
     setTimeout(() => {
       isDraggingRef.current = false;
       dragSourceIdRef.current = null;
-    }, 120);
+    }, 250);
   };
 
   const handleDragOver = (e: React.DragEvent, status: IssueStatus) => {
@@ -86,10 +86,10 @@ export const JiraBoard: React.FC = () => {
     }
     setDraggedIssueId(null);
     setDragOverColumn(null);
+    dragSourceIdRef.current = null;
     setTimeout(() => {
       isDraggingRef.current = false;
-      dragSourceIdRef.current = null;
-    }, 120);
+    }, 250);
   };
 
   // Grouping / Swimlane definitions
@@ -98,9 +98,9 @@ export const JiraBoard: React.FC = () => {
   const renderIssueCard = (issue: JiraIssue) => {
     const assignee = members.find((m) => m.id === issue.assigneeId);
     const epic = issue.epicId ? epics.find((e) => e.id === issue.epicId) : null;
-    const completedSubtasks = issue.subtasks.filter((s) => s.completed).length;
-    const totalSubtasks = issue.subtasks.length;
-    const isBlocked = issue.linkedIssues?.some((l) => l.type === 'is_blocked_by');
+    const completedSubtasks = (issue.subtasks || []).filter((s) => s.completed).length;
+    const totalSubtasks = (issue.subtasks || []).length;
+    const isBlocked = (issue.linkedIssues || []).some((l) => l.type === 'is_blocked_by');
 
     return (
       <div
@@ -108,13 +108,21 @@ export const JiraBoard: React.FC = () => {
         draggable
         onDragStart={(e) => handleDragStart(e, issue.id)}
         onDragEnd={handleDragEnd}
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleDrop(e, issue.status);
+        }}
         onClick={() => {
-          if (isDraggingRef.current) return;
+          if (isDraggingRef.current || draggedIssueId) return;
           setSelectedIssue(issue);
         }}
         className={`group p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-stone-200/90 dark:border-zinc-800/90 shadow-xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-700 transition-all cursor-grab active:cursor-grabbing select-none space-y-2.5 ${
-          draggedIssueId === issue.id ? 'opacity-40 scale-95' : ''
+          draggedIssueId === issue.id ? 'opacity-40 scale-95 pointer-events-none' : ''
         }`}
       >
         {/* Top meta: Key, Epic badge, Priority */}

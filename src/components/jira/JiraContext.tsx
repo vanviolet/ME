@@ -137,11 +137,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [createIssueDefaultSprintId, setCreateIssueDefaultSprintId] = useState<string | undefined>(undefined);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
 
-  const [notifications, setNotifications] = useState([
-    { id: 'notif-1', title: 'NEX-104 assigned to Code Review', time: '10m ago', read: false },
-    { id: 'notif-2', title: 'Sprint 14 has 3 days remaining', time: '2h ago', read: false },
-    { id: 'notif-3', title: 'Muchamad Irvan mentioned you on NEX-101', time: '1d ago', read: true },
-  ]);
+  const [notifications, setNotifications] = useState<{ id: string; title: string; time: string; read: boolean }[]>([]);
 
   const [quickFilter, setQuickFilter] = useState<'all' | 'my' | 'recent' | 'bugs' | 'epics'>('all');
   const [filter, setFilter] = useState<JiraFilterState>({
@@ -163,31 +159,25 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const auth = useAuth();
   const authUser = auth?.user;
 
-  // Sync authenticated user into Jira member list & default currentUser
+  // Sync authenticated Google user directly into Jira member list & currentUser
   useEffect(() => {
     if (authUser && authUser.email) {
-      const existingMember = workspace.members?.find(
-        (m) => m.email.toLowerCase() === authUser.email?.toLowerCase()
-      );
-      if (existingMember) {
-        setCurrentUser(existingMember);
-      } else {
-        const newMember: JiraUser = {
-          id: authUser.uid,
-          name: authUser.displayName || authUser.email.split('@')[0],
-          email: authUser.email,
-          avatar:
-            authUser.photoURL ||
-            `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80`,
-          role: authUser.isAdmin ? 'admin' : 'member',
-          title: authUser.isAdmin ? 'Lead Architect / Workspace Admin' : 'Full-Stack Developer',
-        };
-        setWorkspace((prev) => ({
-          ...prev,
-          members: [...(prev.members || []), newMember],
-        }));
-        setCurrentUser(newMember);
-      }
+      const googleMember: JiraUser = {
+        id: authUser.uid,
+        name: authUser.displayName || authUser.email.split('@')[0],
+        email: authUser.email,
+        avatar: authUser.photoURL || '',
+        role: 'admin',
+        title: authUser.isAdmin ? 'Lead Architect / Workspace Owner' : 'Lead Software Engineer',
+      };
+
+      setWorkspace((prev) => ({
+        ...prev,
+        ownerEmail: authUser.email || prev.ownerEmail,
+        // Only actual authenticated members, no dummy Sarah Jenkins/Alex
+        members: [googleMember],
+      }));
+      setCurrentUser(googleMember);
     }
   }, [authUser]);
 
@@ -280,7 +270,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (filter.status !== 'all' && issue.status !== filter.status) return false;
       if (filter.priority !== 'all' && issue.priority !== filter.priority) return false;
       if (filter.epicId !== 'all' && issue.epicId !== filter.epicId) return false;
-      if (filter.label !== 'all' && !issue.labels.includes(filter.label)) return false;
+      if (filter.label !== 'all' && !(issue.labels || []).includes(filter.label)) return false;
 
       if (filter.assigneeId === 'unassigned') {
         if (issue.assigneeId) return false;
@@ -299,10 +289,10 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Text search
       if (filter.searchQuery.trim()) {
         const q = filter.searchQuery.toLowerCase();
-        const matchKey = issue.key.toLowerCase().includes(q);
-        const matchTitle = issue.title.toLowerCase().includes(q);
+        const matchKey = (issue.key || '').toLowerCase().includes(q);
+        const matchTitle = (issue.title || '').toLowerCase().includes(q);
         const matchDesc = (issue.description || '').toLowerCase().includes(q);
-        const matchLabel = issue.labels.some((l) => l.toLowerCase().includes(q));
+        const matchLabel = (issue.labels || []).some((l) => l.toLowerCase().includes(q));
         if (!matchKey && !matchTitle && !matchDesc && !matchLabel) return false;
       }
 

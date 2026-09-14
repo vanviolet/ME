@@ -35,8 +35,44 @@ export interface JiraFullState {
   auditLogs: JiraAuditLog[];
 }
 
-const STORAGE_KEY = 'jira_enterprise_store_v1';
+const STORAGE_KEY = 'jira_enterprise_clean_v2';
 const FIRESTORE_DOC_PATH = 'jira_state/current';
+
+/**
+ * Filter out old dummy users (like Sarah Jenkins, Alex, Maya, David) and old dummy issues.
+ * Ensures the workspace starts completely clean without fake data.
+ */
+function sanitizeCleanState(rawState: JiraFullState, fallback: JiraFullState): JiraFullState {
+  if (!rawState) return fallback;
+
+  // Check if it contains old dummy seed data
+  const hasDummyUsers = rawState.workspace?.members?.some((m) =>
+    ['user-sarah', 'user-alex', 'user-maya', 'user-david'].includes(m.id) ||
+    m.name === 'Sarah Jenkins'
+  );
+  const hasDummyIssues = rawState.issues?.some((i) =>
+    i.id === 'issue-nex-1' || i.id === 'issue-nex-101' || i.id === 'issue-nex-2'
+  );
+
+  if (hasDummyUsers || hasDummyIssues) {
+    return {
+      ...fallback,
+      projects: rawState.projects?.length ? rawState.projects : fallback.projects,
+      issues: [],
+      sprints: [],
+      comments: [],
+      worklogs: [],
+      versions: [],
+      auditLogs: [],
+      workspace: {
+        ...fallback.workspace,
+        members: INITIAL_WORKSPACE.members,
+      },
+    };
+  }
+
+  return rawState;
+}
 
 /**
  * Real-time subscription to Firebase Firestore for Jira enterprise state.
@@ -50,9 +86,21 @@ export function subscribeJiraFirestore(onUpdate: (state: JiraFullState) => void)
       (snap) => {
         if (snap.exists()) {
           const cloudData = snap.data() as { state: JiraFullState };
-          if (cloudData && cloudData.state && cloudData.state.issues && cloudData.state.projects) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData.state));
-            onUpdate(cloudData.state);
+          if (cloudData && cloudData.state) {
+            const defaultFallback: JiraFullState = {
+              workspace: INITIAL_WORKSPACE,
+              projects: INITIAL_PROJECTS,
+              issues: INITIAL_ISSUES,
+              sprints: INITIAL_SPRINTS,
+              comments: INITIAL_COMMENTS,
+              worklogs: INITIAL_WORKLOGS,
+              versions: INITIAL_VERSIONS,
+              automations: INITIAL_AUTOMATIONS,
+              auditLogs: INITIAL_AUDIT_LOGS,
+            };
+            const cleaned = sanitizeCleanState(cloudData.state, defaultFallback);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+            onUpdate(cleaned);
           }
         }
       },
@@ -86,12 +134,17 @@ export async function fetchJiraState(): Promise<JiraFullState> {
     const snap = await getDoc(docRef);
     if (snap.exists()) {
       const cloudData = snap.data() as { state: JiraFullState };
-      if (cloudData && cloudData.state && cloudData.state.issues && cloudData.state.projects) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData.state));
-        return cloudData.state;
+      if (cloudData && cloudData.state) {
+        const sanitized = sanitizeCleanState(cloudData.state, defaultState);
+        // If sanitized removed dummy data, update firestore
+        if (sanitized !== cloudData.state) {
+          setDoc(docRef, { state: sanitized, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+        return sanitized;
       }
     } else {
-      // Seed Firestore with initial state on first run
+      // Seed Firestore with clean initial state (0 issues, 0 dummy users) on first run
       await setDoc(docRef, { state: defaultState, updatedAt: new Date().toISOString() });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultState));
       return defaultState;
