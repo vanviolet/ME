@@ -82,6 +82,7 @@ interface JiraContextType {
   updateIssue: (issueId: string, updates: Partial<JiraIssue>) => Promise<void>;
   deleteIssue: (issueId: string) => Promise<void>;
   moveIssueStatus: (issueId: string, newStatus: IssueStatus) => Promise<void>;
+  reorderIssuesInColumn: (issueId: string, sourceIndex: number, destinationIndex: number, columnStatus: IssueStatus) => Promise<void>;
   moveIssueSprint: (issueId: string, sprintId: string | null) => Promise<void>;
   toggleSubTask: (issueId: string, subtaskId: string) => Promise<void>;
   addSubTask: (issueId: string, title: string) => Promise<void>;
@@ -189,11 +190,21 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         );
         return {
           ...prev,
-          ownerEmail: authUser.email || prev.ownerEmail,
+          ownerEmail: prev.ownerEmail || authUser.email || '',
           members: [googleMember, ...otherMembers],
         };
       });
       setCurrentUser(googleMember);
+    } else {
+      const guestMember: JiraUser = {
+        id: 'user-guest',
+        name: 'Guest Developer',
+        email: 'guest@cloudjira.io',
+        avatar: '',
+        role: 'admin',
+        title: 'Guest Contributor',
+      };
+      setCurrentUser(guestMember);
     }
   }, [authUser]);
 
@@ -201,7 +212,30 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     fetchJiraState().then((state) => {
       if (state) {
-        setWorkspace(state.workspace || INITIAL_WORKSPACE);
+        if (state.workspace) {
+          setWorkspace((prev) => {
+            const rawMembers = state.workspace.members || [];
+            if (authUser && authUser.email) {
+              const googleMember: JiraUser = {
+                id: authUser.uid,
+                name: authUser.displayName || authUser.email.split('@')[0],
+                email: authUser.email,
+                avatar: authUser.photoURL || '',
+                role: 'admin',
+                title: authUser.isAdmin ? 'Lead Architect / Workspace Owner' : 'Lead Software Engineer',
+              };
+              const filtered = rawMembers.filter(
+                (m) => m.id !== googleMember.id && m.email.toLowerCase() !== googleMember.email.toLowerCase()
+              );
+              return {
+                ...state.workspace,
+                ownerEmail: state.workspace.ownerEmail || authUser.email || '',
+                members: [googleMember, ...filtered],
+              };
+            }
+            return state.workspace;
+          });
+        }
         setProjects(state.projects?.length ? state.projects : INITIAL_PROJECTS);
         setIssues(state.issues || INITIAL_ISSUES);
         setSprints(state.sprints || INITIAL_SPRINTS);
@@ -218,7 +252,30 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIssues(cloudState.issues);
         if (cloudState.sprints) setSprints(cloudState.sprints);
         if (cloudState.projects) setProjects(cloudState.projects);
-        if (cloudState.workspace) setWorkspace(cloudState.workspace);
+        if (cloudState.workspace) {
+          setWorkspace((prev) => {
+            const rawMembers = cloudState.workspace.members || [];
+            if (authUser && authUser.email) {
+              const googleMember: JiraUser = {
+                id: authUser.uid,
+                name: authUser.displayName || authUser.email.split('@')[0],
+                email: authUser.email,
+                avatar: authUser.photoURL || '',
+                role: 'admin',
+                title: authUser.isAdmin ? 'Lead Architect / Workspace Owner' : 'Lead Software Engineer',
+              };
+              const filtered = rawMembers.filter(
+                (m) => m.id !== googleMember.id && m.email.toLowerCase() !== googleMember.email.toLowerCase()
+              );
+              return {
+                ...cloudState.workspace,
+                ownerEmail: cloudState.workspace.ownerEmail || authUser.email || '',
+                members: [googleMember, ...filtered],
+              };
+            }
+            return cloudState.workspace;
+          });
+        }
         if (cloudState.comments) setComments(cloudState.comments);
         if (cloudState.worklogs) setWorklogs(cloudState.worklogs);
         if (cloudState.automations) setAutomations(cloudState.automations);
@@ -227,7 +284,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [authUser]);
 
   // Sync state to storage
   const syncStorage = (updates?: Partial<JiraFullState>) => {
@@ -474,6 +531,41 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return rule;
       })
     );
+  };
+
+  const reorderIssuesInColumn = async (
+    issueId: string,
+    sourceIndex: number,
+    destinationIndex: number,
+    columnStatus: IssueStatus
+  ) => {
+    const colIssues = issues.filter(
+      (i) => i.projectId === activeProject.id && i.status === columnStatus
+    );
+    if (!colIssues.length || sourceIndex === destinationIndex) return;
+
+    const reorderedCol: JiraIssue[] = Array.from(colIssues);
+    const [moved] = reorderedCol.splice(sourceIndex, 1);
+    if (!moved) return;
+    reorderedCol.splice(destinationIndex, 0, moved);
+
+    const updatedColIssuesMap = new Map<string, number>(
+      reorderedCol.map((item: JiraIssue, idx: number) => [item.id, idx + 1])
+    );
+
+    const updated = issues.map((issue) => {
+      if (updatedColIssuesMap.has(issue.id)) {
+        return {
+          ...issue,
+          order: updatedColIssuesMap.get(issue.id)!,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return issue;
+    });
+
+    setIssues(updated);
+    syncStorage({ issues: updated });
   };
 
   const moveIssueSprint = async (issueId: string, sprintId: string | null) => {
@@ -1042,6 +1134,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateIssue,
         deleteIssue,
         moveIssueStatus,
+        reorderIssuesInColumn,
         moveIssueSprint,
         toggleSubTask,
         addSubTask,

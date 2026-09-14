@@ -12,9 +12,9 @@ import {
 } from './types';
 
 export const INITIAL_USER: JiraUser = {
-  id: 'user-irvan',
-  name: 'Muchamad Irvan',
-  email: 'vanviolet.js@gmail.com',
+  id: 'user-default',
+  name: 'Workspace Lead',
+  email: 'lead@cloudjira.io',
   avatar: '',
   role: 'admin',
   title: 'Lead Architect & Staff Engineer',
@@ -27,7 +27,7 @@ export const INITIAL_WORKSPACE: JiraWorkspace = {
   name: 'Nexus Engineering Core',
   slug: 'nexus-eng',
   description: 'Enterprise Cloud Architecture & Distributed Systems Workspace',
-  ownerEmail: 'vanviolet.js@gmail.com',
+  ownerEmail: '',
   createdAt: '2026-08-01T08:00:00Z',
   members: INITIAL_MEMBERS,
 };
@@ -38,7 +38,7 @@ export const INITIAL_PROJECTS: JiraProject[] = [
     key: 'NEX',
     name: 'Nexus Cloud Platform',
     description: 'High-throughput microservices platform, OAuth SSO, and low-latency event broker.',
-    leadId: 'user-irvan',
+    leadId: 'user-default',
     template: 'scrum',
     category: 'Software Development',
     avatar: '⚡',

@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { useJira } from './JiraContext';
 import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from '@hello-pangea/dnd';
+import {
   Plus,
   Play,
   CheckCircle2,
   Calendar,
   Layers,
-  ChevronDown,
-  ChevronRight,
   MoreHorizontal,
   MoveRight,
   ArrowRight,
   User,
+  GripVertical,
 } from 'lucide-react';
 import { JiraIssue, JiraSprint } from './types';
 import {
@@ -36,9 +41,6 @@ export const JiraBacklog: React.FC = () => {
     setIsCreateModalOpen,
   } = useJira();
 
-  const [draggedIssueId, setDraggedIssueId] = useState<string | null>(null);
-  const [dragOverSprintId, setDragOverSprintId] = useState<string | 'backlog' | null>(null);
-
   // New Sprint Modal State
   const [isNewSprintModalOpen, setIsNewSprintModalOpen] = useState(false);
   const [newSprintName, setNewSprintName] = useState('');
@@ -57,26 +59,19 @@ export const JiraBacklog: React.FC = () => {
     (i) => i.projectId === activeProject.id && (!i.sprintId || i.sprintId === '')
   );
 
-  const handleDragStart = (e: React.DragEvent, issueId: string) => {
-    e.dataTransfer.setData('text/plain', issueId);
-    setDraggedIssueId(issueId);
-  };
+  const onDragEnd = (result: DropResult) => {
+    const { destination, source, draggableId } = result;
 
-  const handleDragOver = (e: React.DragEvent, sprintTarget: string | 'backlog') => {
-    e.preventDefault();
-    if (dragOverSprintId !== sprintTarget) {
-      setDragOverSprintId(sprintTarget);
+    if (!destination) return;
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
     }
-  };
 
-  const handleDrop = (e: React.DragEvent, sprintTarget: string | 'backlog') => {
-    e.preventDefault();
-    const issueId = e.dataTransfer.getData('text/plain') || draggedIssueId;
-    if (issueId) {
-      moveIssueSprint(issueId, sprintTarget === 'backlog' ? null : sprintTarget);
-    }
-    setDraggedIssueId(null);
-    setDragOverSprintId(null);
+    const targetSprintId = destination.droppableId === 'backlog' ? null : destination.droppableId;
+    moveIssueSprint(draggableId, targetSprintId);
   };
 
   const handleQuickCreate = async (e: React.FormEvent) => {
@@ -105,79 +100,94 @@ export const JiraBacklog: React.FC = () => {
     setNewSprintGoal('');
   };
 
-  const renderIssueRow = (issue: JiraIssue) => {
+  const renderIssueRow = (issue: JiraIssue, index: number) => {
     const assignee = members.find((m) => m.id === issue.assigneeId);
 
     return (
-      <div
-        key={issue.id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, issue.id)}
-        onClick={() => setSelectedIssue(issue)}
-        className="group px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800/80 hover:border-blue-400 dark:hover:border-blue-700 shadow-xs flex items-center justify-between gap-3 cursor-pointer select-none transition-all"
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="shrink-0">{getIssueTypeIcon(issue.type, 15)}</span>
-          <span className="font-mono text-xs font-bold text-stone-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 shrink-0">
-            {issue.key}
-          </span>
-          <span className="text-xs sm:text-sm text-stone-900 dark:text-zinc-100 truncate font-medium">
-            {issue.title}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Status badge */}
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${getStatusBadgeClass(
-              issue.status
-            )}`}
+      <Draggable draggableId={issue.id} index={index}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            style={provided.draggableProps.style}
+            onClick={() => setSelectedIssue(issue)}
+            className={`group px-3.5 py-2.5 rounded-xl bg-white dark:bg-zinc-900 border transition-all flex items-center justify-between gap-3 select-none cursor-grab active:cursor-grabbing ${
+              snapshot.isDragging
+                ? 'shadow-xl border-blue-500 ring-2 ring-blue-500/30 scale-[1.01] z-50 bg-white dark:bg-zinc-800'
+                : 'border-stone-200/80 dark:border-zinc-800/80 hover:border-blue-400 dark:hover:border-blue-700 shadow-xs'
+            }`}
           >
-            {getStatusName(issue.status)}
-          </span>
-
-          {/* Priority */}
-          <div title={issue.priority}>{getPriorityIcon(issue.priority, 13)}</div>
-
-          {/* Story Points */}
-          <span className="w-5 h-5 rounded-full bg-stone-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-bold font-mono text-stone-700 dark:text-zinc-300">
-            {issue.storyPoints ?? '-'}
-          </span>
-
-          {/* Assignee */}
-          {assignee ? (
-            <img
-              src={assignee.avatar}
-              alt={assignee.name}
-              title={assignee.name}
-              className="w-5 h-5 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-5 h-5 rounded-full bg-stone-100 dark:bg-zinc-800 flex items-center justify-center text-stone-400">
-              <User size={10} />
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <GripVertical
+                size={13}
+                className="text-stone-300 dark:text-zinc-600 group-hover:text-stone-500 shrink-0"
+              />
+              <span className="shrink-0">{getIssueTypeIcon(issue.type, 15)}</span>
+              <span className="font-mono text-xs font-bold text-stone-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 shrink-0">
+                {issue.key}
+              </span>
+              <span className="text-xs sm:text-sm text-stone-900 dark:text-zinc-100 truncate font-medium">
+                {issue.title}
+              </span>
             </div>
-          )}
-        </div>
-      </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Status badge */}
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${getStatusBadgeClass(
+                  issue.status
+                )}`}
+              >
+                {getStatusName(issue.status)}
+              </span>
+
+              {/* Priority */}
+              <div title={issue.priority}>{getPriorityIcon(issue.priority, 13)}</div>
+
+              {/* Story Points */}
+              <span className="w-5 h-5 rounded-full bg-stone-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-bold font-mono text-stone-700 dark:text-zinc-300">
+                {issue.storyPoints ?? '-'}
+              </span>
+
+              {/* Assignee */}
+              {assignee ? (
+                assignee.avatar ? (
+                  <img
+                    src={assignee.avatar}
+                    alt={assignee.name}
+                    title={assignee.name}
+                    className="w-5 h-5 rounded-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div
+                    title={assignee.name}
+                    className="w-5 h-5 rounded-full bg-blue-600 text-white font-mono text-[9px] font-bold flex items-center justify-center"
+                  >
+                    {(assignee.name || 'U')[0].toUpperCase()}
+                  </div>
+                )
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-stone-100 dark:bg-zinc-800 flex items-center justify-center text-stone-400">
+                  <User size={10} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Draggable>
     );
   };
 
   const renderSprintContainer = (sprint: JiraSprint) => {
     const sprintIssues = issues.filter((i) => i.sprintId === sprint.id);
     const totalPoints = sprintIssues.reduce((sum, i) => sum + (i.storyPoints || 0), 0);
-    const doneCount = sprintIssues.filter((i) => i.status === 'done').length;
 
     return (
       <div
         key={sprint.id}
-        onDragOver={(e) => handleDragOver(e, sprint.id)}
-        onDragLeave={() => setDragOverSprintId(null)}
-        onDrop={(e) => handleDrop(e, sprint.id)}
-        className={`rounded-2xl border transition-all p-4 space-y-3 ${
-          dragOverSprintId === sprint.id
-            ? 'bg-blue-50/70 dark:bg-blue-950/20 border-blue-500'
-            : 'bg-stone-50/80 dark:bg-zinc-900/50 border-stone-200 dark:border-zinc-800'
-        }`}
+        className="rounded-2xl border border-stone-200 dark:border-zinc-800 bg-stone-50/80 dark:bg-zinc-900/50 p-4 space-y-3"
       >
         {/* Sprint Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
@@ -220,7 +230,7 @@ export const JiraBacklog: React.FC = () => {
 
             <button
               onClick={() => setIsCreateModalOpen(true, sprint.id)}
-              className="p-1.5 rounded-lg text-stone-500 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-200/60 dark:hover:bg-zinc-800"
+              className="p-1.5 rounded-lg text-stone-500 hover:text-stone-900 dark:hover:text-zinc-100 hover:bg-stone-200/60 dark:hover:bg-zinc-800 cursor-pointer"
               title="Add Issue to this Sprint"
             >
               <Plus size={16} />
@@ -234,15 +244,33 @@ export const JiraBacklog: React.FC = () => {
           </p>
         )}
 
-        {/* Sprint Issues List */}
-        <div className="space-y-2">
-          {sprintIssues.map((issue) => renderIssueRow(issue))}
-          {sprintIssues.length === 0 && (
-            <div className="p-4 border border-dashed border-stone-300 dark:border-zinc-800 rounded-xl text-center text-xs text-stone-400 dark:text-zinc-500">
-              Drag issues here to plan this sprint.
+        {/* Droppable Sprint Issues List */}
+        <Droppable droppableId={sprint.id}>
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={`space-y-2 min-h-[50px] p-1.5 rounded-xl transition-colors ${
+                snapshot.isDraggingOver
+                  ? 'bg-blue-50/90 dark:bg-blue-950/40 ring-2 ring-blue-500/50'
+                  : ''
+              }`}
+            >
+              {sprintIssues.map((issue, index) => (
+                <React.Fragment key={issue.id}>
+                  {renderIssueRow(issue, index)}
+                </React.Fragment>
+              ))}
+              {provided.placeholder}
+
+              {sprintIssues.length === 0 && !snapshot.isDraggingOver && (
+                <div className="p-4 border border-dashed border-stone-300 dark:border-zinc-800 rounded-xl text-center text-xs text-stone-400 dark:text-zinc-500">
+                  Drag issues here to plan this sprint.
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </Droppable>
       </div>
     );
   };
@@ -256,7 +284,7 @@ export const JiraBacklog: React.FC = () => {
             Backlog & Sprint Planning
           </h2>
           <p className="text-xs text-stone-500 dark:text-zinc-400">
-            Prioritize issues, allocate story points, and organize iterations.
+            Prioritize issues, allocate story points, and drag issues between sprints.
           </p>
         </div>
 
@@ -273,88 +301,97 @@ export const JiraBacklog: React.FC = () => {
         </button>
       </div>
 
-      {/* Sprints Section */}
-      <div className="space-y-4">
-        {activeSprint && renderSprintContainer(activeSprint)}
-        {futureSprints.map((s) => renderSprintContainer(s))}
-      </div>
+      {/* Drag Drop Context for Sprints & Backlog */}
+      <DragDropContext onDragEnd={onDragEnd}>
+        {/* Sprints Section */}
+        <div className="space-y-4">
+          {activeSprint && renderSprintContainer(activeSprint)}
+          {futureSprints.map((s) => renderSprintContainer(s))}
+        </div>
 
-      {/* Backlog Section */}
-      <div
-        onDragOver={(e) => handleDragOver(e, 'backlog')}
-        onDragLeave={() => setDragOverSprintId(null)}
-        onDrop={(e) => handleDrop(e, 'backlog')}
-        className={`rounded-2xl border transition-all p-4 space-y-3 ${
-          dragOverSprintId === 'backlog'
-            ? 'bg-blue-50/70 dark:bg-blue-950/20 border-blue-500'
-            : 'bg-white dark:bg-zinc-900 border-stone-200 dark:border-zinc-800'
-        }`}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-stone-900 dark:text-zinc-100">Backlog</h3>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400">
-              {backlogIssues.length} issues
+        {/* Backlog Section */}
+        <div className="rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-stone-900 dark:text-zinc-100">Backlog</h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400">
+                {backlogIssues.length} issues
+              </span>
+            </div>
+
+            <span className="text-xs font-mono text-stone-400">
+              {backlogIssues.reduce((s, i) => s + (i.storyPoints || 0), 0)} pts total
             </span>
           </div>
 
-          <span className="text-xs font-mono text-stone-400">
-            {backlogIssues.reduce((s, i) => s + (i.storyPoints || 0), 0)} pts total
-          </span>
-        </div>
+          {/* Quick inline create */}
+          <form onSubmit={handleQuickCreate} className="flex items-center gap-2">
+            <select
+              value={quickType}
+              onChange={(e) => setQuickType(e.target.value as any)}
+              className="text-xs px-2 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/80 text-stone-800 dark:text-zinc-200 focus:outline-hidden cursor-pointer"
+            >
+              <option value="story">Story</option>
+              <option value="task">Task</option>
+              <option value="bug">Bug</option>
+            </select>
+            <input
+              type="text"
+              placeholder="+ Create issue in backlog (Press Enter to save)..."
+              value={quickTitle}
+              onChange={(e) => setQuickTitle(e.target.value)}
+              className="flex-1 text-xs px-3.5 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/80 text-stone-900 dark:text-zinc-100 focus:border-blue-500 focus:outline-hidden"
+            />
+            <button
+              type="submit"
+              disabled={!quickTitle.trim()}
+              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Add
+            </button>
+          </form>
 
-        {/* Quick inline create */}
-        <form onSubmit={handleQuickCreate} className="flex items-center gap-2">
-          <select
-            value={quickType}
-            onChange={(e) => setQuickType(e.target.value as any)}
-            className="text-xs px-2 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/80 text-stone-800 dark:text-zinc-200 focus:outline-hidden"
-          >
-            <option value="story">Story</option>
-            <option value="task">Task</option>
-            <option value="bug">Bug</option>
-          </select>
-          <input
-            type="text"
-            placeholder="+ Create issue in backlog (Press Enter to save)..."
-            value={quickTitle}
-            onChange={(e) => setQuickTitle(e.target.value)}
-            className="flex-1 text-xs px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/60 text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:border-blue-500 focus:outline-hidden"
-          />
-          <button
-            type="submit"
-            disabled={!quickTitle.trim()}
-            className="px-3 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-semibold disabled:opacity-40 transition-colors"
-          >
-            Add
-          </button>
-        </form>
+          {/* Droppable Backlog Container */}
+          <Droppable droppableId="backlog">
+            {(provided, snapshot) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className={`space-y-2 min-h-[70px] p-1.5 rounded-xl transition-colors ${
+                  snapshot.isDraggingOver
+                    ? 'bg-blue-50/90 dark:bg-blue-950/40 ring-2 ring-blue-500/50'
+                    : ''
+                }`}
+              >
+                {backlogIssues.map((issue, index) => (
+                  <React.Fragment key={issue.id}>
+                    {renderIssueRow(issue, index)}
+                  </React.Fragment>
+                ))}
+                {provided.placeholder}
 
-        {/* Backlog items list */}
-        <div className="space-y-2 pt-1">
-          {backlogIssues.map((issue) => renderIssueRow(issue))}
-          {backlogIssues.length === 0 && (
-            <div className="p-6 text-center text-xs text-stone-400 dark:text-zinc-500 border border-dashed border-stone-200 dark:border-zinc-800 rounded-xl">
-              Backlog is clear! All issues have been scheduled into active or upcoming sprints.
-            </div>
-          )}
+                {backlogIssues.length === 0 && !snapshot.isDraggingOver && (
+                  <div className="p-8 border border-dashed border-stone-200 dark:border-zinc-800 rounded-xl text-center text-xs text-stone-400 dark:text-zinc-500">
+                    Your backlog is currently empty. Use the input above to quickly add issues.
+                  </div>
+                )}
+              </div>
+            )}
+          </Droppable>
         </div>
-      </div>
+      </DragDropContext>
 
       {/* Create Sprint Modal */}
       {isNewSprintModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <form
-            onSubmit={handleCreateSprintSubmit}
-            className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full p-6 space-y-4 border border-stone-200 dark:border-zinc-800 shadow-2xl"
-          >
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl max-w-md w-full p-6 space-y-4 border border-stone-200 dark:border-zinc-800 shadow-2xl">
             <h3 className="text-lg font-bold text-stone-900 dark:text-zinc-100">
               Create New Sprint
             </h3>
 
-            <div className="space-y-3 text-xs">
+            <form onSubmit={handleCreateSprintSubmit} className="space-y-3.5">
               <div>
-                <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
+                <label className="block text-xs font-semibold text-stone-700 dark:text-zinc-300 mb-1">
                   Sprint Name *
                 </label>
                 <input
@@ -362,65 +399,65 @@ export const JiraBacklog: React.FC = () => {
                   required
                   value={newSprintName}
                   onChange={(e) => setNewSprintName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:border-blue-500 focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
+                <label className="block text-xs font-semibold text-stone-700 dark:text-zinc-300 mb-1">
                   Sprint Goal
                 </label>
                 <textarea
                   rows={2}
                   value={newSprintGoal}
                   onChange={(e) => setNewSprintGoal(e.target.value)}
-                  placeholder="What is the objective of this sprint?"
-                  className="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
+                  placeholder="e.g. Ship OAuth 2.0 PKCE authentication and rate limiter"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:border-blue-500 focus:outline-hidden"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
+                  <label className="block text-xs font-semibold text-stone-700 dark:text-zinc-300 mb-1">
                     Start Date
                   </label>
                   <input
                     type="date"
                     value={newSprintStart}
                     onChange={(e) => setNewSprintStart(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-hidden"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
+                  <label className="block text-xs font-semibold text-stone-700 dark:text-zinc-300 mb-1">
                     End Date
                   </label>
                   <input
                     type="date"
                     value={newSprintEnd}
                     onChange={(e) => setNewSprintEnd(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-hidden"
                   />
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3">
-              <button
-                type="button"
-                onClick={() => setIsNewSprintModalOpen(false)}
-                className="px-3.5 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 text-xs font-semibold text-stone-700 dark:text-zinc-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs"
-              >
-                Create Sprint
-              </button>
-            </div>
-          </form>
+              <div className="flex items-center justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsNewSprintModalOpen(false)}
+                  className="px-3.5 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 text-xs font-semibold text-stone-700 dark:text-zinc-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
+                >
+                  Create Sprint
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

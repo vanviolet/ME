@@ -35,8 +35,26 @@ export interface JiraFullState {
   auditLogs: JiraAuditLog[];
 }
 
-const STORAGE_KEY = 'jira_enterprise_clean_v2';
+const STORAGE_KEY = 'jira_enterprise_clean_v3';
 const FIRESTORE_DOC_PATH = 'jira_state/current';
+
+/**
+ * Strips out `undefined` values and converts them safely to null/omitted fields
+ * to guarantee Firestore setDoc and updateDoc never crash with "Unsupported field value: undefined".
+ */
+export function cleanForFirestore<T>(data: T): T {
+  if (data === undefined) return null as unknown as T;
+  try {
+    return JSON.parse(
+      JSON.stringify(data, (_, value) => {
+        if (value === undefined) return null;
+        return value;
+      })
+    );
+  } catch {
+    return data;
+  }
+}
 
 /**
  * Filter out old dummy users (like Sarah Jenkins, Alex, Maya, David) and old dummy issues.
@@ -99,7 +117,9 @@ export function subscribeJiraFirestore(onUpdate: (state: JiraFullState) => void)
               auditLogs: INITIAL_AUDIT_LOGS,
             };
             const cleaned = sanitizeCleanState(cloudData.state, defaultFallback);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+            } catch {}
             onUpdate(cleaned);
           }
         }
@@ -138,15 +158,21 @@ export async function fetchJiraState(): Promise<JiraFullState> {
         const sanitized = sanitizeCleanState(cloudData.state, defaultState);
         // If sanitized removed dummy data, update firestore
         if (sanitized !== cloudData.state) {
-          setDoc(docRef, { state: sanitized, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+          const safeData = cleanForFirestore(sanitized);
+          setDoc(docRef, { state: safeData, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
         }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+        } catch {}
         return sanitized;
       }
     } else {
-      // Seed Firestore with clean initial state (0 issues, 0 dummy users) on first run
-      await setDoc(docRef, { state: defaultState, updatedAt: new Date().toISOString() });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultState));
+      // Seed Firestore with clean initial state
+      const safeData = cleanForFirestore(defaultState);
+      await setDoc(docRef, { state: safeData, updatedAt: new Date().toISOString() });
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultState));
+      } catch {}
       return defaultState;
     }
   } catch (err) {
@@ -159,7 +185,9 @@ export async function fetchJiraState(): Promise<JiraFullState> {
     if (res.ok) {
       const data = await res.json();
       if (data && data.success && data.state && data.state.issues && data.state.projects) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.state));
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.state));
+        } catch {}
         return data.state;
       }
     }
@@ -199,12 +227,11 @@ export async function persistJiraState(state: JiraFullState): Promise<void> {
     console.warn('Error writing Jira local storage:', err);
   }
 
-  // 2. Persist to Firebase Firestore immediately
+  // 2. Persist to Firebase Firestore with deep sanitization
   try {
     const docRef = doc(db, 'jira_state', 'current');
-    setDoc(docRef, { state, updatedAt: new Date().toISOString() }, { merge: true }).catch((err) => {
-      console.warn('Firestore setDoc error:', err);
-    });
+    const sanitized = cleanForFirestore(state);
+    await setDoc(docRef, { state: sanitized, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (err) {
     console.warn('Firestore write exception:', err);
   }
@@ -214,7 +241,7 @@ export async function persistJiraState(state: JiraFullState): Promise<void> {
     fetch('/api/jira/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state }),
+      body: JSON.stringify({ state: cleanForFirestore(state) }),
     }).catch(() => {});
   } catch {
     // Non-blocking background sync
@@ -236,7 +263,7 @@ export async function resetJiraServerData(): Promise<void> {
   };
   try {
     const docRef = doc(db, 'jira_state', 'current');
-    await setDoc(docRef, { state: defaultState, updatedAt: new Date().toISOString() });
+    await setDoc(docRef, { state: cleanForFirestore(defaultState), updatedAt: new Date().toISOString() });
   } catch {}
   try {
     await fetch('/api/jira/reset', { method: 'POST' });
