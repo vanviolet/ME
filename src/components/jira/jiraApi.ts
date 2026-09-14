@@ -148,7 +148,7 @@ export async function fetchJiraState(): Promise<JiraFullState> {
     auditLogs: INITIAL_AUDIT_LOGS,
   };
 
-  // 1. Prioritize Firebase Firestore cloud database
+  // 1. Prioritize Firebase Firestore cloud database (primary real-time database)
   try {
     const docRef = doc(db, 'jira_state', 'current');
     const snap = await getDoc(docRef);
@@ -156,7 +156,6 @@ export async function fetchJiraState(): Promise<JiraFullState> {
       const cloudData = snap.data() as { state: JiraFullState };
       if (cloudData && cloudData.state) {
         const sanitized = sanitizeCleanState(cloudData.state, defaultState);
-        // If sanitized removed dummy data, update firestore
         if (sanitized !== cloudData.state) {
           const safeData = cleanForFirestore(sanitized);
           setDoc(docRef, { state: safeData, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
@@ -176,26 +175,10 @@ export async function fetchJiraState(): Promise<JiraFullState> {
       return defaultState;
     }
   } catch (err) {
-    console.warn('Firebase Firestore read error, falling back:', err);
+    console.warn('Firebase Firestore read error, using offline cache:', err);
   }
 
-  // 2. Try server endpoint (/api/jira/data)
-  try {
-    const res = await fetch('/api/jira/data');
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success && data.state && data.state.issues && data.state.projects) {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.state));
-        } catch {}
-        return data.state;
-      }
-    }
-  } catch {
-    // Network or server offline fallback
-  }
-
-  // 3. Fallback to localStorage
+  // 2. Fallback to localStorage cache
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -208,13 +191,10 @@ export async function fetchJiraState(): Promise<JiraFullState> {
     console.warn('Error reading Jira local storage:', err);
   }
 
-  // 4. Fallback to default initial dataset
+  // 3. Fallback to default initial dataset
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultState));
   } catch {}
-
-  // Auto-seed to server and firestore in background
-  persistJiraState(defaultState).catch(() => {});
 
   return defaultState;
 }
@@ -227,24 +207,13 @@ export async function persistJiraState(state: JiraFullState): Promise<void> {
     console.warn('Error writing Jira local storage:', err);
   }
 
-  // 2. Persist to Firebase Firestore with deep sanitization
+  // 2. Persist to Firebase Firestore with deep sanitization for cloud real-time sync
   try {
     const docRef = doc(db, 'jira_state', 'current');
     const sanitized = cleanForFirestore(state);
     await setDoc(docRef, { state: sanitized, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (err) {
     console.warn('Firestore write exception:', err);
-  }
-
-  // 3. Sync to server backend asynchronously
-  try {
-    fetch('/api/jira/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state: cleanForFirestore(state) }),
-    }).catch(() => {});
-  } catch {
-    // Non-blocking background sync
   }
 }
 
@@ -265,9 +234,6 @@ export async function resetJiraServerData(): Promise<void> {
     const docRef = doc(db, 'jira_state', 'current');
     await setDoc(docRef, { state: cleanForFirestore(defaultState), updatedAt: new Date().toISOString() });
   } catch {}
-  try {
-    await fetch('/api/jira/reset', { method: 'POST' });
-  } catch {}
 }
 
 export async function callJiraAiAssist(
@@ -283,12 +249,12 @@ export async function callJiraAiAssist(
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'AI assist request failed');
+      throw new Error(err.error || `AI assist request failed with status ${res.status}`);
     }
     const data = await res.json();
     return data.text || '';
   } catch (err: any) {
-    console.error('Jira AI assist error:', err);
+    console.warn('Jira AI assist notice:', err);
     throw err;
   }
 }
