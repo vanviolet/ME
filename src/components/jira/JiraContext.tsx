@@ -57,8 +57,12 @@ interface JiraContextType {
   auditLogs: JiraAuditLog[];
   notifications: { id: string; title: string; time: string; read: boolean }[];
   isCreateModalOpen: boolean;
+  isCreateProjectModalOpen: boolean;
+  isInviteModalOpen: boolean;
   isQuickSearchOpen: boolean;
   createIssueDefaultSprintId?: string;
+  canManageRoles: boolean;
+  isProjectCreator: boolean;
 
   // Setters
   setCurrentTab: (tab: JiraTab) => void;
@@ -68,6 +72,8 @@ interface JiraContextType {
   setFilter: React.Dispatch<React.SetStateAction<JiraFilterState>>;
   setQuickFilter: (qf: 'all' | 'my' | 'recent' | 'bugs' | 'epics') => void;
   setIsCreateModalOpen: (open: boolean, defaultSprintId?: string) => void;
+  setIsCreateProjectModalOpen: (open: boolean) => void;
+  setIsInviteModalOpen: (open: boolean) => void;
   setIsQuickSearchOpen: (open: boolean) => void;
   markNotificationsAsRead: () => void;
 
@@ -93,11 +99,14 @@ interface JiraContextType {
   createVersion: (name: string, description: string, releaseDate: string) => Promise<void>;
   releaseVersion: (versionId: string) => Promise<void>;
 
-  // Automations & Team
+  // Automations & Team RBAC
   toggleAutomation: (ruleId: string) => Promise<void>;
-  inviteMember: (name: string, email: string, role: JiraUser['role'], title: string) => Promise<void>;
+  inviteMember: (name: string, email: string, role: JiraUser['role'], title?: string) => Promise<void>;
+  updateMemberRole: (userId: string, newRole: JiraUser['role']) => Promise<void>;
+  removeMember: (userId: string) => Promise<void>;
   createProject: (data: Partial<JiraProject>) => Promise<JiraProject>;
   updateProject: (data: Partial<JiraProject>) => Promise<void>;
+  deleteProject: (projectId: string) => Promise<void>;
 
   // Data management
   resetToDemo: () => Promise<void>;
@@ -134,6 +143,8 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const [isCreateModalOpen, setIsCreateModalOpenState] = useState(false);
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [createIssueDefaultSprintId, setCreateIssueDefaultSprintId] = useState<string | undefined>(undefined);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
 
@@ -159,7 +170,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const auth = useAuth();
   const authUser = auth?.user;
 
-  // Sync authenticated Google user directly into Jira member list & currentUser
+  // Sync authenticated Google user directly into Jira member list & currentUser without clearing invited members
   useEffect(() => {
     if (authUser && authUser.email) {
       const googleMember: JiraUser = {
@@ -171,12 +182,17 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         title: authUser.isAdmin ? 'Lead Architect / Workspace Owner' : 'Lead Software Engineer',
       };
 
-      setWorkspace((prev) => ({
-        ...prev,
-        ownerEmail: authUser.email || prev.ownerEmail,
-        // Only actual authenticated members, no dummy Sarah Jenkins/Alex
-        members: [googleMember],
-      }));
+      setWorkspace((prev) => {
+        const existingMembers = prev.members || [];
+        const otherMembers = existingMembers.filter(
+          (m) => m.id !== googleMember.id && m.email.toLowerCase() !== googleMember.email.toLowerCase()
+        );
+        return {
+          ...prev,
+          ownerEmail: authUser.email || prev.ownerEmail,
+          members: [googleMember, ...otherMembers],
+        };
+      });
       setCurrentUser(googleMember);
     }
   }, [authUser]);
@@ -239,6 +255,17 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [sprints, activeProject.id]);
 
   const members = useMemo(() => workspace.members || [], [workspace]);
+
+  // Check if current user is the creator / lead of the project or workspace admin
+  const isProjectCreator = useMemo(() => {
+    if (!activeProject) return true;
+    if (activeProject.leadId === currentUser.id || activeProject.leadId === currentUser.email) return true;
+    if (workspace.ownerEmail && currentUser.email && workspace.ownerEmail.toLowerCase() === currentUser.email.toLowerCase()) return true;
+    if (currentUser.role === 'admin') return true;
+    return false;
+  }, [activeProject, currentUser, workspace.ownerEmail]);
+
+  const canManageRoles = isProjectCreator;
 
   // Keep selectedIssue synced with issues array
   useEffect(() => {
@@ -709,48 +736,155 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string,
     email: string,
     role: JiraUser['role'],
-    title: string
+    title?: string
   ) => {
-    const newMember: JiraUser = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80`,
-      role,
-      title,
-    };
-    const updatedMembers = [...workspace.members, newMember];
+    if (!canManageRoles) {
+      throw new Error('Only the Project Creator / Workspace Admin can invite members and configure roles.');
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim() || cleanEmail.split('@')[0];
+
+    const existingIndex = workspace.members.findIndex((m) => m.email.toLowerCase() === cleanEmail);
+    let updatedMembers: JiraUser[];
+
+    if (existingIndex >= 0) {
+      updatedMembers = workspace.members.map((m, idx) => {
+        if (idx === existingIndex) {
+          return { ...m, name: cleanName, role, title: title || m.title };
+        }
+        return m;
+      });
+    } else {
+      const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`;
+      const newMember: JiraUser = {
+        id: `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        name: cleanName,
+        email: cleanEmail,
+        avatar: avatarUrl,
+        role,
+        title: title || 'Team Contributor',
+      };
+      updatedMembers = [...workspace.members, newMember];
+    }
+
     const updatedWorkspace = { ...workspace, members: updatedMembers };
     setWorkspace(updatedWorkspace);
     syncStorage({ workspace: updatedWorkspace });
-    addAuditLog(`Added team member`, `${name} joined as ${role}`);
+    addAuditLog(`Invited Member`, `${cleanName} (${cleanEmail}) invited as ${role.toUpperCase()}`);
+
+    setNotifications((prev) => [
+      {
+        id: `notif-${Date.now()}`,
+        title: `Invitation sent to ${cleanEmail} (${role})`,
+        time: 'Just now',
+        read: false,
+      },
+      ...prev,
+    ]);
+  };
+
+  const updateMemberRole = async (userId: string, newRole: JiraUser['role']) => {
+    if (!canManageRoles) {
+      throw new Error('Only the Project Creator / Workspace Admin can change roles.');
+    }
+    const updatedMembers = workspace.members.map((m) => {
+      if (m.id === userId || m.email === userId) {
+        return { ...m, role: newRole };
+      }
+      return m;
+    });
+    const updatedWorkspace = { ...workspace, members: updatedMembers };
+    setWorkspace(updatedWorkspace);
+    syncStorage({ workspace: updatedWorkspace });
+    const target = workspace.members.find((m) => m.id === userId || m.email === userId);
+    addAuditLog(`Updated Role`, `Changed role for ${target?.name || userId} to ${newRole.toUpperCase()}`);
+    setNotifications((prev) => [
+      {
+        id: `notif-${Date.now()}`,
+        title: `Role for ${target?.name || userId} updated to ${newRole}`,
+        time: 'Just now',
+        read: false,
+      },
+      ...prev,
+    ]);
+  };
+
+  const removeMember = async (userId: string) => {
+    if (!canManageRoles) {
+      throw new Error('Only the Project Creator / Workspace Admin can remove members.');
+    }
+    const target = workspace.members.find((m) => m.id === userId || m.email === userId);
+    const updatedMembers = workspace.members.filter((m) => m.id !== userId && m.email !== userId);
+    const updatedWorkspace = { ...workspace, members: updatedMembers };
+    setWorkspace(updatedWorkspace);
+    syncStorage({ workspace: updatedWorkspace });
+    addAuditLog(`Removed Member`, `Removed ${target?.name || userId} from workspace`);
   };
 
   const createProject = async (data: Partial<JiraProject>): Promise<JiraProject> => {
-    const key = (data.key || 'PRJ').toUpperCase().slice(0, 5);
+    const cleanName = data.name?.trim() || 'New Project';
+    let generatedKey = data.key?.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') || '';
+    if (!generatedKey) {
+      const words = cleanName.split(' ');
+      generatedKey = words.map((w) => w[0]).join('').toUpperCase().slice(0, 5);
+      if (generatedKey.length < 2) generatedKey = 'PRJ';
+    }
+
+    const template = data.template || 'scrum';
+    let columns = [
+      { status: 'todo' as IssueStatus, name: 'To Do', color: 'bg-stone-500/10 text-stone-700 dark:text-stone-300' },
+      { status: 'in_progress' as IssueStatus, name: 'In Progress', limit: 4, color: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
+      { status: 'in_review' as IssueStatus, name: 'Code Review', limit: 3, color: 'bg-amber-500/10 text-amber-700 dark:text-amber-300' },
+      { status: 'qa' as IssueStatus, name: 'QA & Testing', limit: 3, color: 'bg-purple-500/10 text-purple-700 dark:text-purple-300' },
+      { status: 'done' as IssueStatus, name: 'Done', color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+    ];
+
+    if (template === 'kanban') {
+      columns = [
+        { status: 'todo' as IssueStatus, name: 'Backlog', color: 'bg-stone-500/10 text-stone-700 dark:text-stone-300' },
+        { status: 'in_progress' as IssueStatus, name: 'In Progress', limit: 4, color: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
+        { status: 'done' as IssueStatus, name: 'Done', color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+      ];
+    } else if (template === 'bug_tracking') {
+      columns = [
+        { status: 'todo' as IssueStatus, name: 'Triage / Reported', color: 'bg-rose-500/10 text-rose-700 dark:text-rose-300' },
+        { status: 'in_progress' as IssueStatus, name: 'Investigating', limit: 4, color: 'bg-amber-500/10 text-amber-700 dark:text-amber-300' },
+        { status: 'in_review' as IssueStatus, name: 'Fix In Review', color: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
+        { status: 'qa' as IssueStatus, name: 'Verified Fixed', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-300' },
+        { status: 'done' as IssueStatus, name: 'Closed', color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+      ];
+    }
+
     const newProject: JiraProject = {
-      id: `proj-${Date.now()}`,
-      key,
-      name: data.name || 'New Project',
+      id: `proj-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+      key: generatedKey,
+      name: cleanName,
       description: data.description || '',
-      leadId: currentUser.id,
-      template: data.template || 'scrum',
+      leadId: currentUser.id, // Current creator is set as lead
+      template,
       category: data.category || 'Software Development',
-      avatar: data.avatar || '🚀',
+      avatar: data.avatar || '⚡',
       createdAt: new Date().toISOString(),
       customFields: [],
-      columns: [
-        { status: 'todo', name: 'To Do', color: 'bg-stone-500/10 text-stone-700 dark:text-stone-300' },
-        { status: 'in_progress', name: 'In Progress', limit: 4, color: 'bg-blue-500/10 text-blue-700 dark:text-blue-300' },
-        { status: 'in_review', name: 'Review', color: 'bg-amber-500/10 text-amber-700 dark:text-amber-300' },
-        { status: 'done', name: 'Done', color: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
-      ],
+      columns,
     };
-    const updated = [...projects, newProject];
-    setProjects(updated);
+
+    const updatedProjects = [...projects, newProject];
+    setProjects(updatedProjects);
     setActiveProjectId(newProject.id);
-    syncStorage({ projects: updated });
-    addAuditLog(`Created project ${key}`, `Project "${newProject.name}" initialized`);
+    syncStorage({ projects: updatedProjects });
+    addAuditLog(`Created Project ${newProject.key}`, `Project "${newProject.name}" created by ${currentUser.name}`);
+
+    setNotifications((prev) => [
+      {
+        id: `notif-${Date.now()}`,
+        title: `Project "${newProject.name}" (${newProject.key}) created`,
+        time: 'Just now',
+        read: false,
+      },
+      ...prev,
+    ]);
+
     return newProject;
   };
 
@@ -763,6 +897,29 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     setProjects(updated);
     syncStorage({ projects: updated });
+  };
+
+  const deleteProject = async (projectId: string) => {
+    if (projects.length <= 1) {
+      throw new Error('Cannot delete the only remaining project in workspace.');
+    }
+    const target = projects.find((p) => p.id === projectId);
+    const updatedProjects = projects.filter((p) => p.id !== projectId);
+    const updatedIssues = issues.filter((i) => i.projectId !== projectId);
+    const updatedSprints = sprints.filter((s) => s.projectId !== projectId);
+
+    setProjects(updatedProjects);
+    setIssues(updatedIssues);
+    setSprints(updatedSprints);
+    if (activeProjectId === projectId) {
+      setActiveProjectId(updatedProjects[0].id);
+    }
+    syncStorage({
+      projects: updatedProjects,
+      issues: updatedIssues,
+      sprints: updatedSprints,
+    });
+    addAuditLog(`Deleted Project`, `Removed project ${target?.name || projectId}`);
   };
 
   const resetToDemo = async () => {
@@ -862,8 +1019,12 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         auditLogs,
         notifications,
         isCreateModalOpen,
+        isCreateProjectModalOpen,
+        isInviteModalOpen,
         isQuickSearchOpen,
         createIssueDefaultSprintId,
+        canManageRoles,
+        isProjectCreator,
 
         setCurrentTab,
         setActiveProjectId,
@@ -872,6 +1033,8 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setFilter,
         setQuickFilter,
         setIsCreateModalOpen,
+        setIsCreateProjectModalOpen,
+        setIsInviteModalOpen,
         setIsQuickSearchOpen,
         markNotificationsAsRead,
 
@@ -895,8 +1058,11 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         toggleAutomation,
         inviteMember,
+        updateMemberRole,
+        removeMember,
         createProject,
         updateProject,
+        deleteProject,
 
         resetToDemo,
         exportStateJson,

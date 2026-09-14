@@ -27,6 +27,7 @@ export const JiraSidebar: React.FC<{
     activeProject,
     issues,
     activeSprint,
+    setIsCreateProjectModalOpen,
   } = useJira();
 
   const projectIssues = issues.filter((i) => i.projectId === activeProject.id);
@@ -69,7 +70,7 @@ export const JiraSidebar: React.FC<{
 
   return (
     <aside
-      className={`fixed left-0 top-16 bottom-0 z-20 bg-stone-50/95 dark:bg-zinc-950/95 backdrop-blur-md border-r border-stone-200 dark:border-zinc-800 transition-all duration-300 flex flex-col justify-between shrink-0 select-none ${
+      className={`fixed left-0 top-14 bottom-0 h-[calc(100vh-3.5rem)] z-30 bg-stone-50/95 dark:bg-zinc-950/95 backdrop-blur-md border-r border-stone-200 dark:border-zinc-800 transition-all duration-300 flex flex-col justify-between shrink-0 select-none ${
         isCollapsed ? 'w-14 sm:w-16' : 'w-56 sm:w-64'
       }`}
     >
@@ -77,7 +78,7 @@ export const JiraSidebar: React.FC<{
       <div className="p-3 border-b border-stone-200/70 dark:border-zinc-800/70 flex items-center justify-between">
         {!isCollapsed && (
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-stone-200 dark:bg-zinc-800 flex items-center justify-center text-lg shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-stone-200 dark:bg-zinc-800 flex items-center justify-center text-lg shrink-0 shadow-2xs">
               {activeProject.avatar}
             </div>
             <div className="overflow-hidden">
@@ -92,7 +93,7 @@ export const JiraSidebar: React.FC<{
         )}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors mx-auto"
+          className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-200/50 dark:hover:bg-zinc-800 transition-colors mx-auto cursor-pointer"
           title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
         >
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}

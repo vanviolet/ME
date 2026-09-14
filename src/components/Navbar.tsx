@@ -131,12 +131,14 @@ export const Navbar: React.FC = () => {
     <header
       id="navbar"
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled || mobileMenuOpen
+        isJiraPage
+          ? 'h-14 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-b border-stone-200 dark:border-zinc-800 flex items-center shadow-2xs'
+          : isScrolled || mobileMenuOpen
           ? 'bg-stone-50/95 dark:bg-zinc-950/95 backdrop-blur-md border-b border-stone-200/80 dark:border-zinc-800/80 py-3 shadow-xs'
           : 'bg-stone-50/80 dark:bg-zinc-950/80 backdrop-blur-xs py-4 sm:py-5'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3">
+      <div className={`${isJiraPage ? 'w-full px-3 sm:px-5' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'} flex items-center justify-between gap-3`}>
         {/* Brand / Monogram */}
         <div className="flex items-center gap-2.5 shrink-0">
           <Link
@@ -206,31 +208,47 @@ export const Navbar: React.FC = () => {
 
                 {isJiraProjectDropdownOpen && (
                   <div className="absolute top-full left-0 mt-1.5 w-64 bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 py-1.5 text-xs animate-in fade-in duration-100">
-                    <div className="px-3 py-1.5 font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider text-[10px]">
-                      Projects ({jira.projects.length})
+                    <div className="px-3 py-1.5 font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider text-[10px] flex items-center justify-between">
+                      <span>Projects ({jira.projects.length})</span>
                     </div>
-                    {jira.projects.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => {
-                          jira.setActiveProjectId(p.id);
-                          setIsJiraProjectDropdownOpen(false);
-                        }}
-                        className="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">{p.avatar}</span>
-                          <div>
-                            <div className="font-semibold text-stone-900 dark:text-zinc-100">{p.name}</div>
-                            <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
-                              Key: {p.key} • {p.template}
+                    <div className="max-h-56 overflow-y-auto">
+                      {jira.projects.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            jira.setActiveProjectId(p.id);
+                            setIsJiraProjectDropdownOpen(false);
+                          }}
+                          className="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{p.avatar}</span>
+                            <div>
+                              <div className="font-semibold text-stone-900 dark:text-zinc-100">{p.name}</div>
+                              <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-mono">
+                                Key: {p.key} • {p.template}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        {p.id === jira.activeProject.id && <Check size={14} className="text-blue-600" />}
+                          {p.id === jira.activeProject.id && <Check size={14} className="text-blue-600" />}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="p-1.5 border-t border-stone-100 dark:border-zinc-800 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsJiraProjectDropdownOpen(false);
+                          jira.setIsCreateProjectModalOpen(true);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100/90 dark:hover:bg-blue-900/60 flex items-center gap-2 font-semibold text-xs transition-colors cursor-pointer"
+                      >
+                        <Plus size={14} />
+                        <span>+ Create New Project</span>
                       </button>
-                    ))}
+                    </div>
                   </div>
                 )}
               </div>
