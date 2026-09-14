@@ -35,7 +35,15 @@ export interface JiraFullState {
   auditLogs: JiraAuditLog[];
 }
 
-const STORAGE_KEY = 'jira_enterprise_clean_v3';
+// Clean up any legacy localStorage key to remove ambiguity
+try {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.removeItem('jira_enterprise_clean_v3');
+    localStorage.removeItem('jira_enterprise_clean_v2');
+    localStorage.removeItem('jira_enterprise_state_v1');
+  }
+} catch {}
+
 const FIRESTORE_DOC_PATH = 'jira_state/current';
 
 /**
@@ -117,9 +125,6 @@ export function subscribeJiraFirestore(onUpdate: (state: JiraFullState) => void)
               auditLogs: INITIAL_AUDIT_LOGS,
             };
             const cleaned = sanitizeCleanState(cloudData.state, defaultFallback);
-            try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-            } catch {}
             onUpdate(cleaned);
           }
         }
@@ -148,7 +153,7 @@ export async function fetchJiraState(): Promise<JiraFullState> {
     auditLogs: INITIAL_AUDIT_LOGS,
   };
 
-  // 1. Prioritize Firebase Firestore cloud database (primary real-time database)
+  // 1. Fetch from Firebase Firestore cloud database
   try {
     const docRef = doc(db, 'jira_state', 'current');
     const snap = await getDoc(docRef);
@@ -160,54 +165,23 @@ export async function fetchJiraState(): Promise<JiraFullState> {
           const safeData = cleanForFirestore(sanitized);
           setDoc(docRef, { state: safeData, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
         }
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
-        } catch {}
         return sanitized;
       }
     } else {
       // Seed Firestore with clean initial state
       const safeData = cleanForFirestore(defaultState);
       await setDoc(docRef, { state: safeData, updatedAt: new Date().toISOString() });
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultState));
-      } catch {}
       return defaultState;
     }
   } catch (err) {
-    console.warn('Firebase Firestore read error, using offline cache:', err);
+    console.warn('Firebase Firestore read error:', err);
   }
-
-  // 2. Fallback to localStorage cache
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && parsed.issues && parsed.projects) {
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn('Error reading Jira local storage:', err);
-  }
-
-  // 3. Fallback to default initial dataset
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultState));
-  } catch {}
 
   return defaultState;
 }
 
 export async function persistJiraState(state: JiraFullState): Promise<void> {
-  // 1. Immediately persist to localStorage for instant UI response
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (err) {
-    console.warn('Error writing Jira local storage:', err);
-  }
-
-  // 2. Persist to Firebase Firestore with deep sanitization for cloud real-time sync
+  // Persist directly to Firebase Firestore with deep sanitization for real-time cloud sync
   try {
     const docRef = doc(db, 'jira_state', 'current');
     const sanitized = cleanForFirestore(state);
@@ -218,7 +192,6 @@ export async function persistJiraState(state: JiraFullState): Promise<void> {
 }
 
 export async function resetJiraServerData(): Promise<void> {
-  localStorage.removeItem(STORAGE_KEY);
   const defaultState: JiraFullState = {
     workspace: INITIAL_WORKSPACE,
     projects: INITIAL_PROJECTS,

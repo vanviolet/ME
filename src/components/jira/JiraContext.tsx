@@ -63,6 +63,7 @@ interface JiraContextType {
   createIssueDefaultSprintId?: string;
   canManageRoles: boolean;
   isProjectCreator: boolean;
+  isLoading: boolean;
 
   // Setters
   setCurrentTab: (tab: JiraTab) => void;
@@ -133,6 +134,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<JiraUser>(INITIAL_WORKSPACE.members[0]);
   const [currentTab, setCurrentTab] = useState<JiraTab>('board');
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const selectedIssue = useMemo(() => {
     if (!selectedIssueId) return null;
@@ -210,44 +212,56 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Load state on mount and attach real-time Firebase Firestore listener
   useEffect(() => {
-    fetchJiraState().then((state) => {
-      if (state) {
-        if (state.workspace) {
-          setWorkspace((prev) => {
-            const rawMembers = state.workspace.members || [];
-            if (authUser && authUser.email) {
-              const googleMember: JiraUser = {
-                id: authUser.uid,
-                name: authUser.displayName || authUser.email.split('@')[0],
-                email: authUser.email,
-                avatar: authUser.photoURL || '',
-                role: 'admin',
-                title: authUser.isAdmin ? 'Lead Architect / Workspace Owner' : 'Lead Software Engineer',
-              };
-              const filtered = rawMembers.filter(
-                (m) => m.id !== googleMember.id && m.email.toLowerCase() !== googleMember.email.toLowerCase()
-              );
-              return {
-                ...state.workspace,
-                ownerEmail: state.workspace.ownerEmail || authUser.email || '',
-                members: [googleMember, ...filtered],
-              };
-            }
-            return state.workspace;
-          });
+    let isMounted = true;
+    setIsLoading(true);
+
+    fetchJiraState()
+      .then((state) => {
+        if (!isMounted) return;
+        if (state) {
+          if (state.workspace) {
+            setWorkspace((prev) => {
+              const rawMembers = state.workspace.members || [];
+              if (authUser && authUser.email) {
+                const googleMember: JiraUser = {
+                  id: authUser.uid,
+                  name: authUser.displayName || authUser.email.split('@')[0],
+                  email: authUser.email,
+                  avatar: authUser.photoURL || '',
+                  role: 'admin',
+                  title: authUser.isAdmin ? 'Lead Architect / Workspace Owner' : 'Lead Software Engineer',
+                };
+                const filtered = rawMembers.filter(
+                  (m) => m.id !== googleMember.id && m.email.toLowerCase() !== googleMember.email.toLowerCase()
+                );
+                return {
+                  ...state.workspace,
+                  ownerEmail: state.workspace.ownerEmail || authUser.email || '',
+                  members: [googleMember, ...filtered],
+                };
+              }
+              return state.workspace;
+            });
+          }
+          setProjects(state.projects?.length ? state.projects : INITIAL_PROJECTS);
+          setIssues(state.issues || INITIAL_ISSUES);
+          setSprints(state.sprints || INITIAL_SPRINTS);
+          setComments(state.comments || INITIAL_COMMENTS);
+          setWorklogs(state.worklogs || INITIAL_WORKLOGS);
+          setVersions(state.versions || INITIAL_VERSIONS);
+          setAutomations(state.automations || INITIAL_AUTOMATIONS);
+          setAuditLogs(state.auditLogs || INITIAL_AUDIT_LOGS);
         }
-        setProjects(state.projects?.length ? state.projects : INITIAL_PROJECTS);
-        setIssues(state.issues || INITIAL_ISSUES);
-        setSprints(state.sprints || INITIAL_SPRINTS);
-        setComments(state.comments || INITIAL_COMMENTS);
-        setWorklogs(state.worklogs || INITIAL_WORKLOGS);
-        setVersions(state.versions || INITIAL_VERSIONS);
-        setAutomations(state.automations || INITIAL_AUTOMATIONS);
-        setAuditLogs(state.auditLogs || INITIAL_AUDIT_LOGS);
-      }
-    });
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.warn('Error fetching initial Jira state:', err);
+        if (isMounted) setIsLoading(false);
+      });
 
     const unsubscribe = subscribeJiraFirestore((cloudState) => {
+      if (!isMounted) return;
+      setIsLoading(false);
       if (cloudState && cloudState.issues) {
         setIssues(cloudState.issues);
         if (cloudState.sprints) setSprints(cloudState.sprints);
@@ -283,7 +297,10 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [authUser]);
 
   // Sync state to storage
@@ -1117,6 +1134,7 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createIssueDefaultSprintId,
         canManageRoles,
         isProjectCreator,
+        isLoading,
 
         setCurrentTab,
         setActiveProjectId,

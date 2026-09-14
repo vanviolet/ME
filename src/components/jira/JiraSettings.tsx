@@ -299,10 +299,10 @@ export const JiraSettings: React.FC = () => {
       <div className="p-5 rounded-2xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs space-y-3">
         <h3 className="text-sm font-bold text-stone-900 dark:text-zinc-100 flex items-center gap-2">
           <Database size={16} className="text-emerald-500" />
-          <span>Data Export & Storage Management</span>
+          <span>Cloud Database & Backup Management</span>
         </h3>
         <p className="text-xs text-stone-500 dark:text-zinc-400">
-          All changes are synchronized across Server API, Firestore cloud database, and local browser cache in real-time. You can export a snapshot, export spreadsheet CSVs, or restore from a backup file.
+          Semua data proyek, sprint, tiket, dan log tersimpan dan tersinkronisasi secara real-time langsung ke Firebase Firestore Cloud Database. Anda dapat mengunduh snapshot backup JSON, mengekspor tiket ke CSV, atau memulihkan data dari file cadangan.
         </p>
 
         {importStatus && (
