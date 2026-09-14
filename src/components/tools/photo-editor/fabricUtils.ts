@@ -110,21 +110,23 @@ export async function applyImageAdjustments(
   img: FabricImage,
   adjustments: ImageAdjustments
 ): Promise<void> {
+  if (!img) return;
   img.filters = [];
 
   // Brightness (-1 to 1)
-  if (adjustments.brightness !== 0) {
-    img.filters.push(new filters.Brightness({ brightness: adjustments.brightness / 100 }));
+  const totalBrightness = (adjustments.brightness || 0) + (adjustments.exposure ? adjustments.exposure * 0.5 : 0);
+  if (totalBrightness !== 0) {
+    img.filters.push(new filters.Brightness({ brightness: Math.max(-1, Math.min(1, totalBrightness / 100)) }));
   }
 
   // Contrast (-1 to 1)
   if (adjustments.contrast !== 0) {
-    img.filters.push(new filters.Contrast({ contrast: adjustments.contrast / 100 }));
+    img.filters.push(new filters.Contrast({ contrast: Math.max(-1, Math.min(1, adjustments.contrast / 100)) }));
   }
 
   // Saturation (-1 to 1)
   if (adjustments.saturation !== 0) {
-    img.filters.push(new filters.Saturation({ saturation: adjustments.saturation / 100 }));
+    img.filters.push(new filters.Saturation({ saturation: Math.max(-1, Math.min(1, adjustments.saturation / 100)) }));
   }
 
   // Vibrance
@@ -137,9 +139,18 @@ export async function applyImageAdjustments(
     img.filters.push(new filters.HueRotation({ rotation: (adjustments.hueRotate * Math.PI) / 180 }));
   }
 
+  // Temperature / Warmth (Warmth adds subtle Sepia / Hue shift)
+  if (adjustments.temperature && adjustments.temperature !== 0) {
+    if (adjustments.temperature > 0) {
+      img.filters.push(new filters.Sepia());
+    } else {
+      img.filters.push(new filters.HueRotation({ rotation: -0.2 }));
+    }
+  }
+
   // Blur (0 to 1)
   if (adjustments.blur > 0) {
-    img.filters.push(new filters.Blur({ blur: adjustments.blur / 100 }));
+    img.filters.push(new filters.Blur({ blur: Math.min(1, adjustments.blur / 100) }));
   }
 
   // Grayscale
@@ -157,7 +168,11 @@ export async function applyImageAdjustments(
     img.filters.push(new filters.Invert());
   }
 
-  await img.applyFilters();
+  try {
+    await img.applyFilters();
+  } catch (err) {
+    console.warn('Filter application note:', err);
+  }
 }
 
 // Helper to create star polygon points
@@ -177,19 +192,47 @@ export function createStarPoints(points: number, outerRadius: number, innerRadiu
 
 // Background Removal / Chroma key via Canvas Pixel Manipulation
 export async function removeImageBackground(
-  imageElement: HTMLImageElement,
-  keyColor: { r: number; g: number; b: number } = { r: 255, g: 255, b: 255 },
-  tolerance: number = 30
+  imageSource: FabricImage | HTMLImageElement | string,
+  tolerance: number = 30,
+  replaceColor?: string,
+  keyColor: { r: number; g: number; b: number } = { r: 255, g: 255, b: 255 }
 ): Promise<string> {
-  const canvas = document.createElement('canvas');
-  canvas.width = imageElement.naturalWidth || imageElement.width;
-  canvas.height = imageElement.naturalHeight || imageElement.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return imageElement.src;
+  let imgEl: HTMLImageElement;
+  if (typeof imageSource === 'string') {
+    imgEl = new Image();
+    imgEl.crossOrigin = 'anonymous';
+    imgEl.src = imageSource;
+    await new Promise((resolve, reject) => {
+      imgEl.onload = resolve;
+      imgEl.onerror = reject;
+    });
+  } else if ('getElement' in imageSource && typeof (imageSource as any).getElement === 'function') {
+    imgEl = (imageSource as any).getElement() as HTMLImageElement;
+  } else {
+    imgEl = imageSource as HTMLImageElement;
+  }
 
-  ctx.drawImage(imageElement, 0, 0);
+  const canvas = document.createElement('canvas');
+  canvas.width = imgEl.naturalWidth || imgEl.width || 800;
+  canvas.height = imgEl.naturalHeight || imgEl.height || 600;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return imgEl.src;
+
+  ctx.drawImage(imgEl, 0, 0);
   const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imgData.data;
+
+  // Sample corner pixel color if default white is not dominant
+  let targetR = keyColor.r;
+  let targetG = keyColor.g;
+  let targetB = keyColor.b;
+
+  // If auto detecting background from top-left corner
+  if (data.length >= 4) {
+    targetR = data[0];
+    targetG = data[1];
+    targetB = data[2];
+  }
 
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i];
@@ -198,9 +241,9 @@ export async function removeImageBackground(
 
     // Calculate Euclidean color distance
     const dist = Math.sqrt(
-      Math.pow(r - keyColor.r, 2) +
-      Math.pow(g - keyColor.g, 2) +
-      Math.pow(b - keyColor.b, 2)
+      Math.pow(r - targetR, 2) +
+      Math.pow(g - targetG, 2) +
+      Math.pow(b - targetB, 2)
     );
 
     if (dist <= tolerance) {
@@ -213,5 +256,20 @@ export async function removeImageBackground(
   }
 
   ctx.putImageData(imgData, 0, 0);
+
+  // If replacing background with a solid color
+  if (replaceColor && replaceColor !== 'transparent') {
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = canvas.width;
+    bgCanvas.height = canvas.height;
+    const bgCtx = bgCanvas.getContext('2d');
+    if (bgCtx) {
+      bgCtx.fillStyle = replaceColor;
+      bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+      bgCtx.drawImage(canvas, 0, 0);
+      return bgCanvas.toDataURL('image/png');
+    }
+  }
+
   return canvas.toDataURL('image/png');
 }

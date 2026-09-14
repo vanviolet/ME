@@ -84,7 +84,7 @@ const AppLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 selection:bg-rose-500/20 selection:text-rose-600 dark:selection:bg-rose-500/30 dark:selection:text-rose-400 font-sans">
-      <Navbar />
+      {!isFullScreenStudio && <Navbar />}
       <ScrollHandler />
       <Routes>
         <Route path="/" element={<HomePage />} />

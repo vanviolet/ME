@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Canvas,
   FabricImage,
-  IText,
   Textbox,
   Rect,
   Circle,
@@ -11,7 +10,6 @@ import {
   Path,
   Line,
   Shadow,
-  Point,
   FabricObject,
   PencilBrush,
 } from 'fabric';
@@ -48,6 +46,56 @@ import { LayersPanel } from './SubPanels/LayersPanel';
 import { ExportModal } from './ExportModal';
 import { TemplatesModal } from './TemplatesModal';
 
+interface SelectedTextState {
+  fontFamily: string;
+  fontSize: number;
+  fontWeight: string | number;
+  fontStyle: string;
+  underline: boolean;
+  linethrough: boolean;
+  textAlign: string;
+  fillColor: string;
+  strokeColor: string;
+  strokeWidth: number;
+  backgroundColor: string;
+  opacity: number;
+  hasShadow: boolean;
+  letterSpacing: number;
+  lineHeight: number;
+  paragraphSpacing: number;
+  letterCase: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+  listStyle: 'none' | 'disc' | 'decimal';
+  verticalAlign: 'top' | 'middle' | 'bottom';
+  frameBehavior: 'auto' | 'fixed';
+  clipping: boolean;
+  isLocked: boolean;
+}
+
+const DEFAULT_TEXT_STATE: SelectedTextState = {
+  fontFamily: "'Archivo', sans-serif",
+  fontSize: 140,
+  fontWeight: '900',
+  fontStyle: 'italic',
+  underline: false,
+  linethrough: false,
+  textAlign: 'left',
+  fillColor: '#ffffff',
+  strokeColor: '#000000',
+  strokeWidth: 0,
+  backgroundColor: 'transparent',
+  opacity: 1,
+  hasShadow: true,
+  letterSpacing: 120,
+  lineHeight: 1,
+  paragraphSpacing: 0,
+  letterCase: 'uppercase',
+  listStyle: 'none',
+  verticalAlign: 'top',
+  frameBehavior: 'fixed',
+  clipping: true,
+  isLocked: false,
+};
+
 export const PhotoEditor: React.FC = () => {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const canvasElRef = useRef<HTMLCanvasElement>(null);
@@ -57,39 +105,23 @@ export const PhotoEditor: React.FC = () => {
   // Active Tool Tab & Sub-Panel
   const [activeTab, setActiveTab] = useState<ToolTab | null>('text');
 
-  // Canvas Dimensions
+  // Canvas Dimensions & Zoom
   const [canvasWidth, setCanvasWidth] = useState<number>(1200);
   const [canvasHeight, setCanvasHeight] = useState<number>(900);
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [zoomLevel, setZoomLevel] = useState<number>(0.65);
   const [activeTemplate, setActiveTemplate] = useState<PhotoTemplate>(SAMPLE_TEMPLATES[0]);
 
   // Selected Object Properties
   const [selectedObject, setSelectedObject] = useState<FabricObject | null>(null);
   const [selectedType, setSelectedType] = useState<'text' | 'image' | 'shape' | 'sticker' | null>('text');
 
-  // Text Advanced State
-  const [fontFamily, setFontFamily] = useState<string>("'Archivo', sans-serif");
-  const [fontSize, setFontSize] = useState<number>(57);
-  const [fontWeight, setFontWeight] = useState<string | number>('900');
-  const [fontStyle, setFontStyle] = useState<string>('italic');
-  const [underline, setUnderline] = useState<boolean>(false);
-  const [linethrough, setLinethrough] = useState<boolean>(false);
-  const [textAlign, setTextAlign] = useState<string>('left');
-  const [fillColor, setFillColor] = useState<string>('#ffffff');
-  const [strokeColor, setStrokeColor] = useState<string>('#000000');
-  const [strokeWidth, setStrokeWidth] = useState<number>(0);
-  const [backgroundColor, setBackgroundColor] = useState<string>('transparent');
-  const [opacity, setOpacity] = useState<number>(1);
-  const [hasShadow, setHasShadow] = useState<boolean>(false);
-  const [letterSpacing, setLetterSpacing] = useState<number>(120);
-  const [lineHeight, setLineHeight] = useState<number>(1);
-  const [paragraphSpacing, setParagraphSpacing] = useState<number>(0);
-  const [letterCase, setLetterCase] = useState<'none' | 'uppercase' | 'lowercase' | 'capitalize'>('uppercase');
-  const [listStyle, setListStyle] = useState<'none' | 'disc' | 'decimal'>('none');
-  const [verticalAlign, setVerticalAlign] = useState<'top' | 'middle' | 'bottom'>('top');
-  const [frameBehavior, setFrameBehavior] = useState<'auto' | 'fixed'>('fixed');
-  const [clipping, setClipping] = useState<boolean>(true);
-  const [isLocked, setIsLocked] = useState<boolean>(false);
+  // Consolidated Text & Object State (prevents cascading re-renders)
+  const [textState, setTextState] = useState<SelectedTextState>(DEFAULT_TEXT_STATE);
+
+  // Shape state
+  const [shapeFill, setShapeFill] = useState<string>('#8b5cf6');
+  const [shapeStroke, setShapeStroke] = useState<string>('#ffffff');
+  const [shapeStrokeWidth, setShapeStrokeWidth] = useState<number>(0);
 
   // Image Adjustments & Filter
   const [adjustments, setAdjustments] = useState<ImageAdjustments>(DEFAULT_ADJUSTMENTS);
@@ -106,9 +138,12 @@ export const PhotoEditor: React.FC = () => {
   const [layers, setLayers] = useState<any[]>([]);
 
   // History for Undo/Redo
-  const [historyStack, setHistoryStack] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const historyStackRef = useRef<string[]>([]);
+  const historyIndexRef = useRef<number>(-1);
+  const [canUndo, setCanUndo] = useState<boolean>(false);
+  const [canRedo, setCanRedo] = useState<boolean>(false);
   const isHistoryAction = useRef<boolean>(false);
+  const isInitializingRef = useRef<boolean>(false);
 
   // Modals
   const [isExportOpen, setIsExportOpen] = useState<boolean>(false);
@@ -116,7 +151,9 @@ export const PhotoEditor: React.FC = () => {
   const [exportPreviewUrl, setExportPreviewUrl] = useState<string | null>(null);
 
   // Update layers list from canvas objects
-  const refreshLayers = useCallback((canvas: Canvas) => {
+  const refreshLayers = useCallback(() => {
+    const canvas = fabricRef.current;
+    if (!canvas || isInitializingRef.current) return;
     const objs = canvas.getObjects();
     const list = objs.map((obj, i) => {
       let name = 'Object';
@@ -137,8 +174,12 @@ export const PhotoEditor: React.FC = () => {
         name = type ? type.toUpperCase() : 'Graphic';
       }
 
+      if (!(obj as any)._layerId) {
+        (obj as any)._layerId = `layer-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      }
+
       return {
-        id: (obj as any).id || `layer-${i}-${Date.now()}`,
+        id: (obj as any)._layerId,
         name,
         type,
         visible: obj.visible !== false,
@@ -152,19 +193,21 @@ export const PhotoEditor: React.FC = () => {
   // Save State to Undo History
   const saveStateToHistory = useCallback(() => {
     const canvas = fabricRef.current;
-    if (!canvas || isHistoryAction.current) return;
+    if (!canvas || isHistoryAction.current || isInitializingRef.current) return;
     try {
       const json = JSON.stringify(canvas.toJSON());
-      setHistoryStack((prev) => {
-        const next = prev.slice(0, historyIndex + 1);
-        return [...next, json];
-      });
-      setHistoryIndex((prev) => prev + 1);
-      refreshLayers(canvas);
+      const newStack = historyStackRef.current.slice(0, historyIndexRef.current + 1);
+      newStack.push(json);
+      historyStackRef.current = newStack;
+      historyIndexRef.current = newStack.length - 1;
+
+      setCanUndo(historyIndexRef.current > 0);
+      setCanRedo(historyIndexRef.current < newStack.length - 1);
+      refreshLayers();
     } catch (err) {
       console.error('History state save error:', err);
     }
-  }, [historyIndex, refreshLayers]);
+  }, [refreshLayers]);
 
   // Sync state when selection changes
   const handleSelection = useCallback((obj: FabricObject | null) => {
@@ -175,37 +218,49 @@ export const PhotoEditor: React.FC = () => {
     }
 
     setSelectedObject(obj);
-    setIsLocked(obj.lockMovementX === true);
-    setOpacity(obj.opacity ?? 1);
-
     const type = obj.type;
+
     if (type === 'textbox' || type === 'i-text' || type === 'text') {
       setSelectedType('text');
       const textObj = obj as Textbox;
-      setFontFamily(textObj.fontFamily || "'Archivo', sans-serif");
-      setFontSize(textObj.fontSize || 48);
-      setFontWeight(textObj.fontWeight || 'normal');
-      setFontStyle(textObj.fontStyle || 'normal');
-      setUnderline(!!textObj.underline);
-      setLinethrough(!!textObj.linethrough);
-      setTextAlign(textObj.textAlign || 'left');
-      setFillColor(typeof textObj.fill === 'string' ? textObj.fill : '#ffffff');
-      setStrokeColor(typeof textObj.stroke === 'string' ? textObj.stroke : '#000000');
-      setStrokeWidth(textObj.strokeWidth || 0);
-      setBackgroundColor(typeof textObj.backgroundColor === 'string' ? textObj.backgroundColor : 'transparent');
-      setLetterSpacing(textObj.charSpacing || 0);
-      setLineHeight(textObj.lineHeight || 1);
-      setHasShadow(!!textObj.shadow);
+      setTextState((prev) => ({
+        ...prev,
+        fontFamily: textObj.fontFamily || "'Archivo', sans-serif",
+        fontSize: textObj.fontSize || 48,
+        fontWeight: textObj.fontWeight || 'normal',
+        fontStyle: (textObj.fontStyle as any) || 'normal',
+        underline: !!textObj.underline,
+        linethrough: !!textObj.linethrough,
+        textAlign: textObj.textAlign || 'left',
+        fillColor: typeof textObj.fill === 'string' ? textObj.fill : '#ffffff',
+        strokeColor: typeof textObj.stroke === 'string' ? textObj.stroke : '#000000',
+        strokeWidth: textObj.strokeWidth || 0,
+        backgroundColor: typeof textObj.backgroundColor === 'string' && textObj.backgroundColor ? textObj.backgroundColor : 'transparent',
+        opacity: textObj.opacity ?? 1,
+        hasShadow: !!textObj.shadow,
+        letterSpacing: textObj.charSpacing || 0,
+        lineHeight: textObj.lineHeight || 1,
+        isLocked: textObj.lockMovementX === true,
+      }));
     } else if (type === 'image') {
       setSelectedType('image');
     } else {
       setSelectedType('shape');
-      setFillColor(typeof obj.fill === 'string' ? obj.fill : '#8b5cf6');
-      setStrokeColor(typeof obj.stroke === 'string' ? obj.stroke : '#ffffff');
-      setStrokeWidth(obj.strokeWidth || 0);
-      setHasShadow(!!obj.shadow);
+      setShapeFill(typeof obj.fill === 'string' ? obj.fill : '#8b5cf6');
+      setShapeStroke(typeof obj.stroke === 'string' ? obj.stroke : '#ffffff');
+      setShapeStrokeWidth(obj.strokeWidth || 0);
     }
   }, []);
+
+  // Stable refs for event handlers inside Canvas
+  const handleSelectionRef = useRef(handleSelection);
+  handleSelectionRef.current = handleSelection;
+
+  const saveStateRef = useRef(saveStateToHistory);
+  saveStateRef.current = saveStateToHistory;
+
+  const refreshLayersRef = useRef(refreshLayers);
+  refreshLayersRef.current = refreshLayers;
 
   // Load a full template into the canvas
   const loadTemplate = useCallback(
@@ -213,12 +268,15 @@ export const PhotoEditor: React.FC = () => {
       const canvas = targetCanvas || fabricRef.current;
       if (!canvas) return;
 
+      isInitializingRef.current = true;
       canvas.clear();
       setCanvasWidth(template.width);
       setCanvasHeight(template.height);
       setActiveTemplate(template);
 
-      canvas.setDimensions({ width: template.width, height: template.height });
+      // Reset history for fresh template
+      historyStackRef.current = [];
+      historyIndexRef.current = -1;
 
       // 1. Add background image
       if (template.backgroundImage) {
@@ -233,7 +291,6 @@ export const PhotoEditor: React.FC = () => {
             originY: 'top',
             selectable: true,
           });
-          // Scale image to fit template dimensions exactly
           img.scaleToWidth(template.width);
           if (img.getScaledHeight() < template.height) {
             img.scaleToHeight(template.height);
@@ -246,7 +303,7 @@ export const PhotoEditor: React.FC = () => {
         }
       }
 
-      // 2. Add template overlay objects (Text, Badges, etc.)
+      // 2. Add template overlay objects
       for (const obj of template.objects) {
         if (obj.type === 'text' && obj.text) {
           const textItem = new Textbox(obj.text, {
@@ -267,25 +324,26 @@ export const PhotoEditor: React.FC = () => {
         }
       }
 
+      isInitializingRef.current = false;
       canvas.renderAll();
-      refreshLayers(canvas);
+      refreshLayersRef.current();
 
-      // Auto select the main hero text like in screenshot
+      // Auto select hero text
       const allObjs = canvas.getObjects();
       const heroText = allObjs.find((o) => (o as any).text === 'FASHION') || allObjs[1];
       if (heroText) {
         canvas.setActiveObject(heroText);
-        handleSelection(heroText);
+        handleSelectionRef.current(heroText);
       }
 
-      saveStateToHistory();
+      saveStateRef.current();
     },
-    [handleSelection, refreshLayers, saveStateToHistory]
+    []
   );
 
-  // Initialize Fabric Canvas
+  // Initialize Fabric Canvas strictly ONCE on mount
   useEffect(() => {
-    if (!canvasElRef.current || fabricRef.current) return;
+    if (!canvasElRef.current) return;
 
     const canvas = new Canvas(canvasElRef.current, {
       width: 1200,
@@ -299,93 +357,103 @@ export const PhotoEditor: React.FC = () => {
 
     fabricRef.current = canvas;
 
-    // Selection listeners
     canvas.on('selection:created', (e) => {
-      if (e.selected && e.selected[0]) handleSelection(e.selected[0]);
+      if (e.selected && e.selected[0]) handleSelectionRef.current(e.selected[0]);
     });
     canvas.on('selection:updated', (e) => {
-      if (e.selected && e.selected[0]) handleSelection(e.selected[0]);
+      if (e.selected && e.selected[0]) handleSelectionRef.current(e.selected[0]);
     });
     canvas.on('selection:cleared', () => {
-      handleSelection(null);
+      handleSelectionRef.current(null);
     });
 
-    // Modification listeners
     canvas.on('object:modified', () => {
-      saveStateToHistory();
+      saveStateRef.current();
       if (canvas.getActiveObject()) {
-        handleSelection(canvas.getActiveObject());
+        handleSelectionRef.current(canvas.getActiveObject());
       }
     });
 
-    canvas.on('object:added', () => refreshLayers(canvas));
-    canvas.on('object:removed', () => refreshLayers(canvas));
-
-    // Load initial Fashion Editorial Template matching the user screenshot!
     loadTemplate(SAMPLE_TEMPLATES[0], canvas);
 
     return () => {
       canvas.dispose();
       fabricRef.current = null;
     };
-  }, [handleSelection, loadTemplate, refreshLayers, saveStateToHistory]);
+  }, [loadTemplate]);
 
-  // Responsive Zoom & Scale Calculation
+  // Responsive Zoom & Scale Calculation (Debounced/Guarded to avoid loops)
   const autoFitZoom = useCallback(() => {
     if (!canvasContainerRef.current) return;
     const container = canvasContainerRef.current;
-    const padding = 60;
-    const availWidth = container.clientWidth - padding;
-    const availHeight = container.clientHeight - padding;
+    const padding = 70;
+    const availWidth = Math.max(300, container.clientWidth - padding);
+    const availHeight = Math.max(300, container.clientHeight - padding);
 
     const scaleX = availWidth / canvasWidth;
     const scaleY = availHeight / canvasHeight;
-    const fitScale = Math.min(scaleX, scaleY, 1);
-    setZoomLevel(Math.max(0.2, fitScale));
+    const fitScale = Math.min(scaleX, scaleY, 0.95);
+    const targetZoom = Math.max(0.2, Number(fitScale.toFixed(2)));
+
+    setZoomLevel((curr) => (Math.abs(curr - targetZoom) > 0.03 ? targetZoom : curr));
   }, [canvasWidth, canvasHeight]);
 
   useEffect(() => {
-    autoFitZoom();
     const handleResize = () => autoFitZoom();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [autoFitZoom]);
 
+  // Apply Fabric Zoom & Dimensions whenever zoomLevel or canvas dimensions change
+  useEffect(() => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    canvas.setZoom(zoomLevel);
+    canvas.setDimensions({
+      width: Math.round(canvasWidth * zoomLevel),
+      height: Math.round(canvasHeight * zoomLevel),
+    });
+    canvas.renderAll();
+  }, [zoomLevel, canvasWidth, canvasHeight]);
+
   // Undo / Redo implementation
   const handleUndo = useCallback(() => {
     const canvas = fabricRef.current;
-    if (!canvas || historyIndex <= 0) return;
+    if (!canvas || historyIndexRef.current <= 0) return;
     isHistoryAction.current = true;
-    const prevIndex = historyIndex - 1;
-    const json = historyStack[prevIndex];
+    const prevIndex = historyIndexRef.current - 1;
+    const json = historyStackRef.current[prevIndex];
     canvas.loadFromJSON(JSON.parse(json)).then(() => {
       canvas.renderAll();
-      setHistoryIndex(prevIndex);
-      refreshLayers(canvas);
+      historyIndexRef.current = prevIndex;
+      setCanUndo(prevIndex > 0);
+      setCanRedo(prevIndex < historyStackRef.current.length - 1);
+      refreshLayers();
       handleSelection(canvas.getActiveObject());
       isHistoryAction.current = false;
     });
-  }, [historyIndex, historyStack, handleSelection, refreshLayers]);
+  }, [handleSelection, refreshLayers]);
 
   const handleRedo = useCallback(() => {
     const canvas = fabricRef.current;
-    if (!canvas || historyIndex >= historyStack.length - 1) return;
+    if (!canvas || historyIndexRef.current >= historyStackRef.current.length - 1) return;
     isHistoryAction.current = true;
-    const nextIndex = historyIndex + 1;
-    const json = historyStack[nextIndex];
+    const nextIndex = historyIndexRef.current + 1;
+    const json = historyStackRef.current[nextIndex];
     canvas.loadFromJSON(JSON.parse(json)).then(() => {
       canvas.renderAll();
-      setHistoryIndex(nextIndex);
-      refreshLayers(canvas);
+      historyIndexRef.current = nextIndex;
+      setCanUndo(nextIndex > 0);
+      setCanRedo(nextIndex < historyStackRef.current.length - 1);
+      refreshLayers();
       handleSelection(canvas.getActiveObject());
       isHistoryAction.current = false;
     });
-  }, [historyIndex, historyStack, handleSelection, refreshLayers]);
+  }, [handleSelection, refreshLayers]);
 
-  // Keyboard Shortcuts (Del, Backspace, Ctrl+Z, Ctrl+Y, Ctrl+D)
+  // Keyboard Shortcuts (Del, Backspace, Ctrl+Z, Ctrl+Y)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
         return;
       }
@@ -404,7 +472,7 @@ export const PhotoEditor: React.FC = () => {
         const active = canvas.getActiveObject();
         if (active && !(active as any).isEditing) {
           canvas.remove(active);
-          canvas.discardActiveGroup ? (canvas as any).discardActiveGroup() : canvas.discardActiveObject();
+          canvas.discardActiveObject();
           canvas.renderAll();
           saveStateToHistory();
         }
@@ -422,47 +490,25 @@ export const PhotoEditor: React.FC = () => {
     const active = canvas.getActiveObject() as any;
     if (!active || !(active.type === 'textbox' || active.type === 'i-text' || active.type === 'text')) return;
 
-    if (prop === 'fontFamily') {
-      setFontFamily(value);
-      active.set({ fontFamily: value });
-    } else if (prop === 'fontSize') {
-      setFontSize(value);
-      active.set({ fontSize: value });
-    } else if (prop === 'fontWeight') {
-      setFontWeight(value);
-      active.set({ fontWeight: value });
-    } else if (prop === 'fontStyle') {
-      setFontStyle(value);
-      active.set({ fontStyle: value });
-    } else if (prop === 'underline') {
-      setUnderline(value);
-      active.set({ underline: value });
-    } else if (prop === 'linethrough') {
-      setLinethrough(value);
-      active.set({ linethrough: value });
-    } else if (prop === 'textAlign') {
-      setTextAlign(value);
-      active.set({ textAlign: value });
-    } else if (prop === 'fill') {
-      setFillColor(value);
-      active.set({ fill: value });
-    } else if (prop === 'backgroundColor') {
-      setBackgroundColor(value);
-      active.set({ backgroundColor: value === 'transparent' ? '' : value });
-    } else if (prop === 'charSpacing') {
-      setLetterSpacing(value);
-      active.set({ charSpacing: value });
-    } else if (prop === 'lineHeight') {
-      setLineHeight(value);
-      active.set({ lineHeight: value });
-    } else if (prop === 'opacity') {
-      setOpacity(value);
-      active.set({ opacity: value });
-    } else if (prop === 'shadow') {
-      setHasShadow(!!value);
-      active.set({ shadow: value ? new Shadow(value) : undefined });
-    } else if (prop === 'textCase') {
-      setLetterCase(value);
+    setTextState((prev) => ({
+      ...prev,
+      [prop === 'fill' ? 'fillColor' : prop === 'stroke' ? 'strokeColor' : prop === 'charSpacing' ? 'letterSpacing' : prop === 'textCase' ? 'letterCase' : prop]: value,
+    }));
+
+    if (prop === 'fontFamily') active.set({ fontFamily: value });
+    else if (prop === 'fontSize') active.set({ fontSize: value });
+    else if (prop === 'fontWeight') active.set({ fontWeight: value });
+    else if (prop === 'fontStyle') active.set({ fontStyle: value });
+    else if (prop === 'underline') active.set({ underline: value });
+    else if (prop === 'linethrough') active.set({ linethrough: value });
+    else if (prop === 'textAlign') active.set({ textAlign: value });
+    else if (prop === 'fill') active.set({ fill: value });
+    else if (prop === 'backgroundColor') active.set({ backgroundColor: value === 'transparent' ? '' : value });
+    else if (prop === 'charSpacing') active.set({ charSpacing: value });
+    else if (prop === 'lineHeight') active.set({ lineHeight: value });
+    else if (prop === 'opacity') active.set({ opacity: value });
+    else if (prop === 'shadow') active.set({ shadow: value ? new Shadow(value) : undefined });
+    else if (prop === 'textCase') {
       const current = active.text || '';
       if (value === 'uppercase') active.set({ text: current.toUpperCase() });
       else if (value === 'lowercase') active.set({ text: current.toLowerCase() });
@@ -471,10 +517,6 @@ export const PhotoEditor: React.FC = () => {
           text: current.replace(/\b\w/g, (c: string) => c.toUpperCase()),
         });
       }
-    } else if (prop === 'paragraphSpacing') {
-      setParagraphSpacing(value);
-    } else if (prop === 'clipping') {
-      setClipping(value);
     }
 
     canvas.renderAll();
@@ -489,16 +531,15 @@ export const PhotoEditor: React.FC = () => {
     if (!active) return;
 
     if (prop === 'fill') {
-      setFillColor(value);
+      setShapeFill(value);
       active.set({ fill: value });
     } else if (prop === 'stroke') {
-      setStrokeColor(value);
+      setShapeStroke(value);
       active.set({ stroke: value });
     } else if (prop === 'strokeWidth') {
-      setStrokeWidth(value);
+      setShapeStrokeWidth(value);
       active.set({ strokeWidth: value });
     } else if (prop === 'opacity') {
-      setOpacity(value);
       active.set({ opacity: value });
     }
 
@@ -511,8 +552,8 @@ export const PhotoEditor: React.FC = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const text = new Textbox('ADD HEADING', {
-      left: canvas.width / 2 - 150,
-      top: canvas.height / 2 - 40,
+      left: canvasWidth / 2 - 150,
+      top: canvasHeight / 2 - 40,
       fontFamily: "'Archivo', sans-serif",
       fontSize: 56,
       fontWeight: '800',
@@ -530,8 +571,8 @@ export const PhotoEditor: React.FC = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const text = new Textbox('Add a subheading here', {
-      left: canvas.width / 2 - 120,
-      top: canvas.height / 2,
+      left: canvasWidth / 2 - 120,
+      top: canvasHeight / 2,
       fontFamily: "'Plus Jakarta Sans', sans-serif",
       fontSize: 28,
       fontWeight: '600',
@@ -548,8 +589,8 @@ export const PhotoEditor: React.FC = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const text = new Textbox('Type your body paragraph text details here.', {
-      left: canvas.width / 2 - 100,
-      top: canvas.height / 2 + 40,
+      left: canvasWidth / 2 - 100,
+      top: canvasHeight / 2 + 40,
       fontFamily: "'Plus Jakarta Sans', sans-serif",
       fontSize: 18,
       fill: '#cbd5e1',
@@ -566,8 +607,8 @@ export const PhotoEditor: React.FC = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const text = new Textbox(preset.preview, {
-      left: canvas.width / 2 - 140,
-      top: canvas.height / 2 - 40,
+      left: canvasWidth / 2 - 140,
+      top: canvasHeight / 2 - 40,
       fontFamily: preset.fontFamily,
       fontSize: preset.fontSize,
       fontWeight: preset.fontWeight,
@@ -588,7 +629,7 @@ export const PhotoEditor: React.FC = () => {
   const handleAddShape = (type: string, fill: string) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
-    const center = { x: canvas.width / 2, y: canvas.height / 2 };
+    const center = { x: canvasWidth / 2, y: canvasHeight / 2 };
     let shape: FabricObject;
 
     if (type === 'rect') {
@@ -684,8 +725,8 @@ export const PhotoEditor: React.FC = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const text = new Textbox(emoji, {
-      left: canvas.width / 2 - 30,
-      top: canvas.height / 2 - 30,
+      left: canvasWidth / 2 - 30,
+      top: canvasHeight / 2 - 30,
       fontSize: emoji.startsWith('[') ? 22 : 64,
       fontFamily: emoji.startsWith('[') ? "'JetBrains Mono', monospace" : 'sans-serif',
       fill: '#ffffff',
@@ -699,6 +740,19 @@ export const PhotoEditor: React.FC = () => {
     saveStateToHistory();
   };
 
+  // Helper to find target image (either selected image or first image in canvas)
+  const getTargetImage = useCallback((): FabricImage | null => {
+    const canvas = fabricRef.current;
+    if (!canvas) return null;
+    const active = canvas.getActiveObject();
+    if (active && (active instanceof FabricImage || active.type === 'image')) {
+      return active as FabricImage;
+    }
+    const allObjs = canvas.getObjects();
+    const found = allObjs.find((o) => o instanceof FabricImage || o.type === 'image');
+    return (found as FabricImage) || null;
+  }, []);
+
   // Adjustments & Filters
   const handleAdjustmentChange = async (key: keyof ImageAdjustments, value: number) => {
     const nextAdjustments = { ...adjustments, [key]: value };
@@ -707,10 +761,10 @@ export const PhotoEditor: React.FC = () => {
 
     const canvas = fabricRef.current;
     if (!canvas) return;
-    const bgImage = canvas.getObjects().find((o) => o instanceof FabricImage) as FabricImage;
-    if (bgImage) {
-      await applyImageAdjustments(bgImage, nextAdjustments);
-      canvas.renderAll();
+    const targetImg = getTargetImage();
+    if (targetImg) {
+      await applyImageAdjustments(targetImg, nextAdjustments);
+      canvas.requestRenderAll();
     }
   };
 
@@ -721,10 +775,10 @@ export const PhotoEditor: React.FC = () => {
 
     const canvas = fabricRef.current;
     if (!canvas) return;
-    const bgImage = canvas.getObjects().find((o) => o instanceof FabricImage) as FabricImage;
-    if (bgImage) {
-      await applyImageAdjustments(bgImage, next);
-      canvas.renderAll();
+    const targetImg = getTargetImage();
+    if (targetImg) {
+      await applyImageAdjustments(targetImg, next);
+      canvas.requestRenderAll();
       saveStateToHistory();
     }
   };
@@ -734,10 +788,10 @@ export const PhotoEditor: React.FC = () => {
     setActiveFilterId('normal');
     const canvas = fabricRef.current;
     if (!canvas) return;
-    const bgImage = canvas.getObjects().find((o) => o instanceof FabricImage) as FabricImage;
-    if (bgImage) {
-      await applyImageAdjustments(bgImage, DEFAULT_ADJUSTMENTS);
-      canvas.renderAll();
+    const targetImg = getTargetImage();
+    if (targetImg) {
+      await applyImageAdjustments(targetImg, DEFAULT_ADJUSTMENTS);
+      canvas.requestRenderAll();
       saveStateToHistory();
     }
   };
@@ -746,88 +800,179 @@ export const PhotoEditor: React.FC = () => {
   const handleApplyEffect = (effectName: string, params: any) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
-    const active = canvas.getActiveObject();
-    if (!active) return;
+
+    let target = canvas.getActiveObject();
+    if (!target) {
+      const objs = canvas.getObjects();
+      target = objs.find((o) => o.type === 'textbox' || o.type === 'i-text') || objs[objs.length - 1] || null;
+      if (target) {
+        canvas.setActiveObject(target);
+      }
+    }
+
+    if (!target) return;
 
     if (effectName === 'shadow') {
-      active.set({
+      target.set({
         shadow: new Shadow({
-          color: params.color,
-          blur: params.blur,
-          offsetX: params.offsetX,
-          offsetY: params.offsetY,
+          color: params.color || 'rgba(0,0,0,0.6)',
+          blur: params.blur ?? 20,
+          offsetX: params.offsetX ?? 0,
+          offsetY: params.offsetY ?? 8,
         }),
       });
-      setHasShadow(true);
-    } else if (effectName === 'stroke') {
-      active.set({
-        stroke: params.color,
-        strokeWidth: params.width,
+      setTextState((prev) => ({ ...prev, hasShadow: true }));
+    } else if (effectName === 'stroke' || effectName === 'outline') {
+      target.set({
+        stroke: params.color || '#ffffff',
+        strokeWidth: params.width ?? 4,
+      });
+    } else if (effectName === 'glow') {
+      target.set({
+        shadow: new Shadow({
+          color: params.color || '#a855f7',
+          blur: params.blur ?? 25,
+          offsetX: 0,
+          offsetY: 0,
+        }),
       });
     } else if (effectName === 'neon-cyan') {
-      active.set({
-        fill: '#00f0ff',
-        shadow: new Shadow({ color: '#00f0ff', blur: 30, offsetX: 0, offsetY: 0 }),
+      target.set({
+        shadow: new Shadow({
+          color: '#00f0ff',
+          blur: 35,
+          offsetX: 0,
+          offsetY: 0,
+        }),
+        stroke: '#00f0ff',
+        strokeWidth: 2,
+        fill: '#ffffff',
       });
     } else if (effectName === 'neon-pink') {
-      active.set({
-        fill: '#ff007f',
-        shadow: new Shadow({ color: '#ff007f', blur: 30, offsetX: 0, offsetY: 0 }),
+      target.set({
+        shadow: new Shadow({
+          color: '#ff007f',
+          blur: 35,
+          offsetX: 0,
+          offsetY: 0,
+        }),
+        stroke: '#ff007f',
+        strokeWidth: 2,
+        fill: '#ffffff',
       });
     } else if (effectName === 'soft-shadow') {
-      active.set({
-        shadow: new Shadow({ color: 'rgba(0,0,0,0.4)', blur: 25, offsetX: 0, offsetY: 12 }),
+      target.set({
+        shadow: new Shadow({
+          color: 'rgba(0,0,0,0.55)',
+          blur: 28,
+          offsetX: 0,
+          offsetY: 14,
+        }),
       });
+    } else if (effectName === 'vignette') {
+      const existingVignette = canvas.getObjects().find((o) => (o as any)._isVignette);
+      if (existingVignette) {
+        canvas.remove(existingVignette);
+      } else {
+        const vignette = new Rect({
+          left: 0,
+          top: 0,
+          width: canvasWidth,
+          height: canvasHeight,
+          fill: 'transparent',
+          stroke: 'rgba(0,0,0,0.85)',
+          strokeWidth: 80,
+          selectable: false,
+          evented: false,
+          opacity: 0.75,
+        });
+        (vignette as any)._isVignette = true;
+        canvas.add(vignette);
+        canvas.bringObjectToFront(vignette);
+      }
     }
 
     canvas.renderAll();
     saveStateToHistory();
   };
 
-  // Background Removal
-  const handleRemoveBackground = async (tolerance: number, keyColorHex: string) => {
+  const handleClearEffects = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
-    const bgImage = canvas.getObjects().find((o) => o instanceof FabricImage) as FabricImage;
+
+    const active = canvas.getActiveObject();
+    if (active) {
+      active.set({
+        shadow: undefined,
+        stroke: undefined,
+        strokeWidth: 0,
+      });
+    } else {
+      canvas.getObjects().forEach((obj) => {
+        if ((obj as any)._isVignette) {
+          canvas.remove(obj);
+        } else {
+          obj.set({
+            shadow: undefined,
+            stroke: undefined,
+            strokeWidth: 0,
+          });
+        }
+      });
+    }
+
+    setTextState((prev) => ({ ...prev, hasShadow: false }));
+    canvas.renderAll();
+    saveStateToHistory();
+  };
+
+  // Background Removal Tool
+  const handleRemoveBackground = async (tolerance: number, replaceColor: string) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const bgImage = getTargetImage();
     if (!bgImage) return;
 
     setBgRemovalProcessing(true);
     try {
-      // Parse Hex
-      const r = parseInt(keyColorHex.slice(1, 3), 16) || 255;
-      const g = parseInt(keyColorHex.slice(3, 5), 16) || 255;
-      const b = parseInt(keyColorHex.slice(5, 7), 16) || 255;
-
-      const element = (bgImage as any)._element as HTMLImageElement;
-      if (element) {
-        const transparentUrl = await removeImageBackground(element, { r, g, b }, tolerance);
-        const newImg = await FabricImage.fromURL(transparentUrl, { crossOrigin: 'anonymous' });
-        newImg.set({
-          left: bgImage.left,
-          top: bgImage.top,
-          scaleX: bgImage.scaleX,
-          scaleY: bgImage.scaleY,
-        });
-        applyCustomControlStyles(newImg);
-        const idx = canvas.getObjects().indexOf(bgImage);
-        canvas.remove(bgImage);
-        canvas.insertAt(idx, newImg);
-        canvas.renderAll();
-        saveStateToHistory();
-      }
+      const processedUrl = await removeImageBackground(bgImage, tolerance, replaceColor);
+      const newImg = await FabricImage.fromURL(processedUrl);
+      newImg.set({
+        left: bgImage.left,
+        top: bgImage.top,
+        scaleX: bgImage.scaleX,
+        scaleY: bgImage.scaleY,
+        angle: bgImage.angle,
+        originX: bgImage.originX,
+        originY: bgImage.originY,
+      });
+      applyCustomControlStyles(newImg);
+      canvas.remove(bgImage);
+      canvas.add(newImg);
+      canvas.sendObjectToBack(newImg);
+      canvas.renderAll();
+      saveStateToHistory();
     } catch (err) {
-      console.error('BG removal failed:', err);
+      console.error('BG Removal failed:', err);
     } finally {
       setBgRemovalProcessing(false);
     }
   };
 
-  // Drawing Mode
+  const handleSetCanvasBg = (color: string) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    canvas.backgroundColor = color === 'transparent' ? 'transparent' : color;
+    canvas.renderAll();
+    saveStateToHistory();
+  };
+
+  // Freehand Drawing Mode
   const handleToggleDrawingMode = (enabled: boolean) => {
+    setIsDrawingMode(enabled);
     const canvas = fabricRef.current;
     if (!canvas) return;
     canvas.isDrawingMode = enabled;
-    setIsDrawingMode(enabled);
     if (enabled) {
       canvas.freeDrawingBrush = new PencilBrush(canvas);
       canvas.freeDrawingBrush.color = brushColor;
@@ -851,75 +996,184 @@ export const PhotoEditor: React.FC = () => {
     }
   };
 
-  // Flip & Arrange
+  // Crop & Transform Handlers
+  const [currentAspect, setCurrentAspect] = useState<number | undefined>(4 / 3);
+
+  const handleApplyCrop = (aspectRatio?: number, shape?: 'rect' | 'round') => {
+    setCurrentAspect(aspectRatio);
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+
+    if (!aspectRatio) {
+      setCanvasWidth(1200);
+      setCanvasHeight(900);
+      canvas.clipPath = undefined;
+      canvas.renderAll();
+      saveStateToHistory();
+      return;
+    }
+
+    let baseW = 1200;
+    let baseH = Math.round(baseW / aspectRatio);
+    if (baseH > 1400) {
+      baseH = 1200;
+      baseW = Math.round(baseH * aspectRatio);
+    }
+    if (baseW > 1600) {
+      baseW = 1600;
+      baseH = Math.round(baseW / aspectRatio);
+    }
+
+    setCanvasWidth(baseW);
+    setCanvasHeight(baseH);
+
+    if (shape === 'round') {
+      const radius = Math.min(baseW, baseH) / 2;
+      const clipCircle = new Circle({
+        radius,
+        left: baseW / 2,
+        top: baseH / 2,
+        originX: 'center',
+        originY: 'center',
+        absolutePositioned: true,
+      });
+      canvas.clipPath = clipCircle;
+    } else {
+      canvas.clipPath = undefined;
+    }
+
+    const bgImage = getTargetImage();
+    if (bgImage) {
+      const scaleX = baseW / (bgImage.width || baseW);
+      const scaleY = baseH / (bgImage.height || baseH);
+      const scale = Math.max(scaleX, scaleY);
+      bgImage.set({
+        scaleX: scale,
+        scaleY: scale,
+        left: (baseW - (bgImage.width || baseW) * scale) / 2,
+        top: (baseH - (bgImage.height || baseH) * scale) / 2,
+      });
+    }
+
+    canvas.renderAll();
+    saveStateToHistory();
+  };
+
+  const handleResetCrop = () => {
+    handleApplyCrop(undefined, 'rect');
+  };
+
+  const handleRotate = (angleDelta: number) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const active = canvas.getActiveObject();
+    if (active) {
+      active.rotate(((active.angle || 0) + angleDelta) % 360);
+      canvas.renderAll();
+      saveStateToHistory();
+    } else {
+      const bgImg = getTargetImage();
+      if (bgImg) {
+        bgImg.rotate(((bgImg.angle || 0) + angleDelta) % 360);
+        canvas.renderAll();
+        saveStateToHistory();
+      }
+    }
+  };
+
   const handleFlipH = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const active = canvas.getActiveObject();
-    if (!active) return;
-    active.set({ flipX: !active.flipX });
-    canvas.renderAll();
-    saveStateToHistory();
+    if (active) {
+      active.set('flipX', !active.flipX);
+      canvas.renderAll();
+      saveStateToHistory();
+    } else {
+      const bgImg = getTargetImage();
+      if (bgImg) {
+        bgImg.set('flipX', !bgImg.flipX);
+        canvas.renderAll();
+        saveStateToHistory();
+      }
+    }
   };
 
   const handleFlipV = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const active = canvas.getActiveObject();
-    if (!active) return;
-    active.set({ flipY: !active.flipY });
-    canvas.renderAll();
-    saveStateToHistory();
+    if (active) {
+      active.set('flipY', !active.flipY);
+      canvas.renderAll();
+      saveStateToHistory();
+    } else {
+      const bgImg = getTargetImage();
+      if (bgImg) {
+        bgImg.set('flipY', !bgImg.flipY);
+        canvas.renderAll();
+        saveStateToHistory();
+      }
+    }
   };
 
+  // Layer Actions
   const handleBringForward = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const active = canvas.getActiveObject();
-    if (!active) return;
-    canvas.bringObjectForward(active);
-    canvas.renderAll();
-    refreshLayers(canvas);
-    saveStateToHistory();
+    if (active) {
+      canvas.bringObjectForward(active);
+      canvas.renderAll();
+      refreshLayers();
+      saveStateToHistory();
+    }
   };
 
   const handleSendBackward = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const active = canvas.getActiveObject();
-    if (!active) return;
-    canvas.sendObjectBackwards(active);
-    canvas.renderAll();
-    refreshLayers(canvas);
-    saveStateToHistory();
+    if (active) {
+      canvas.sendObjectBackwards(active);
+      canvas.renderAll();
+      refreshLayers();
+      saveStateToHistory();
+    }
   };
 
-  const handleDuplicate = () => {
+  const handleDuplicate = async () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const active = canvas.getActiveObject();
     if (!active) return;
-    active.clone().then((cloned) => {
+
+    try {
+      const cloned = await active.clone();
       cloned.set({
-        left: (active.left || 0) + 20,
-        top: (active.top || 0) + 20,
+        left: (active.left || 0) + 24,
+        top: (active.top || 0) + 24,
       });
       applyCustomControlStyles(cloned);
       canvas.add(cloned);
       canvas.setActiveObject(cloned);
       canvas.renderAll();
       saveStateToHistory();
-    });
+    } catch (err) {
+      console.error('Clone failed:', err);
+    }
   };
 
   const handleDelete = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     const active = canvas.getActiveObject();
-    if (!active) return;
-    canvas.remove(active);
-    canvas.renderAll();
-    saveStateToHistory();
+    if (active) {
+      canvas.remove(active);
+      canvas.discardActiveObject();
+      canvas.renderAll();
+      saveStateToHistory();
+    }
   };
 
   const handleToggleLock = () => {
@@ -927,174 +1181,180 @@ export const PhotoEditor: React.FC = () => {
     if (!canvas) return;
     const active = canvas.getActiveObject();
     if (!active) return;
-    const lock = !active.lockMovementX;
+    const locked = !active.lockMovementX;
     active.set({
-      lockMovementX: lock,
-      lockMovementY: lock,
-      lockRotation: lock,
-      lockScalingX: lock,
-      lockScalingY: lock,
+      lockMovementX: locked,
+      lockMovementY: locked,
+      lockRotation: locked,
+      lockScalingX: locked,
+      lockScalingY: locked,
     });
-    setIsLocked(lock);
+    setTextState((prev) => ({ ...prev, isLocked: locked }));
     canvas.renderAll();
+    refreshLayers();
     saveStateToHistory();
   };
 
-  // Upload Photo File
-  const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const url = reader.result as string;
-        const canvas = fabricRef.current;
-        if (!canvas) return;
-        try {
-          const img = await FabricImage.fromURL(url, { crossOrigin: 'anonymous' });
-          img.set({
-            left: 50,
-            top: 50,
-          });
-          img.scaleToWidth(Math.min(canvas.width * 0.8, 600));
-          applyCustomControlStyles(img);
-          canvas.add(img);
-          canvas.setActiveObject(img);
-          canvas.renderAll();
-          saveStateToHistory();
-        } catch (err) {
-          console.error(err);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
+  // Upload user image
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
-  // Export handlers
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (f) => {
+      const dataUrl = f.target?.result as string;
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+
+      try {
+        const img = await FabricImage.fromURL(dataUrl);
+        img.scaleToWidth(Math.min(canvasWidth, 800));
+        img.set({
+          left: canvasWidth / 2 - img.getScaledWidth() / 2,
+          top: canvasHeight / 2 - img.getScaledHeight() / 2,
+        });
+        applyCustomControlStyles(img);
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        canvas.renderAll();
+        saveStateToHistory();
+      } catch (err) {
+        console.error('Failed to add image to canvas:', err);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Open Export Dialog
   const handleOpenExport = () => {
     const canvas = fabricRef.current;
     if (!canvas) return;
     try {
-      const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 0.5 });
+      const dataUrl = canvas.toDataURL({
+        format: 'png',
+        multiplier: 1,
+      });
       setExportPreviewUrl(dataUrl);
-    } catch (e) {
-      console.error(e);
+      setIsExportOpen(true);
+    } catch (err) {
+      console.error('Export preview generation failed:', err);
     }
-    setIsExportOpen(true);
   };
 
+  // Export File Download
   const handleExportDownload = async (settings: ExportSettings) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
 
+    const fileName = `${settings.fileName}.${settings.format === 'jpeg' ? 'jpg' : settings.format}`;
+    const scaleVal = settings.scale || 1;
+
     if (settings.format === 'pdf') {
-      const imgData = canvas.toDataURL({
-        format: 'jpeg',
-        multiplier: settings.scale,
-        quality: settings.quality,
+      const dataUrl = canvas.toDataURL({
+        format: 'png',
+        multiplier: scaleVal,
       });
+      const orientation = canvasWidth > canvasHeight ? 'landscape' : 'portrait';
       const pdf = new jsPDF({
-        orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+        orientation,
         unit: 'px',
-        format: [canvas.width * settings.scale, canvas.height * settings.scale],
+        format: [canvasWidth * scaleVal, canvasHeight * scaleVal],
       });
-      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width * settings.scale, canvas.height * settings.scale);
-      pdf.save(`${settings.fileName}.pdf`);
+      pdf.addImage(dataUrl, 'PNG', 0, 0, canvasWidth * scaleVal, canvasHeight * scaleVal);
+      pdf.save(fileName);
       return;
     }
 
     if (settings.format === 'svg') {
-      const svgStr = canvas.toSVG();
-      const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+      const svgString = canvas.toSVG();
+      const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.download = `${settings.fileName}.svg`;
       link.href = url;
+      link.download = fileName;
       link.click();
+      URL.revokeObjectURL(url);
       return;
     }
 
     const dataUrl = canvas.toDataURL({
       format: settings.format === 'jpeg' ? 'jpeg' : settings.format === 'webp' ? 'webp' : 'png',
-      multiplier: settings.scale,
       quality: settings.quality,
+      multiplier: scaleVal,
     });
 
     const link = document.createElement('a');
-    link.download = `${settings.fileName}.${settings.format}`;
     link.href = dataUrl;
+    link.download = fileName;
     link.click();
   };
 
-  const handleExportClipboard = async (settings: ExportSettings): Promise<boolean> => {
+  // Copy to Clipboard
+  const handleExportClipboard = async () => {
     const canvas = fabricRef.current;
-    if (!canvas) return false;
+    if (!canvas) return;
     try {
-      const dataUrl = canvas.toDataURL({ format: 'png', multiplier: settings.scale });
+      const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 2 });
       const res = await fetch(dataUrl);
       const blob = await res.blob();
-      const item = new ClipboardItem({ 'image/png': blob });
-      await navigator.clipboard.write([item]);
-      return true;
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      alert('Photo copied to clipboard as high-res PNG!');
     } catch (err) {
-      console.warn('Clipboard write failed:', err);
-      return false;
+      console.error('Clipboard copy failed:', err);
     }
   };
 
-  const handleExportBase64 = async (settings: ExportSettings): Promise<string> => {
+  // Copy Base64 String
+  const handleExportBase64 = () => {
     const canvas = fabricRef.current;
-    if (!canvas) return '';
-    return canvas.toDataURL({
-      format: settings.format === 'jpeg' ? 'jpeg' : settings.format === 'webp' ? 'webp' : 'png',
-      multiplier: settings.scale,
-      quality: settings.quality,
-    });
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 1 });
+    navigator.clipboard.writeText(dataUrl);
+    alert('Base64 Data URL copied to clipboard!');
   };
 
   return (
-    <div className="w-full h-[100dvh] pt-14 flex flex-col bg-zinc-950 text-zinc-100 select-none font-sans overflow-hidden">
-      {/* 1. TOP STUDIO NAVBAR */}
+    <div className="fixed inset-0 z-40 bg-zinc-950 text-zinc-100 flex flex-col overflow-hidden select-none font-sans">
+      {/* Hidden File Input for Image Uploads */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* 1. TOP MAIN STUDIO NAVBAR */}
       <TopNavbar
-        canUndo={historyIndex > 0}
-        canRedo={historyIndex < historyStack.length - 1}
+        canUndo={canUndo}
+        canRedo={canRedo}
         onUndo={handleUndo}
         onRedo={handleRedo}
         zoomLevel={zoomLevel}
-        onZoomIn={() => setZoomLevel((z) => Math.min(3, z + 0.15))}
-        onZoomOut={() => setZoomLevel((z) => Math.max(0.2, z - 0.15))}
+        onZoomIn={() => setZoomLevel((z) => Math.min(3, +(z + 0.1).toFixed(2)))}
+        onZoomOut={() => setZoomLevel((z) => Math.max(0.2, +(z - 0.1).toFixed(2)))}
         onZoomFit={autoFitZoom}
         onOpenExport={handleOpenExport}
-        onUploadImage={() => fileInputRef.current?.click()}
+        onUploadImage={handleUploadClick}
         onResetCanvas={() => loadTemplate(activeTemplate)}
         onOpenTemplates={() => setIsTemplatesOpen(true)}
         activeTemplateName={activeTemplate.name}
       />
 
-      {/* Hidden file input for photo uploads */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleUploadFile}
-        accept="image/*"
-        className="hidden"
-      />
-
-      {/* 2. MAIN WORKSPACE CONTAINER */}
-      <div className="w-full flex-1 flex overflow-hidden min-h-0 relative">
-        {/* 2A. LEFT ICON TOOLBAR */}
+      {/* 2. MAIN STUDIO WORKSPACE */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* 2A. LEFT TOOLS BAR */}
         <LeftSidebar
           activeTab={activeTab}
-          onSelectTab={(tab) => {
-            setActiveTab((prev) => (prev === tab ? null : tab));
-            if (tab === 'draw') {
-              handleToggleDrawingMode(true);
-            } else if (isDrawingMode) {
-              handleToggleDrawingMode(false);
-            }
-          }}
+          onSelectTab={(tab) => setActiveTab((curr) => (curr === tab ? null : tab))}
         />
 
-        {/* 2B. SUB-PANEL DRAWER (MATCHES SCREENSHOT) */}
+        {/* 2B. SUB-PANEL DRAWER (Text, Crop, Shapes, Adjust, Filter, etc.) */}
         {activeTab === 'text' && (
           <TextPanel
             onAddHeading={handleAddHeading}
@@ -1102,16 +1362,16 @@ export const PhotoEditor: React.FC = () => {
             onAddBodyText={handleAddBodyText}
             onApplyPreset={handleApplyTextPreset}
             hasSelection={selectedType === 'text'}
-            letterCase={letterCase}
-            letterSpacing={letterSpacing}
-            listStyle={listStyle}
-            underline={underline}
-            linethrough={linethrough}
-            verticalAlign={verticalAlign}
-            lineHeight={lineHeight}
-            paragraphSpacing={paragraphSpacing}
-            frameBehavior={frameBehavior}
-            clipping={clipping}
+            letterCase={textState.letterCase}
+            letterSpacing={textState.letterSpacing}
+            listStyle={textState.listStyle}
+            underline={textState.underline}
+            linethrough={textState.linethrough}
+            verticalAlign={textState.verticalAlign}
+            lineHeight={textState.lineHeight}
+            paragraphSpacing={textState.paragraphSpacing}
+            frameBehavior={textState.frameBehavior}
+            clipping={textState.clipping}
             onUpdateProp={updateTextProp}
             onClose={() => setActiveTab(null)}
           />
@@ -1119,30 +1379,12 @@ export const PhotoEditor: React.FC = () => {
 
         {activeTab === 'crop' && (
           <CropPanel
-            onApplyCrop={(aspect, shape) => {
-              const canvas = fabricRef.current;
-              if (!canvas) return;
-              if (aspect) {
-                const newHeight = Math.round(canvasWidth / aspect);
-                setCanvasHeight(newHeight);
-                canvas.setDimensions({ width: canvasWidth, height: newHeight });
-              }
-              canvas.renderAll();
-              saveStateToHistory();
-            }}
-            onRotate={(deg) => {
-              const canvas = fabricRef.current;
-              if (!canvas) return;
-              const active = canvas.getActiveObject();
-              if (active) {
-                active.rotate((active.angle || 0) + deg);
-                canvas.renderAll();
-                saveStateToHistory();
-              }
-            }}
+            currentAspect={currentAspect}
+            onApplyCrop={handleApplyCrop}
+            onRotate={handleRotate}
             onFlipH={handleFlipH}
             onFlipV={handleFlipV}
-            onResetCrop={() => loadTemplate(activeTemplate)}
+            onResetCrop={handleResetCrop}
           />
         )}
 
@@ -1165,38 +1407,15 @@ export const PhotoEditor: React.FC = () => {
         {activeTab === 'effects' && (
           <EffectsPanel
             onApplyEffect={handleApplyEffect}
-            onClearEffects={() => {
-              const canvas = fabricRef.current;
-              if (!canvas) return;
-              const active = canvas.getActiveObject();
-              if (active) {
-                active.set({ shadow: undefined, stroke: '', strokeWidth: 0 });
-                canvas.renderAll();
-                saveStateToHistory();
-              }
-            }}
+            onClearEffects={handleClearEffects}
           />
         )}
 
         {activeTab === 'bg-removal' && (
           <BgRemovalPanel
             onRemoveBackground={handleRemoveBackground}
-            onSetBackgroundColor={(color) => {
-              const canvas = fabricRef.current;
-              if (canvas) {
-                canvas.backgroundColor = color;
-                canvas.renderAll();
-                saveStateToHistory();
-              }
-            }}
-            onSetTransparentBackground={() => {
-              const canvas = fabricRef.current;
-              if (canvas) {
-                canvas.backgroundColor = '';
-                canvas.renderAll();
-                saveStateToHistory();
-              }
-            }}
+            onSetBackgroundColor={handleSetCanvasBg}
+            onSetTransparentBackground={() => handleSetCanvasBg('transparent')}
             isProcessing={bgRemovalProcessing}
           />
         )}
@@ -1251,7 +1470,7 @@ export const PhotoEditor: React.FC = () => {
         {activeTab === 'layers' && (
           <LayersPanel
             layers={layers}
-            activeLayerId={(selectedObject as any)?.id || null}
+            activeLayerId={(selectedObject as any)?._layerId || null}
             onSelectLayer={(l) => {
               const canvas = fabricRef.current;
               if (canvas) {
@@ -1262,7 +1481,7 @@ export const PhotoEditor: React.FC = () => {
             onToggleVisibility={(l) => {
               l.object.set({ visible: !l.object.visible });
               fabricRef.current?.renderAll();
-              refreshLayers(fabricRef.current!);
+              refreshLayers();
             }}
             onToggleLock={(l) => {
               const lock = !l.object.lockMovementX;
@@ -1274,22 +1493,22 @@ export const PhotoEditor: React.FC = () => {
                 lockScalingY: lock,
               });
               fabricRef.current?.renderAll();
-              refreshLayers(fabricRef.current!);
+              refreshLayers();
             }}
             onMoveUp={(l) => {
               fabricRef.current?.bringObjectForward(l.object);
               fabricRef.current?.renderAll();
-              refreshLayers(fabricRef.current!);
+              refreshLayers();
             }}
             onMoveDown={(l) => {
               fabricRef.current?.sendObjectBackwards(l.object);
               fabricRef.current?.renderAll();
-              refreshLayers(fabricRef.current!);
+              refreshLayers();
             }}
             onDeleteLayer={(l) => {
               fabricRef.current?.remove(l.object);
               fabricRef.current?.renderAll();
-              refreshLayers(fabricRef.current!);
+              refreshLayers();
             }}
           />
         )}
@@ -1299,19 +1518,19 @@ export const PhotoEditor: React.FC = () => {
           {/* FLOATING / TOP CONTEXT PROPERTY BAR */}
           <ContextToolbar
             selectedType={selectedType}
-            fontFamily={fontFamily}
-            fontSize={fontSize}
-            fontWeight={fontWeight}
-            fontStyle={fontStyle}
-            underline={underline}
-            textAlign={textAlign}
-            fillColor={fillColor}
-            strokeColor={strokeColor}
-            strokeWidth={strokeWidth}
-            backgroundColor={backgroundColor}
-            opacity={opacity}
-            hasShadow={hasShadow}
-            isLocked={isLocked}
+            fontFamily={textState.fontFamily}
+            fontSize={textState.fontSize}
+            fontWeight={textState.fontWeight}
+            fontStyle={textState.fontStyle}
+            underline={textState.underline}
+            textAlign={textState.textAlign}
+            fillColor={selectedType === 'shape' ? shapeFill : textState.fillColor}
+            strokeColor={selectedType === 'shape' ? shapeStroke : textState.strokeColor}
+            strokeWidth={selectedType === 'shape' ? shapeStrokeWidth : textState.strokeWidth}
+            backgroundColor={textState.backgroundColor}
+            opacity={textState.opacity}
+            hasShadow={textState.hasShadow}
+            isLocked={textState.isLocked}
             onUpdateTextProp={updateTextProp}
             onUpdateShapeProp={updateShapeProp}
             onBringForward={handleBringForward}
@@ -1327,23 +1546,22 @@ export const PhotoEditor: React.FC = () => {
           {/* MAIN INTERACTIVE CANVAS VIEWPORT */}
           <div
             ref={canvasContainerRef}
-            className="flex-1 overflow-auto flex items-center justify-center p-6 bg-zinc-950 custom-scrollbar relative"
+            className="flex-1 overflow-auto flex items-center justify-center p-8 bg-zinc-950 custom-scrollbar relative"
             style={{
               backgroundImage:
                 'radial-gradient(circle, #27272a 1px, transparent 1px)',
               backgroundSize: '24px 24px',
             }}
           >
-            {/* Centered Canvas Container with CSS Zoom */}
+            {/* Centered Canvas Container with exact Dimensions */}
             <div
-              className="relative shadow-2xl rounded-sm transition-transform duration-75 origin-center border border-zinc-800"
+              className="relative shadow-2xl rounded-sm border border-zinc-800 bg-zinc-900"
               style={{
-                width: canvasWidth,
-                height: canvasHeight,
-                transform: `scale(${zoomLevel})`,
+                width: Math.round(canvasWidth * zoomLevel),
+                height: Math.round(canvasHeight * zoomLevel),
               }}
             >
-              <canvas ref={canvasElRef} width={canvasWidth} height={canvasHeight} />
+              <canvas ref={canvasElRef} />
             </div>
           </div>
         </div>
