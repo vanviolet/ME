@@ -105,7 +105,8 @@ export const Navbar: React.FC = () => {
   const isVanpediaPage = location.pathname.startsWith('/vanpedia');
   const isForumPage = location.pathname.startsWith('/forum') || location.pathname.startsWith('/issues');
   const isToolsPage = location.pathname.startsWith('/tools');
-  const isJiraPage = location.pathname.startsWith('/tools/jira') || location.pathname.startsWith('/jira');
+  // Jira is currently in Coming Soon / Refactoring mode; keep clean standard navigation
+  const isJiraPage = false;
 
   // Key home anchors for desktop
   const homeNavAnchors = [
@@ -447,20 +448,20 @@ export const Navbar: React.FC = () => {
                   <Link
                     to="/tools/jira"
                     onClick={() => setToolsDropdownOpen(false)}
-                    className="flex items-center gap-3 p-2 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 hover:bg-blue-100/80 dark:hover:bg-blue-900/40 border border-blue-200/60 dark:border-blue-800/60 transition-colors group mb-1"
+                    className="flex items-center gap-3 p-2 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 hover:bg-amber-100/80 dark:hover:bg-amber-900/40 border border-amber-200/60 dark:border-amber-800/60 transition-colors group mb-1"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                    <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
                       <Kanban size={14} />
                     </div>
                     <div className="text-left">
-                      <div className="text-xs font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                      <div className="text-xs font-bold text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
                         <span>Jira Cloud PM</span>
-                        <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[8px] font-bold uppercase font-mono">
-                          Flagship
+                        <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[8px] font-bold uppercase font-mono">
+                          {language === 'en' ? 'Coming Soon' : 'Segera Hadir'}
                         </span>
                       </div>
-                      <div className="text-[10px] text-blue-700/80 dark:text-blue-300/80">
-                        {language === 'en' ? 'Kanban, Sprints, Roadmap & RBAC' : 'Kanban, Sprint, Roadmap & RBAC'}
+                      <div className="text-[10px] text-amber-700/80 dark:text-amber-300/80">
+                        {language === 'en' ? 'Under Reconstruction & Polish' : 'Sedang Dipoles & Dioptimalkan'}
                       </div>
                     </div>
                   </Link>
@@ -912,16 +913,18 @@ export const Navbar: React.FC = () => {
               <Link
                 to="/tools/jira"
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-3 rounded-xl border border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-3"
+                className="p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-3"
               >
-                <Kanban size={16} className="text-blue-600 shrink-0" />
+                <Kanban size={16} className="text-amber-600 shrink-0" />
                 <div className="text-left">
                   <div className="text-xs font-semibold flex items-center gap-1.5">
                     <span>Jira Cloud PM</span>
-                    <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[9px] font-bold uppercase font-mono">Flagship</span>
+                    <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[9px] font-bold uppercase font-mono">
+                      {language === 'en' ? 'Coming Soon' : 'Segera Hadir'}
+                    </span>
                   </div>
-                  <div className="text-[10px] text-blue-700/80 dark:text-blue-300/80 font-medium">
-                    Agile & Issue Tracker
+                  <div className="text-[10px] text-amber-700/80 dark:text-amber-300/80 font-medium">
+                    {language === 'en' ? 'Under Reconstruction' : 'Dalam Rekonstruksi & Polish'}
                   </div>
                 </div>
               </Link>

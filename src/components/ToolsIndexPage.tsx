@@ -27,8 +27,8 @@ export const ToolsIndexPage: React.FC = () => {
       icon: Kanban,
       category: 'Project & Engineering',
       path: '/tools/jira',
-      status: 'active',
-      badge: language === 'en' ? 'Enterprise Flagship' : 'Tool Unggulan',
+      status: 'coming_soon',
+      badge: language === 'en' ? 'Coming Soon' : 'Segera Hadir',
     },
     {
       id: 'lorem-ipsum',
@@ -129,28 +129,55 @@ export const ToolsIndexPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {toolsList.map(tool => {
           const Icon = tool.icon;
+          const isComingSoon = tool.status === 'coming_soon';
 
           return (
             <Link
               to={tool.path}
               key={tool.id}
-              className="group p-6 rounded-2xl bg-white dark:bg-zinc-900/90 border border-stone-200 dark:border-zinc-800 hover:border-rose-300 dark:hover:border-rose-900/50 hover:shadow-md transition-all duration-200 flex flex-col justify-between"
+              className={`group p-6 rounded-2xl bg-white dark:bg-zinc-900/90 border transition-all duration-200 flex flex-col justify-between ${
+                isComingSoon
+                  ? 'border-amber-500/30 dark:border-amber-500/20 hover:border-amber-500/60 dark:hover:border-amber-500/40 hover:shadow-md'
+                  : 'border-stone-200 dark:border-zinc-800 hover:border-rose-300 dark:hover:border-rose-900/50 hover:shadow-md'
+              }`}
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 group-hover:bg-rose-600 group-hover:text-white dark:group-hover:bg-rose-600 dark:group-hover:text-white transition-colors">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-colors ${
+                      isComingSoon
+                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 group-hover:bg-amber-600 group-hover:text-white dark:group-hover:bg-amber-600 dark:group-hover:text-white'
+                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 group-hover:bg-rose-600 group-hover:text-white dark:group-hover:bg-rose-600 dark:group-hover:text-white'
+                    }`}
+                  >
                     <Icon size={20} />
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium border bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20">
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium border ${
+                      isComingSoon
+                        ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                        : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20'
+                    }`}
+                  >
                     {tool.badge}
                   </span>
                 </div>
 
                 <div className="space-y-1.5">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-rose-600 dark:text-rose-400 block font-semibold">
+                  <span
+                    className={`text-[10px] font-mono uppercase tracking-wider block font-semibold ${
+                      isComingSoon ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
                     {tool.category}
                   </span>
-                  <h3 className="text-lg font-bold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                  <h3
+                    className={`text-lg font-bold text-stone-900 dark:text-zinc-100 transition-colors ${
+                      isComingSoon
+                        ? 'group-hover:text-amber-600 dark:group-hover:text-amber-400'
+                        : 'group-hover:text-rose-600 dark:group-hover:text-rose-400'
+                    }`}
+                  >
                     {tool.title}
                   </h3>
                   <p className="text-xs text-stone-600 dark:text-zinc-400 leading-relaxed">
@@ -159,8 +186,22 @@ export const ToolsIndexPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-5 mt-4 border-t border-stone-100 dark:border-zinc-800 flex items-center gap-2 text-xs font-semibold text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400 group-hover:translate-x-1 transition-all">
-                <span>{language === 'en' ? 'Open Tool' : 'Buka Tool'}</span>
+              <div
+                className={`pt-5 mt-4 border-t border-stone-100 dark:border-zinc-800 flex items-center gap-2 text-xs font-semibold text-stone-900 dark:text-zinc-100 group-hover:translate-x-1 transition-all ${
+                  isComingSoon
+                    ? 'group-hover:text-amber-600 dark:group-hover:text-amber-400'
+                    : 'group-hover:text-rose-600 dark:group-hover:text-rose-400'
+                }`}
+              >
+                <span>
+                  {isComingSoon
+                    ? language === 'en'
+                      ? 'Preview & Roadmap'
+                      : 'Pratinjau & Roadmap'
+                    : language === 'en'
+                    ? 'Open Tool'
+                    : 'Buka Tool'}
+                </span>
                 <ArrowRight size={14} />
               </div>
             </Link>
