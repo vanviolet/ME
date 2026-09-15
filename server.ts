@@ -260,7 +260,7 @@ async function startServer() {
       const result = await executeSmartAiRouting({
         prompt: userPrompt,
         systemInstruction,
-        model: "gemini-2.5-flash",
+        model: "gemini-3.8-flash",
       });
 
       res.json({ success: true, text: result.text });

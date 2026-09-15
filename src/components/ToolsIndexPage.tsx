@@ -10,6 +10,10 @@ import {
   Crop,
   ArrowRight,
   Kanban,
+  KeyRound,
+  Code,
+  Fingerprint,
+  Database,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -18,30 +22,56 @@ export const ToolsIndexPage: React.FC = () => {
 
   const toolsList = [
     {
-      id: 'jira',
-      title: 'Jira Cloud Project Management',
+      id: 'jwt-debugger',
+      title: 'JWT Debugger & Decoder',
       description:
         language === 'en'
-          ? 'Enterprise-grade Agile issue tracking, Scrum & Kanban boards, sprint planning, roadmap Gantt, burndown reports, automations, and RBAC team permissions.'
-          : 'Manajemen proyek enterprise terinspirasi Jira: Kanban & Scrum board, perencanaan sprint, roadmap Gantt, laporan burndown, otomasi, dan izin tim RBAC.',
-      icon: Kanban,
-      category: 'Project & Engineering',
-      path: '/tools/jira',
-      status: 'coming_soon',
-      badge: language === 'en' ? 'Coming Soon' : 'Segera Hadir',
+          ? 'Decode, inspect, and verify JSON Web Tokens (RFC 7519) client-side with claims parsing, unix timestamps, and signature structure.'
+          : 'Dekode, analisis isi klaim payload JSON Web Token (JWT), konversi waktu Unix, dan periksa tanda tangan secara aman 100% di browser.',
+      icon: KeyRound,
+      category: 'Developer & Security',
+      path: '/tools/jwt-debugger',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
     },
     {
-      id: 'lorem-ipsum',
-      title: 'Lorem Ipsum Generator',
+      id: 'regex-tester',
+      title: 'Regex Tester & Explainer',
       description:
         language === 'en'
-          ? 'Generate clean dummy text with customizable paragraph count, HTML tags wrapper, Tech Jargon, and Nusantara vocabulary.'
-          : 'Generator teks dummy placeholder bersih dengan pengaturan paragraf, tag HTML, istilah teknis dev, dan kosakata Nusantara.',
-      icon: Type,
-      category: 'Content & Design',
-      path: '/tools/lorem-ipsum',
+          ? 'Interactive regular expression sandbox with real-time match group highlighting, substitution testing, and pre-built pattern library.'
+          : 'Penguji Regex interaktif real-time dengan penyorotan grup penangkapan, pengujian penggantian teks, dan pustaka pola umum.',
+      icon: Code,
+      category: 'Developer & Regex',
+      path: '/tools/regex-tester',
       status: 'active',
-      badge: language === 'en' ? 'Available' : 'Tersedia',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'uuid-generator',
+      title: 'UUID / ULID & Hash Studio',
+      description:
+        language === 'en'
+          ? 'Generate cryptographic UUID v4, timestamp-ordered UUID v7, sortable ULID keys, and compute real-time SHA-256 / MD5 checksums.'
+          : 'Hasilkan UUID v4, UUID v7 terurut waktu, ULID, serta kalkulator hash kriptografi (SHA-256, SHA-512, MD5) instan.',
+      icon: Fingerprint,
+      category: 'Backend & Cryptography',
+      path: '/tools/uuid-generator',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'sql-formatter',
+      title: 'SQL Formatter & Minifier',
+      description:
+        language === 'en'
+          ? 'Format, beautify, and minify SQL queries for PostgreSQL, MySQL, and SQLite with keyword capitalizing and indentation controls.'
+          : 'Format, percantik, dan minifikasi kueri SQL (PostgreSQL, MySQL, SQLite) dengan huruf kapital otomatis dan pengaturan spasi.',
+      icon: Database,
+      category: 'Database & Backend',
+      path: '/tools/sql-formatter',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
     },
     {
       id: 'json-formatter',
@@ -70,6 +100,19 @@ export const ToolsIndexPage: React.FC = () => {
       badge: language === 'en' ? 'Available' : 'Tersedia',
     },
     {
+      id: 'image-cropper',
+      title: 'Photo Editor & Design Studio',
+      description:
+        language === 'en'
+          ? 'Full-featured photo editor with advanced typography formatting, filters, layer stacking, background removal, vector shapes, stickers, and 4K export.'
+          : 'Editor foto & studio desain grafis lengkap dengan pengaturan tipografi presisi, layer, filter warna, hapus background otomatis, bentuk vektor, dan ekspor 4K.',
+      icon: Crop,
+      category: 'Media & Design',
+      path: '/tools/image-cropper',
+      status: 'active',
+      badge: language === 'en' ? 'Upgraded Studio' : 'Studio Baru',
+    },
+    {
       id: 'css-gradient',
       title: 'CSS Gradient Generator',
       description:
@@ -83,17 +126,30 @@ export const ToolsIndexPage: React.FC = () => {
       badge: language === 'en' ? 'Available' : 'Tersedia',
     },
     {
-      id: 'image-cropper',
-      title: 'Photo Editor & Design Studio',
+      id: 'lorem-ipsum',
+      title: 'Lorem Ipsum Generator',
       description:
         language === 'en'
-          ? 'Full-featured photo editor with advanced typography formatting, filters, layer stacking, background removal, vector shapes, stickers, and 4K export.'
-          : 'Editor foto & studio desain grafis lengkap dengan pengaturan tipografi presisi, layer, filter warna, hapus background otomatis, bentuk vektor, dan ekspor 4K.',
-      icon: Crop,
-      category: 'Media & Design',
-      path: '/tools/image-cropper',
+          ? 'Generate clean dummy text with customizable paragraph count, HTML tags wrapper, Tech Jargon, and Nusantara vocabulary.'
+          : 'Generator teks dummy placeholder bersih dengan pengaturan paragraf, tag HTML, istilah teknis dev, dan kosakata Nusantara.',
+      icon: Type,
+      category: 'Content & Design',
+      path: '/tools/lorem-ipsum',
       status: 'active',
-      badge: language === 'en' ? 'Upgraded Studio' : 'Studio Baru',
+      badge: language === 'en' ? 'Available' : 'Tersedia',
+    },
+    {
+      id: 'jira',
+      title: 'Jira Cloud Project Management',
+      description:
+        language === 'en'
+          ? 'Enterprise-grade Agile issue tracking, Scrum & Kanban boards, sprint planning, roadmap Gantt, burndown reports, automations, and RBAC team permissions.'
+          : 'Manajemen proyek enterprise terinspirasi Jira: Kanban & Scrum board, perencanaan sprint, roadmap Gantt, laporan burndown, otomasi, dan izin tim RBAC.',
+      icon: Kanban,
+      category: 'Project & Engineering',
+      path: '/tools/jira',
+      status: 'coming_soon',
+      badge: language === 'en' ? 'Coming Soon' : 'Segera Hadir',
     },
   ];
 

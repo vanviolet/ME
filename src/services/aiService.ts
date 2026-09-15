@@ -94,14 +94,6 @@ export const ALL_FREE_MODELS: AiModelOption[] = [
     tier: 'free',
   },
   {
-    id: 'gemini-3.6-flash',
-    name: 'Gemini 3.6 Flash',
-    provider: 'Google Gemini Free',
-    description: 'Model Flash Stabil: Direkomendasikan resmi oleh Google untuk API',
-    badge: 'Stabil',
-    tier: 'free',
-  },
-  {
     id: 'gemini-3.1-flash-lite',
     name: 'Gemini 3.1 Flash-Lite',
     provider: 'Google Gemini Free',

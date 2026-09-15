@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 
 // Embedded default Firebase configuration from vanviolet-115bb project
 const defaultConfig = {
@@ -35,10 +35,26 @@ googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-// Initialize Firestore with custom database ID if provided in config
-export const db = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(app);
+// Initialize Firestore with robust connection options (auto-detect long-polling to prevent 10s timeout in restricted/proxied iframe environments)
+let firestoreInstance;
+const firestoreSettings = {
+  experimentalAutoDetectLongPolling: true,
+  ignoreUndefinedProperties: true,
+};
+
+try {
+  if (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)') {
+    firestoreInstance = initializeFirestore(app, firestoreSettings, firebaseConfig.firestoreDatabaseId);
+  } else {
+    firestoreInstance = initializeFirestore(app, firestoreSettings);
+  }
+} catch {
+  firestoreInstance = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
+    ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+    : getFirestore(app);
+}
+
+export const db = firestoreInstance;
 
 // Designated administrator email according to project requirements
 export const ADMIN_EMAIL = 'vanviolet.js@gmail.com';

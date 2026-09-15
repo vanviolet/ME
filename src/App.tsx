@@ -28,6 +28,10 @@ import { JsonFormatterPage } from './components/tools/JsonFormatterPage';
 import { Base64Page } from './components/tools/Base64Page';
 import { CssGradientPage } from './components/tools/CssGradientPage';
 import { ImageCropperPage } from './components/tools/ImageCropperPage';
+import { JwtDebuggerPage } from './components/tools/JwtDebuggerPage';
+import { RegexTesterPage } from './components/tools/RegexTesterPage';
+import { UuidGeneratorPage } from './components/tools/UuidGeneratorPage';
+import { SqlFormatterPage } from './components/tools/SqlFormatterPage';
 import { JiraApp } from './components/jira/JiraApp';
 import { JiraProvider } from './components/jira/JiraContext';
 import { AiChatFloating } from './components/AiChatFloating';
@@ -114,6 +118,14 @@ const AppLayout: React.FC = () => {
         <Route path="/tools/json-formatter" element={<JsonFormatterPage />} />
         <Route path="/tools/base64" element={<Base64Page />} />
         <Route path="/tools/css-gradient" element={<CssGradientPage />} />
+        <Route path="/tools/jwt-debugger" element={<JwtDebuggerPage />} />
+        <Route path="/tools/jwt" element={<JwtDebuggerPage />} />
+        <Route path="/tools/regex-tester" element={<RegexTesterPage />} />
+        <Route path="/tools/regex" element={<RegexTesterPage />} />
+        <Route path="/tools/uuid-generator" element={<UuidGeneratorPage />} />
+        <Route path="/tools/uuid" element={<UuidGeneratorPage />} />
+        <Route path="/tools/sql-formatter" element={<SqlFormatterPage />} />
+        <Route path="/tools/sql" element={<SqlFormatterPage />} />
         <Route path="/tools/image-cropper" element={<ImageCropperPage />} />
         <Route path="/tools/crop-image" element={<ImageCropperPage />} />
         <Route path="/tools/photo-editor" element={<ImageCropperPage />} />

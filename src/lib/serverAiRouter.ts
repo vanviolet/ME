@@ -65,7 +65,7 @@ async function callPublicZeroAuthGateway(
   // Map to the most capable upstream models on the public gateway
   let mappedModel = 'openai';
   if (cleanId.includes('nemotron')) {
-    mappedModel = 'mistral'; // High performance Nemotron/Mistral engine
+    mappedModel = 'mistral';
   } else if (cleanId.includes('deepseek') || cleanId.includes('r1')) {
     mappedModel = 'deepseek';
   } else if (cleanId.includes('qwen') || cleanId.includes('coder')) {
@@ -80,10 +80,10 @@ async function callPublicZeroAuthGateway(
     ? `${systemInstruction}\nOutput format MUST be valid raw JSON only. No markdown fences or commentary.`
     : systemInstruction;
 
-  // Primary Zero-Auth Strategy: direct text gateway with timeout & retry
+  // Primary Zero-Auth Strategy: direct text gateway with timeout
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), 8000);
 
     const res = await fetch('https://text.pollinations.ai/', {
       method: 'POST',
@@ -110,14 +110,14 @@ async function callPublicZeroAuthGateway(
         return text.trim();
       }
     }
-  } catch (err) {
-    console.warn('[Zero-Auth Gateway] Primary endpoint attempt failed:', err);
+  } catch (_err) {
+    // Graceful fallback without noisy abort stack traces
   }
 
   // Secondary Fallback: OpenAI compatible endpoint
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 7000);
 
     const res = await fetch('https://text.pollinations.ai/openai/chat/completions', {
       method: 'POST',
@@ -140,12 +140,14 @@ async function callPublicZeroAuthGateway(
       const text = data.choices?.[0]?.message?.content?.trim();
       if (text) return text;
     }
-  } catch (err) {
-    console.warn('[Zero-Auth Gateway] Secondary endpoint attempt failed:', err);
+  } catch (_err) {
+    // Graceful fallback without noisy abort stack traces
   }
 
   return null;
 }
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function callGeminiNative(
   geminiModel: string,
@@ -172,15 +174,37 @@ async function callGeminiNative(
     if (jsonSchema) config.responseSchema = jsonSchema;
   }
 
-  const response = await ai.models.generateContent({
-    model: geminiModel,
-    contents: prompt,
-    config,
-  });
+  // Maximum 2 attempts per specific model for transient 503 high demand / rate limit spikes
+  let lastErr: any = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: geminiModel,
+        contents: prompt,
+        config,
+      });
 
-  const text = response?.text;
-  if (!text) throw new Error(`Empty response returned from Gemini (${geminiModel})`);
-  return text;
+      const text = response?.text;
+      if (!text) throw new Error(`Empty response returned from Gemini (${geminiModel})`);
+      return text;
+    } catch (err: any) {
+      lastErr = err;
+      const is503 =
+        err?.status === 503 ||
+        err?.message?.includes('503') ||
+        err?.message?.includes('high demand') ||
+        err?.message?.includes('UNAVAILABLE');
+
+      if (is503 && attempt === 0) {
+        // Brief pause before single retry or moving on
+        await sleep(600);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastErr || new Error(`Gemini call failed for ${geminiModel}`);
 }
 
 export async function executeSmartAiRouting(options: SmartAiRequestOptions): Promise<SmartAiResponse> {
@@ -192,7 +216,7 @@ export async function executeSmartAiRouting(options: SmartAiRequestOptions): Pro
 
   const isGeminiRequested = rawModel.toLowerCase().startsWith('gemini');
 
-  // If the user requested a non-Gemini model (e.g. Nemotron, DeepSeek, Llama, Qwen, MiMo, MiniMax), prioritized Zero-Auth Gateway
+  // If the user requested a non-Gemini model (e.g. Nemotron, DeepSeek, Llama, Qwen, MiMo, MiniMax), try Zero-Auth Gateway first
   if (!isGeminiRequested) {
     executionPath.push(`zero-auth:${cleanName}`);
     const zeroAuthResult = await callPublicZeroAuthGateway(rawModel, systemInstruction, options.prompt, isJson);
@@ -210,15 +234,24 @@ export async function executeSmartAiRouting(options: SmartAiRequestOptions): Pro
     }
   }
 
-  // If Gemini was requested, OR as a failover if zero-auth is unreachable:
-  const geminiCascade = isGeminiRequested
-    ? [rawModel, 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite']
-    : ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite'];
+  // Cascade of valid, active Google Gemini models
+  // 'gemini-3.8-flash' -> 'gemini-3.1-flash-lite' -> 'gemini-flash-latest'
+  const validGeminiModels = [
+    'gemini-3.8-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-latest',
+  ];
 
-  const uniqueModels = Array.from(new Set(geminiCascade));
+  let geminiCascade: string[] = [];
+  if (isGeminiRequested && validGeminiModels.includes(rawModel)) {
+    geminiCascade = [rawModel, ...validGeminiModels.filter((m) => m !== rawModel)];
+  } else {
+    geminiCascade = validGeminiModels;
+  }
+
   let lastError: any = null;
 
-  for (const gModel of uniqueModels) {
+  for (const gModel of geminiCascade) {
     executionPath.push(`gemini-native:${gModel}`);
     try {
       const gResult = await callGeminiNative(gModel, systemInstruction, options.prompt, isJson, options.jsonSchema);
@@ -226,15 +259,15 @@ export async function executeSmartAiRouting(options: SmartAiRequestOptions): Pro
       return {
         text: gResult,
         parsedJson: parsed,
-        usedModel: cleanName,
+        usedModel: isGeminiRequested ? getCleanModelName(gModel) : cleanName,
         provider: isGeminiRequested ? 'Google Gemini Engine' : `${cleanName} (Hybrid Engine)`,
         executionPath,
       };
-    } catch (err) {
+    } catch (err: any) {
       lastError = err;
-      console.warn(`[Smart Router] Cascade failed for ${gModel}, switching to next model...`, err);
+      console.warn(`[Smart Router] Model ${gModel} temporarily unavailable, switching to next model in cascade...`);
     }
   }
 
-  throw new Error(`Smart AI Router gagal mengeksekusi permintaan: ${lastError?.message || 'Unknown error'}`);
+  throw new Error(`Smart AI Router gagal mengeksekusi permintaan: ${lastError?.message || 'Layanan AI sedang sibuk, silakan coba sesaat lagi.'}`);
 }

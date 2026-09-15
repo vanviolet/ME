@@ -9,15 +9,15 @@ interface AiModelConfig {
 }
 
 const AI_MODELS_LIST: AiModelConfig[] = [
+  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', badge: 'Recommended', category: 'fast' },
+  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite', badge: 'Ultra Fast', category: 'fast' },
+  { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', badge: 'Auto Latest', category: 'fast' },
   { id: 'nemotron-3-ultra', name: 'Nemotron 3 Ultra', badge: 'Ultra Reasoning', category: 'ultra' },
   { id: 'deepseek-r1', name: 'DeepSeek R1', badge: 'Deep Reasoning', category: 'reasoning' },
-  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', badge: 'Next-Gen', category: 'fast' },
-  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', badge: 'Fast & Smart', category: 'fast' },
-  { id: 'mimo-v2-pro', name: 'MiMo V2 Pro', badge: 'Balanced Pro', category: 'ultra' },
   { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', badge: 'Open Flagship', category: 'reasoning' },
   { id: 'qwen-2.5-coder', name: 'Qwen 2.5 Coder', badge: 'Code & Math', category: 'code' },
   { id: 'minimax-m2.5', name: 'MiniMax M2.5', badge: 'Creative', category: 'ultra' },
-  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite', badge: 'Ultra Fast', category: 'fast' },
+  { id: 'mimo-v2-pro', name: 'MiMo V2 Pro', badge: 'Balanced Pro', category: 'ultra' },
 ];
 
 function getCleanModelName(modelId: string): string {
@@ -220,21 +220,20 @@ ${context ? `\n### Konteks Halaman Pengguna Saat Ini:\n${context}` : ''}`;
 
     // Priority 2: Gemini Native Cascade
     if (!reply) {
-      const geminiCascade = isGeminiRequested
-        ? [model, 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite']
-        : ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite'];
+      const validGeminiModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+      const geminiCascade = isGeminiRequested && validGeminiModels.includes(model)
+        ? [model, ...validGeminiModels.filter((m) => m !== model)]
+        : validGeminiModels;
 
-      const uniqueModels = Array.from(new Set(geminiCascade));
-
-      for (const gModel of uniqueModels) {
+      for (const gModel of geminiCascade) {
         executionPath.push(`gemini-native:${gModel}`);
         try {
           reply = await callGeminiNativeChat(gModel, fullSystemInstruction, messages);
           usedModel = isGeminiRequested ? getCleanModelName(gModel) : cleanName;
           provider = isGeminiRequested ? 'Google Gemini Engine' : `${cleanName} (Hybrid Engine)`;
           break;
-        } catch (err) {
-          console.warn(`[VanBot Chat] Failed on ${gModel}, trying next...`, err);
+        } catch (_err) {
+          console.warn(`[VanBot Chat] Model ${gModel} temporarily unavailable, trying next in cascade...`);
         }
       }
     }

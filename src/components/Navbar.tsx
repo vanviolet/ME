@@ -104,7 +104,10 @@ export const Navbar: React.FC = () => {
   const isArticlesPage = location.pathname.startsWith('/articles');
   const isVanpediaPage = location.pathname.startsWith('/vanpedia');
   const isForumPage = location.pathname.startsWith('/forum') || location.pathname.startsWith('/issues');
-  const isToolsPage = location.pathname.startsWith('/tools');
+  const isToolsPage =
+    location.pathname.startsWith('/tools') ||
+    location.pathname.startsWith('/jira') ||
+    location.pathname.startsWith('/photo-editor');
   // Jira is currently in Coming Soon / Refactoring mode; keep clean standard navigation
   const isJiraPage = false;
 
@@ -855,14 +858,14 @@ export const Navbar: React.FC = () => {
             <span className="text-[11px] uppercase tracking-wider text-rose-600 dark:text-rose-400 font-semibold block mb-2 px-1">
               {language === 'en' ? 'Knowledge & Community' : 'Pengetahuan & Komunitas'}
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <Link
                 to="/articles"
                 onClick={() => setMobileMenuOpen(false)}
                 className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${
                   isArticlesPage
                     ? 'border-rose-500/50 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
-                    : 'border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200'
+                    : 'border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200 hover:border-stone-300 dark:hover:border-zinc-700'
                 }`}
               >
                 <BookOpen size={16} className="text-rose-500 shrink-0" />
@@ -880,7 +883,7 @@ export const Navbar: React.FC = () => {
                 className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${
                   isVanpediaPage
                     ? 'border-rose-500/50 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
-                    : 'border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200'
+                    : 'border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200 hover:border-stone-300 dark:hover:border-zinc-700'
                 }`}
               >
                 <Compass size={16} className="text-rose-500 shrink-0" />
@@ -898,7 +901,7 @@ export const Navbar: React.FC = () => {
                 className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${
                   isForumPage
                     ? 'border-rose-500/50 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
-                    : 'border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200'
+                    : 'border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200 hover:border-stone-300 dark:hover:border-zinc-700'
                 }`}
               >
                 <MessageSquare size={16} className="text-rose-500 shrink-0" />
@@ -911,41 +914,24 @@ export const Navbar: React.FC = () => {
               </Link>
 
               <Link
-                to="/tools/jira"
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-3"
-              >
-                <Kanban size={16} className="text-amber-600 shrink-0" />
-                <div className="text-left">
-                  <div className="text-xs font-semibold flex items-center gap-1.5">
-                    <span>Jira Cloud PM</span>
-                    <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[9px] font-bold uppercase font-mono">
-                      {language === 'en' ? 'Coming Soon' : 'Segera Hadir'}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-amber-700/80 dark:text-amber-300/80 font-medium">
-                    {language === 'en' ? 'Under Reconstruction' : 'Dalam Rekonstruksi & Polish'}
-                  </div>
-                </div>
-              </Link>
-
-              <Link
-                to="/tools/lorem-ipsum"
+                to="/tools"
                 onClick={() => setMobileMenuOpen(false)}
                 className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${
                   isToolsPage
                     ? 'border-rose-500/50 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
-                    : 'border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200'
+                    : 'border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200 hover:border-stone-300 dark:hover:border-zinc-700'
                 }`}
               >
                 <Wrench size={16} className="text-rose-500 shrink-0" />
-                <div className="text-left">
-                  <div className="text-xs font-semibold flex items-center gap-1.5">
-                    <span>Lorem Ipsum Generator</span>
-                    <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold">New</span>
+                <div className="text-left flex-1 min-w-0">
+                  <div className="text-xs font-semibold flex items-center justify-between">
+                    <span>{language === 'en' ? 'Tools Studio' : 'Menu Tools'}</span>
+                    <span className="px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[9px] font-bold">
+                      Suite
+                    </span>
                   </div>
-                  <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium">
-                    {language === 'en' ? 'Developer & Designer Tools' : 'Tool Teks Placeholder'}
+                  <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-medium truncate">
+                    {language === 'en' ? 'Photo Editor, Dev & Design Tools' : 'Pusat Alat, Editor & Utilitas'}
                   </div>
                 </div>
               </Link>

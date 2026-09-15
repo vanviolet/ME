@@ -2,15 +2,15 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from '@google/genai';
 
 const AI_MODELS_LIST = [
+  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
+  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
+  { id: 'gemini-flash-latest', name: 'Gemini Flash Latest' },
   { id: 'nemotron-3-ultra', name: 'Nemotron 3 Ultra' },
   { id: 'deepseek-r1', name: 'DeepSeek R1' },
-  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' },
-  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
-  { id: 'mimo-v2-pro', name: 'MiMo V2 Pro' },
   { id: 'llama-3.3-70b', name: 'Llama 3.3 70B' },
   { id: 'qwen-2.5-coder', name: 'Qwen 2.5 Coder' },
   { id: 'minimax-m2.5', name: 'MiniMax M2.5' },
-  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
+  { id: 'mimo-v2-pro', name: 'MiMo V2 Pro' },
 ];
 
 function getCleanModelName(modelId: string): string {
@@ -262,22 +262,21 @@ Keluaran HARUS berupa JSON dengan properti:
 
     // Tier 2: Gemini Free Tier cascade fallback
     if (!parsedData) {
-      const geminiCascade = model.startsWith('gemini-')
-        ? [model, 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite']
-        : ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite'];
-      
-      const uniqueModels = Array.from(new Set(geminiCascade));
+      const validGeminiModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+      const geminiCascade = isGemini && validGeminiModels.includes(model)
+        ? [model, ...validGeminiModels.filter((m) => m !== model)]
+        : validGeminiModels;
 
-      for (const gModel of uniqueModels) {
+      for (const gModel of geminiCascade) {
         executionPath.push(`gemini-native:${gModel}`);
         try {
           const gRes = await callGeminiNative(gModel, systemInstruction, prompt, jsonSchema);
           parsedData = extractAndParseJson(gRes);
-          usedModel = gModel;
-          provider = 'Google Gemini Free Tier';
+          usedModel = isGemini ? getCleanModelName(gModel) : usedModel;
+          provider = isGemini ? 'Google Gemini Engine' : `${usedModel} (Hybrid Engine)`;
           break;
-        } catch (err) {
-          console.warn(`[Vanpedia AI] Failed on ${gModel}, trying next...`, err);
+        } catch (_err) {
+          console.warn(`[Vanpedia AI] Model ${gModel} temporarily unavailable, trying next in cascade...`);
         }
       }
     }

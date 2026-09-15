@@ -183,21 +183,21 @@ ${context ? `Additional article context: ${context}` : ''}`;
 
     // Tier 3: Gemini cascade
     if (!resultText) {
-      const geminiCascade = model.startsWith('gemini-')
-        ? [model, 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite']
-        : ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite'];
-      
-      const uniqueModels = Array.from(new Set(geminiCascade));
+      const isGemini = model.startsWith('gemini');
+      const validGeminiModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+      const geminiCascade = isGemini && validGeminiModels.includes(model)
+        ? [model, ...validGeminiModels.filter((m) => m !== model)]
+        : validGeminiModels;
 
-      for (const gModel of uniqueModels) {
+      for (const gModel of geminiCascade) {
         executionPath.push(`gemini-native:${gModel}`);
         try {
           resultText = await callGeminiNative(gModel, systemInstruction, prompt);
           usedModel = gModel;
           provider = 'Google Gemini Free Tier';
           break;
-        } catch (err) {
-          console.warn(`[Assist AI] Failed on ${gModel}, trying next...`, err);
+        } catch (_err) {
+          console.warn(`[Assist AI] Model ${gModel} temporarily unavailable, trying next in cascade...`);
         }
       }
     }
