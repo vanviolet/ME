@@ -388,14 +388,15 @@ export const PhotoEditor: React.FC = () => {
   const autoFitZoom = useCallback(() => {
     if (!canvasContainerRef.current) return;
     const container = canvasContainerRef.current;
-    const padding = 70;
-    const availWidth = Math.max(300, container.clientWidth - padding);
-    const availHeight = Math.max(300, container.clientHeight - padding);
+    const isMobile = window.innerWidth < 768;
+    const padding = isMobile ? 24 : 70;
+    const availWidth = Math.max(260, container.clientWidth - padding);
+    const availHeight = Math.max(260, container.clientHeight - padding);
 
     const scaleX = availWidth / canvasWidth;
     const scaleY = availHeight / canvasHeight;
     const fitScale = Math.min(scaleX, scaleY, 0.95);
-    const targetZoom = Math.max(0.2, Number(fitScale.toFixed(2)));
+    const targetZoom = Math.max(0.15, Number(fitScale.toFixed(2)));
 
     setZoomLevel((curr) => (Math.abs(curr - targetZoom) > 0.03 ? targetZoom : curr));
   }, [canvasWidth, canvasHeight]);
@@ -1397,165 +1398,199 @@ export const PhotoEditor: React.FC = () => {
           onSelectTab={(tab) => setActiveTab((curr) => (curr === tab ? null : tab))}
         />
 
-        {/* 2B. SUB-PANEL DRAWER (Text, Crop, Shapes, Adjust, Filter, etc.) */}
-        {activeTab === 'text' && (
-          <TextPanel
-            onAddHeading={handleAddHeading}
-            onAddSubheading={handleAddSubheading}
-            onAddBodyText={handleAddBodyText}
-            onApplyPreset={handleApplyTextPreset}
-            hasSelection={selectedType === 'text'}
-            letterCase={textState.letterCase}
-            letterSpacing={textState.letterSpacing}
-            listStyle={textState.listStyle}
-            underline={textState.underline}
-            linethrough={textState.linethrough}
-            verticalAlign={textState.verticalAlign}
-            lineHeight={textState.lineHeight}
-            paragraphSpacing={textState.paragraphSpacing}
-            frameBehavior={textState.frameBehavior}
-            clipping={textState.clipping}
-            onUpdateProp={updateTextProp}
-            onClose={() => setActiveTab(null)}
-          />
-        )}
+        {/* 2B. SUB-PANEL DRAWER (Responsive Bottom Sheet on Mobile, Docked Sidebar on Desktop) */}
+        {activeTab !== null && (
+          <>
+            {/* Mobile Dimmed Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-xs"
+              onClick={() => setActiveTab(null)}
+            />
 
-        {activeTab === 'crop' && (
-          <CropPanel
-            currentAspect={currentAspect}
-            onApplyCrop={handleApplyCrop}
-            onRotate={handleRotate}
-            onFlipH={handleFlipH}
-            onFlipV={handleFlipV}
-            onResetCrop={handleResetCrop}
-          />
-        )}
+            {/* Sub-Panel Container */}
+            <div className="max-md:fixed max-md:inset-x-0 max-md:bottom-16 max-md:z-40 max-md:max-h-[68vh] max-md:rounded-t-2xl max-md:border-t max-md:border-zinc-700/80 max-md:shadow-2xl max-md:bg-zinc-900 max-md:animate-in max-md:slide-in-from-bottom duration-200 md:h-full md:relative flex flex-col shrink-0 overflow-hidden">
+              {/* Mobile Drag Handle */}
+              <div
+                className="md:hidden flex items-center justify-center pt-2.5 pb-1 bg-zinc-900 cursor-pointer border-b border-zinc-800/50 shrink-0"
+                onClick={() => setActiveTab(null)}
+              >
+                <div className="w-10 h-1 rounded-full bg-zinc-600" />
+              </div>
 
-        {activeTab === 'adjust' && (
-          <AdjustPanel
-            adjustments={adjustments}
-            onChangeAdjustment={handleAdjustmentChange}
-            onResetAll={handleResetAdjustments}
-          />
-        )}
+              {activeTab === 'text' && (
+                <TextPanel
+                  onAddHeading={handleAddHeading}
+                  onAddSubheading={handleAddSubheading}
+                  onAddBodyText={handleAddBodyText}
+                  onApplyPreset={handleApplyTextPreset}
+                  hasSelection={selectedType === 'text'}
+                  letterCase={textState.letterCase}
+                  letterSpacing={textState.letterSpacing}
+                  listStyle={textState.listStyle}
+                  underline={textState.underline}
+                  linethrough={textState.linethrough}
+                  verticalAlign={textState.verticalAlign}
+                  lineHeight={textState.lineHeight}
+                  paragraphSpacing={textState.paragraphSpacing}
+                  frameBehavior={textState.frameBehavior}
+                  clipping={textState.clipping}
+                  onUpdateProp={updateTextProp}
+                  onClose={() => setActiveTab(null)}
+                />
+              )}
 
-        {activeTab === 'filter' && (
-          <FilterPanel
-            activeFilterId={activeFilterId}
-            onApplyFilter={handleApplyFilterPreset}
-            onResetFilter={handleResetAdjustments}
-          />
-        )}
+              {activeTab === 'crop' && (
+                <CropPanel
+                  currentAspect={currentAspect}
+                  onApplyCrop={handleApplyCrop}
+                  onRotate={handleRotate}
+                  onFlipH={handleFlipH}
+                  onFlipV={handleFlipV}
+                  onResetCrop={handleResetCrop}
+                  onClose={() => setActiveTab(null)}
+                />
+              )}
 
-        {activeTab === 'effects' && (
-          <EffectsPanel
-            onApplyEffect={handleApplyEffect}
-            onClearEffects={handleClearEffects}
-          />
-        )}
+              {activeTab === 'adjust' && (
+                <AdjustPanel
+                  adjustments={adjustments}
+                  onChangeAdjustment={handleAdjustmentChange}
+                  onResetAll={handleResetAdjustments}
+                  onClose={() => setActiveTab(null)}
+                />
+              )}
 
-        {activeTab === 'bg-removal' && (
-          <BgRemovalPanel
-            onAutoRemoveAI={handleAutoRemoveBackgroundAI}
-            onRemoveBackground={handleRemoveBackground}
-            onSetBackgroundColor={handleSetCanvasBg}
-            onSetTransparentBackground={() => handleSetCanvasBg('transparent')}
-            isProcessing={bgRemovalProcessing}
-            statusMessage={bgRemovalStatus}
-          />
-        )}
+              {activeTab === 'filter' && (
+                <FilterPanel
+                  activeFilterId={activeFilterId}
+                  onApplyFilter={handleApplyFilterPreset}
+                  onResetFilter={handleResetAdjustments}
+                  onClose={() => setActiveTab(null)}
+                />
+              )}
 
-        {activeTab === 'shapes' && <ShapesPanel onAddShape={handleAddShape} />}
+              {activeTab === 'effects' && (
+                <EffectsPanel
+                  onApplyEffect={handleApplyEffect}
+                  onClearEffects={handleClearEffects}
+                  onClose={() => setActiveTab(null)}
+                />
+              )}
 
-        {activeTab === 'stickers' && (
-          <StickersPanel
-            onAddEmojiSticker={handleAddEmojiSticker}
-            onAddGraphicSticker={() => {}}
-          />
-        )}
+              {activeTab === 'bg-removal' && (
+                <BgRemovalPanel
+                  onAutoRemoveAI={handleAutoRemoveBackgroundAI}
+                  onRemoveBackground={handleRemoveBackground}
+                  onSetBackgroundColor={handleSetCanvasBg}
+                  onSetTransparentBackground={() => handleSetCanvasBg('transparent')}
+                  isProcessing={bgRemovalProcessing}
+                  statusMessage={bgRemovalStatus}
+                  onClose={() => setActiveTab(null)}
+                />
+              )}
 
-        {activeTab === 'draw' && (
-          <DrawPanel
-            isDrawingMode={isDrawingMode}
-            brushColor={brushColor}
-            brushWidth={brushWidth}
-            brushType={brushType}
-            onToggleDrawingMode={handleToggleDrawingMode}
-            onSetBrushColor={handleSetBrushColor}
-            onSetBrushWidth={handleSetBrushWidth}
-            onSetBrushType={(type) => {
-              setBrushType(type);
-              const canvas = fabricRef.current;
-              if (!canvas) return;
-              if (type === 'eraser') {
-                canvas.freeDrawingBrush = new PencilBrush(canvas);
-                canvas.freeDrawingBrush.color = '#09090b';
-                canvas.freeDrawingBrush.width = brushWidth * 2;
-              } else if (type === 'highlighter') {
-                canvas.freeDrawingBrush = new PencilBrush(canvas);
-                canvas.freeDrawingBrush.color = `${brushColor}55`;
-                canvas.freeDrawingBrush.width = 24;
-              } else {
-                canvas.freeDrawingBrush = new PencilBrush(canvas);
-                canvas.freeDrawingBrush.color = brushColor;
-                canvas.freeDrawingBrush.width = brushWidth;
-              }
-            }}
-            onClearDrawing={() => {
-              const canvas = fabricRef.current;
-              if (!canvas) return;
-              const pathObjs = canvas.getObjects().filter((o) => o instanceof Path);
-              pathObjs.forEach((p) => canvas.remove(p));
-              canvas.renderAll();
-              saveStateToHistory();
-            }}
-          />
-        )}
+              {activeTab === 'shapes' && (
+                <ShapesPanel
+                  onAddShape={handleAddShape}
+                  onClose={() => setActiveTab(null)}
+                />
+              )}
 
-        {activeTab === 'layers' && (
-          <LayersPanel
-            layers={layers}
-            activeLayerId={(selectedObject as any)?._layerId || null}
-            onSelectLayer={(l) => {
-              const canvas = fabricRef.current;
-              if (canvas) {
-                canvas.setActiveObject(l.object);
-                canvas.renderAll();
-              }
-            }}
-            onToggleVisibility={(l) => {
-              l.object.set({ visible: !l.object.visible });
-              fabricRef.current?.renderAll();
-              refreshLayers();
-            }}
-            onToggleLock={(l) => {
-              const lock = !l.object.lockMovementX;
-              l.object.set({
-                lockMovementX: lock,
-                lockMovementY: lock,
-                lockRotation: lock,
-                lockScalingX: lock,
-                lockScalingY: lock,
-              });
-              fabricRef.current?.renderAll();
-              refreshLayers();
-            }}
-            onMoveUp={(l) => {
-              fabricRef.current?.bringObjectForward(l.object);
-              fabricRef.current?.renderAll();
-              refreshLayers();
-            }}
-            onMoveDown={(l) => {
-              fabricRef.current?.sendObjectBackwards(l.object);
-              fabricRef.current?.renderAll();
-              refreshLayers();
-            }}
-            onDeleteLayer={(l) => {
-              fabricRef.current?.remove(l.object);
-              fabricRef.current?.renderAll();
-              refreshLayers();
-            }}
-          />
+              {activeTab === 'stickers' && (
+                <StickersPanel
+                  onAddEmojiSticker={handleAddEmojiSticker}
+                  onAddGraphicSticker={() => {}}
+                  onClose={() => setActiveTab(null)}
+                />
+              )}
+
+              {activeTab === 'draw' && (
+                <DrawPanel
+                  isDrawingMode={isDrawingMode}
+                  brushColor={brushColor}
+                  brushWidth={brushWidth}
+                  brushType={brushType}
+                  onToggleDrawingMode={handleToggleDrawingMode}
+                  onSetBrushColor={handleSetBrushColor}
+                  onSetBrushWidth={handleSetBrushWidth}
+                  onSetBrushType={(type) => {
+                    setBrushType(type);
+                    const canvas = fabricRef.current;
+                    if (!canvas) return;
+                    if (type === 'eraser') {
+                      canvas.freeDrawingBrush = new PencilBrush(canvas);
+                      canvas.freeDrawingBrush.color = '#09090b';
+                      canvas.freeDrawingBrush.width = brushWidth * 2;
+                    } else if (type === 'highlighter') {
+                      canvas.freeDrawingBrush = new PencilBrush(canvas);
+                      canvas.freeDrawingBrush.color = `${brushColor}55`;
+                      canvas.freeDrawingBrush.width = 24;
+                    } else {
+                      canvas.freeDrawingBrush = new PencilBrush(canvas);
+                      canvas.freeDrawingBrush.color = brushColor;
+                      canvas.freeDrawingBrush.width = brushWidth;
+                    }
+                  }}
+                  onClearDrawing={() => {
+                    const canvas = fabricRef.current;
+                    if (!canvas) return;
+                    const pathObjs = canvas.getObjects().filter((o) => o instanceof Path);
+                    pathObjs.forEach((p) => canvas.remove(p));
+                    canvas.renderAll();
+                    saveStateToHistory();
+                  }}
+                  onClose={() => setActiveTab(null)}
+                />
+              )}
+
+              {activeTab === 'layers' && (
+                <LayersPanel
+                  layers={layers}
+                  activeLayerId={(selectedObject as any)?._layerId || null}
+                  onSelectLayer={(l) => {
+                    const canvas = fabricRef.current;
+                    if (canvas) {
+                      canvas.setActiveObject(l.object);
+                      canvas.renderAll();
+                    }
+                  }}
+                  onToggleVisibility={(l) => {
+                    l.object.set({ visible: !l.object.visible });
+                    fabricRef.current?.renderAll();
+                    refreshLayers();
+                  }}
+                  onToggleLock={(l) => {
+                    const lock = !l.object.lockMovementX;
+                    l.object.set({
+                      lockMovementX: lock,
+                      lockMovementY: lock,
+                      lockRotation: lock,
+                      lockScalingX: lock,
+                      lockScalingY: lock,
+                    });
+                    fabricRef.current?.renderAll();
+                    refreshLayers();
+                  }}
+                  onMoveUp={(l) => {
+                    fabricRef.current?.bringObjectForward(l.object);
+                    fabricRef.current?.renderAll();
+                    refreshLayers();
+                  }}
+                  onMoveDown={(l) => {
+                    fabricRef.current?.sendObjectBackwards(l.object);
+                    fabricRef.current?.renderAll();
+                    refreshLayers();
+                  }}
+                  onDeleteLayer={(l) => {
+                    fabricRef.current?.remove(l.object);
+                    fabricRef.current?.renderAll();
+                    refreshLayers();
+                  }}
+                  onClose={() => setActiveTab(null)}
+                />
+              )}
+            </div>
+          </>
         )}
 
         {/* 2C. CENTER CANVAS STAGE */}
@@ -1591,7 +1626,7 @@ export const PhotoEditor: React.FC = () => {
           {/* MAIN INTERACTIVE CANVAS VIEWPORT */}
           <div
             ref={canvasContainerRef}
-            className="flex-1 overflow-auto flex items-center justify-center p-8 bg-zinc-950 custom-scrollbar relative"
+            className="flex-1 overflow-auto flex items-center justify-center p-3 sm:p-6 md:p-8 max-md:pb-22 bg-zinc-950 custom-scrollbar relative"
             style={{
               backgroundImage:
                 'radial-gradient(circle, #27272a 1px, transparent 1px)',

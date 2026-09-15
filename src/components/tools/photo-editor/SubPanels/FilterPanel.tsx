@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, RotateCcw } from 'lucide-react';
+import { Sparkles, RotateCcw, X } from 'lucide-react';
 import { FILTER_PRESETS } from '../fabricUtils';
 import { FilterPreset } from '../types';
 
@@ -7,29 +7,42 @@ interface FilterPanelProps {
   activeFilterId: string;
   onApplyFilter: (preset: FilterPreset) => void;
   onResetFilter: () => void;
+  onClose?: () => void;
 }
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
   activeFilterId,
   onApplyFilter,
   onResetFilter,
+  onClose,
 }) => {
   return (
-    <div className="w-80 sm:w-88 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
+    <div className="w-full md:w-80 lg:w-88 bg-zinc-900 md:border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
       <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles size={16} className="text-purple-400" />
           <h2 className="text-sm font-bold text-zinc-100">Photo Filters</h2>
         </div>
-        {activeFilterId !== 'normal' && (
-          <button
-            onClick={onResetFilter}
-            className="flex items-center gap-1 text-xs font-semibold text-zinc-400 hover:text-purple-400 transition-colors"
-          >
-            <RotateCcw size={12} />
-            <span>Reset</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {activeFilterId !== 'normal' && (
+            <button
+              onClick={onResetFilter}
+              className="flex items-center gap-1 text-xs font-semibold text-zinc-400 hover:text-purple-400 transition-colors"
+            >
+              <RotateCcw size={12} />
+              <span>Reset</span>
+            </button>
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              title="Close panel"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-3">

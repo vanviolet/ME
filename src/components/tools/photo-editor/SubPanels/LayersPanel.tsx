@@ -6,13 +6,13 @@ import {
   Lock,
   Unlock,
   Trash2,
-  Copy,
   ArrowUp,
   ArrowDown,
   Type,
   Image as ImageIcon,
   Square,
   Smile,
+  X,
 } from 'lucide-react';
 import { FabricObject } from 'fabric';
 
@@ -34,6 +34,7 @@ interface LayersPanelProps {
   onMoveUp: (layer: LayerItem) => void;
   onMoveDown: (layer: LayerItem) => void;
   onDeleteLayer: (layer: LayerItem) => void;
+  onClose?: () => void;
 }
 
 export const LayersPanel: React.FC<LayersPanelProps> = ({
@@ -45,106 +46,117 @@ export const LayersPanel: React.FC<LayersPanelProps> = ({
   onMoveUp,
   onMoveDown,
   onDeleteLayer,
+  onClose,
 }) => {
-  const getIconForType = (type: string) => {
-    switch (type) {
-      case 'i-text':
-      case 'textbox':
-      case 'text':
-        return <Type size={14} className="text-purple-400" />;
-      case 'image':
-        return <ImageIcon size={14} className="text-blue-400" />;
-      case 'rect':
-      case 'circle':
-      case 'triangle':
-      case 'polygon':
-        return <Square size={14} className="text-amber-400" />;
-      default:
-        return <Smile size={14} className="text-pink-400" />;
-    }
+  const getIcon = (type: string) => {
+    if (type === 'textbox' || type === 'i-text' || type === 'text') return <Type size={14} className="text-purple-400" />;
+    if (type === 'image') return <ImageIcon size={14} className="text-blue-400" />;
+    if (type === 'rect' || type === 'circle' || type === 'triangle' || type === 'polygon') return <Square size={14} className="text-emerald-400" />;
+    return <Smile size={14} className="text-amber-400" />;
   };
 
   return (
-    <div className="w-80 sm:w-88 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
+    <div className="w-full md:w-80 lg:w-88 bg-zinc-900 md:border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
       <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Layers size={16} className="text-purple-400" />
-          <h2 className="text-sm font-bold text-zinc-100">Layer Stack ({layers.length})</h2>
+          <h2 className="text-sm font-bold text-zinc-100">Canvas Layers</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-400">{layers.length} items</span>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              title="Close panel"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="p-4 space-y-2">
+      <div className="p-3 space-y-1.5 flex-1">
         {layers.length === 0 ? (
-          <div className="p-6 text-center text-xs text-zinc-500">
+          <div className="py-12 text-center text-xs text-zinc-400">
             No objects on canvas yet.
           </div>
         ) : (
-          [...layers].reverse().map((layer, index) => {
-            const isSelected = activeLayerId === layer.id;
-
+          [...layers].reverse().map((layer) => {
+            const isSelected = layer.id === activeLayerId;
             return (
               <div
                 key={layer.id}
                 onClick={() => onSelectLayer(layer)}
-                className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-purple-500 bg-purple-600/20 text-white shadow-xs ring-1 ring-purple-500'
-                    : 'border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700'
+                    ? 'bg-purple-600/20 border-purple-500 shadow-md ring-1 ring-purple-500/40'
+                    : 'bg-zinc-950 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-800/40'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0">
-                    {getIconForType(layer.type)}
+                  <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 shrink-0">
+                    {getIcon(layer.type)}
                   </div>
-                  <span className="text-xs font-semibold truncate font-sans">
+                  <span className="text-xs font-semibold text-zinc-200 truncate">
                     {layer.name}
                   </span>
                 </div>
 
-                {/* Layer Quick Actions */}
-                <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1 shrink-0">
                   <button
-                    onClick={() => onMoveUp(layer)}
-                    className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-                    title="Bring Forward"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMoveUp(layer);
+                    }}
+                    title="Bring forward"
+                    className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
                   >
-                    <ArrowUp size={12} />
+                    <ArrowUp size={13} />
                   </button>
-
                   <button
-                    onClick={() => onMoveDown(layer)}
-                    className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-                    title="Send Backward"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMoveDown(layer);
+                    }}
+                    title="Send backward"
+                    className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
                   >
-                    <ArrowDown size={12} />
+                    <ArrowDown size={13} />
                   </button>
-
                   <button
-                    onClick={() => onToggleLock(layer)}
-                    className={`p-1 rounded transition-colors ${
-                      layer.locked ? 'text-amber-400' : 'text-zinc-500 hover:text-white'
-                    }`}
-                    title={layer.locked ? 'Unlock' : 'Lock'}
-                  >
-                    {layer.locked ? <Lock size={12} /> : <Unlock size={12} />}
-                  </button>
-
-                  <button
-                    onClick={() => onToggleVisibility(layer)}
-                    className={`p-1 rounded transition-colors ${
-                      !layer.visible ? 'text-zinc-600' : 'text-zinc-400 hover:text-white'
-                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleVisibility(layer);
+                    }}
                     title={layer.visible ? 'Hide' : 'Show'}
+                    className={`p-1 rounded-md transition-colors ${
+                      layer.visible ? 'text-zinc-400 hover:text-white' : 'text-zinc-400'
+                    }`}
                   >
-                    {layer.visible ? <Eye size={12} /> : <EyeOff size={12} />}
+                    {layer.visible ? <Eye size={13} /> : <EyeOff size={13} />}
                   </button>
-
                   <button
-                    onClick={() => onDeleteLayer(layer)}
-                    className="p-1 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-                    title="Delete Layer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleLock(layer);
+                    }}
+                    title={layer.locked ? 'Unlock' : 'Lock'}
+                    className={`p-1 rounded-md transition-colors ${
+                      layer.locked ? 'text-amber-400' : 'text-zinc-400 hover:text-white'
+                    }`}
                   >
-                    <Trash2 size={12} />
+                    {layer.locked ? <Lock size={13} /> : <Unlock size={13} />}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteLayer(layer);
+                    }}
+                    title="Delete layer"
+                    className="p-1 rounded-md text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 transition-colors"
+                  >
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>

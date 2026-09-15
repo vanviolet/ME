@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wand2, Sparkles, Check, RefreshCw, Layers, Sliders, Zap, Image as ImageIcon } from 'lucide-react';
+import { Wand2, Sparkles, Check, RefreshCw, Sliders, Zap, X } from 'lucide-react';
 
 interface BgRemovalPanelProps {
   onAutoRemoveAI: () => Promise<void>;
@@ -8,6 +8,7 @@ interface BgRemovalPanelProps {
   onSetTransparentBackground: () => void;
   isProcessing: boolean;
   statusMessage?: string;
+  onClose?: () => void;
 }
 
 const BG_COLOR_PRESETS = [
@@ -36,6 +37,7 @@ export const BgRemovalPanel: React.FC<BgRemovalPanelProps> = ({
   onSetTransparentBackground,
   isProcessing,
   statusMessage,
+  onClose,
 }) => {
   const [activeMode, setActiveMode] = useState<'ai' | 'manual'>('ai');
   const [tolerance, setTolerance] = useState(35);
@@ -43,15 +45,26 @@ export const BgRemovalPanel: React.FC<BgRemovalPanelProps> = ({
   const [activeBg, setActiveBg] = useState('transparent');
 
   return (
-    <div className="w-80 sm:w-88 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
+    <div className="w-full md:w-80 lg:w-88 bg-zinc-900 md:border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
       <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Wand2 size={16} className="text-purple-400" />
           <h2 className="text-sm font-bold text-zinc-100">Background Remover</h2>
         </div>
-        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-          remove.bg AI
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            remove.bg AI
+          </span>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              title="Close panel"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-4">

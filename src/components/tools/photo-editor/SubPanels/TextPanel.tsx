@@ -133,7 +133,7 @@ export const TextPanel: React.FC<TextPanelProps> = ({
   onClose,
 }) => {
   return (
-    <div className="w-80 sm:w-88 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
+    <div className="w-full md:w-80 lg:w-88 bg-zinc-900 md:border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
       {/* HEADER MATCHING SCREENSHOT "Advanced" / Text Studio */}
       <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2">

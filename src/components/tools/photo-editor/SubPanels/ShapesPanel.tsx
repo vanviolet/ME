@@ -11,11 +11,13 @@ import {
   Shield,
   MessageSquare,
   Sparkles,
+  X,
 } from 'lucide-react';
 import { ShapeOption } from '../types';
 
 interface ShapesPanelProps {
   onAddShape: (type: string, fill: string, stroke?: string) => void;
+  onClose?: () => void;
 }
 
 const SHAPE_LIST: ShapeOption[] = [
@@ -31,44 +33,52 @@ const SHAPE_LIST: ShapeOption[] = [
   { id: 'speech', name: 'Speech Bubble', iconName: 'MessageSquare', type: 'speech', defaultFill: '#14b8a6' },
 ];
 
-export const ShapesPanel: React.FC<ShapesPanelProps> = ({ onAddShape }) => {
+export const ShapesPanel: React.FC<ShapesPanelProps> = ({ onAddShape, onClose }) => {
   return (
-    <div className="w-80 sm:w-88 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
+    <div className="w-full md:w-80 lg:w-88 bg-zinc-900 md:border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
       <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Shapes size={16} className="text-purple-400" />
           <h2 className="text-sm font-bold text-zinc-100">Vector Shapes</h2>
         </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            title="Close panel"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
 
       <div className="p-4 space-y-4">
         <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400 block">
-          Geometric & Graphics
+          Geometric & Vector Primitives
         </span>
 
         <div className="grid grid-cols-2 gap-2.5">
           {SHAPE_LIST.map((shape) => (
             <button
               key={shape.id}
-              onClick={() => onAddShape(shape.id, shape.defaultFill)}
-              className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-purple-500/60 hover:bg-zinc-800/60 text-left transition-all group flex flex-col items-center justify-center gap-2"
+              onClick={() => onAddShape(shape.type, shape.defaultFill)}
+              className="p-3 rounded-2xl bg-zinc-950 border border-zinc-800 hover:border-purple-500/60 hover:bg-zinc-800/40 flex flex-col items-center justify-center gap-2 transition-all group active:scale-95 shadow-sm"
             >
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center text-white group-hover:scale-110 transition-transform shadow-sm"
-                style={{ backgroundColor: shape.defaultFill }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 shadow-inner"
+                style={{ backgroundColor: `${shape.defaultFill}25` }}
               >
-                {shape.id === 'rect' && <Square size={20} />}
-                {shape.id === 'rounded-rect' && <Square size={20} className="rounded-md" />}
-                {shape.id === 'circle' && <Circle size={20} />}
-                {shape.id === 'triangle' && <Triangle size={20} />}
-                {shape.id === 'star' && <Star size={20} fill="currentColor" />}
-                {shape.id === 'arrow' && <ArrowRight size={20} />}
-                {shape.id === 'line' && <Minus size={24} />}
-                {shape.id === 'heart' && <Heart size={20} fill="currentColor" />}
-                {shape.id === 'shield' && <Shield size={20} />}
-                {shape.id === 'speech' && <MessageSquare size={20} />}
+                {shape.type === 'rect' && <Square size={20} style={{ color: shape.defaultFill }} />}
+                {shape.type === 'circle' && <Circle size={20} style={{ color: shape.defaultFill }} />}
+                {shape.type === 'triangle' && <Triangle size={20} style={{ color: shape.defaultFill }} />}
+                {shape.type === 'star' && <Star size={20} style={{ color: shape.defaultFill }} />}
+                {shape.type === 'arrow' && <ArrowRight size={20} style={{ color: shape.defaultFill }} />}
+                {shape.type === 'line' && <Minus size={20} style={{ color: shape.defaultFill }} />}
+                {shape.type === 'heart' && <Heart size={20} style={{ color: shape.defaultFill }} />}
+                {shape.type === 'badge' && <Shield size={20} style={{ color: shape.defaultFill }} />}
+                {shape.type === 'speech' && <MessageSquare size={20} style={{ color: shape.defaultFill }} />}
               </div>
-              <span className="text-xs font-semibold text-zinc-300 group-hover:text-white truncate">
+              <span className="text-xs font-semibold text-zinc-300 group-hover:text-purple-300 text-center">
                 {shape.name}
               </span>
             </button>

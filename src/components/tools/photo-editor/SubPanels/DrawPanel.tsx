@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brush, Eraser, Highlighter, Sparkles, Check } from 'lucide-react';
+import { Brush, Eraser, Highlighter, Sparkles, Check, X } from 'lucide-react';
 
 interface DrawPanelProps {
   isDrawingMode: boolean;
@@ -11,6 +11,7 @@ interface DrawPanelProps {
   onSetBrushWidth: (width: number) => void;
   onSetBrushType: (type: 'pencil' | 'marker' | 'highlighter' | 'eraser') => void;
   onClearDrawing: () => void;
+  onClose?: () => void;
 }
 
 const BRUSH_COLORS = [
@@ -36,63 +37,94 @@ export const DrawPanel: React.FC<DrawPanelProps> = ({
   onSetBrushWidth,
   onSetBrushType,
   onClearDrawing,
+  onClose,
 }) => {
   return (
-    <div className="w-80 sm:w-88 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
+    <div className="w-full md:w-80 lg:w-88 bg-zinc-900 md:border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
       <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Brush size={16} className="text-purple-400" />
           <h2 className="text-sm font-bold text-zinc-100">Freehand Drawing</h2>
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onClearDrawing}
+            className="text-xs font-semibold text-zinc-400 hover:text-purple-400 transition-colors"
+          >
+            Clear
+          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              title="Close panel"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="p-4 space-y-5">
-        {/* ENABLE / DISABLE DRAWING MODE */}
+      <div className="p-4 space-y-4">
+        {/* Toggle Brush Mode */}
         <button
           onClick={() => onToggleDrawingMode(!isDrawingMode)}
-          className={`w-full py-3 px-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md ${
+          className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md ${
             isDrawingMode
-              ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/30 ring-2 ring-purple-400'
-              : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700'
+              ? 'bg-purple-600 text-white shadow-purple-600/30 ring-2 ring-purple-500/50'
+              : 'bg-zinc-950 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800'
           }`}
         >
-          <Brush size={16} />
-          <span>{isDrawingMode ? 'Drawing Active (Click to Exit)' : 'Start Drawing on Canvas'}</span>
+          <Brush size={14} />
+          <span>{isDrawingMode ? 'Drawing Mode Active' : 'Start Drawing'}</span>
         </button>
 
-        {/* BRUSH TYPE */}
-        <div className="space-y-2">
+        {/* Brush Types */}
+        <div className="space-y-1.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400 block">
-            Brush Style
+            Brush Preset
           </span>
-
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { id: 'pencil', label: 'Fine Pen', icon: <Brush size={14} /> },
-              { id: 'marker', label: 'Bold Marker', icon: <Brush size={16} /> },
-              { id: 'highlighter', label: 'Highlighter', icon: <Highlighter size={14} /> },
-              { id: 'eraser', label: 'Eraser', icon: <Eraser size={14} /> },
-            ].map((b) => (
-              <button
-                key={b.id}
-                onClick={() => onSetBrushType(b.id as any)}
-                className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all ${
-                  brushType === b.id
-                    ? 'border-purple-500 bg-purple-600/20 text-white'
-                    : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white'
-                }`}
-              >
-                {b.icon}
-                <span>{b.label}</span>
-              </button>
-            ))}
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => onSetBrushType('pencil')}
+              className={`py-2 px-2 rounded-xl border flex flex-col items-center gap-1 text-xs font-semibold transition-all ${
+                brushType === 'pencil'
+                  ? 'border-purple-500 bg-purple-600/20 text-white ring-1 ring-purple-500'
+                  : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-800/50'
+              }`}
+            >
+              <Brush size={14} />
+              <span className="text-[10px]">Pencil</span>
+            </button>
+            <button
+              onClick={() => onSetBrushType('highlighter')}
+              className={`py-2 px-2 rounded-xl border flex flex-col items-center gap-1 text-xs font-semibold transition-all ${
+                brushType === 'highlighter'
+                  ? 'border-purple-500 bg-purple-600/20 text-white ring-1 ring-purple-500'
+                  : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-800/50'
+              }`}
+            >
+              <Highlighter size={14} />
+              <span className="text-[10px]">Highlighter</span>
+            </button>
+            <button
+              onClick={() => onSetBrushType('eraser')}
+              className={`py-2 px-2 rounded-xl border flex flex-col items-center gap-1 text-xs font-semibold transition-all ${
+                brushType === 'eraser'
+                  ? 'border-purple-500 bg-purple-600/20 text-white ring-1 ring-purple-500'
+                  : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:bg-zinc-800/50'
+              }`}
+            >
+              <Eraser size={14} />
+              <span className="text-[10px]">Eraser</span>
+            </button>
           </div>
         </div>
 
-        {/* BRUSH SIZE */}
+        {/* Brush Size */}
         <div className="space-y-1.5 pt-2 border-t border-zinc-800">
-          <div className="flex items-center justify-between text-xs font-medium text-zinc-300">
-            <span>Stroke Thickness</span>
+          <div className="flex items-center justify-between text-xs text-zinc-300">
+            <span>Stroke Size</span>
             <span className="font-mono text-purple-400 font-bold">{brushWidth}px</span>
           </div>
           <input
@@ -105,39 +137,36 @@ export const DrawPanel: React.FC<DrawPanelProps> = ({
           />
         </div>
 
-        {/* BRUSH COLOR */}
-        {brushType !== 'eraser' && (
-          <div className="space-y-2 pt-2 border-t border-zinc-800">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400 block">
-                Ink Color
-              </span>
-              <input
-                type="color"
-                value={brushColor}
-                onChange={(e) => onSetBrushColor(e.target.value)}
-                className="w-5 h-5 rounded cursor-pointer bg-transparent border-0"
-              />
-            </div>
-
-            <div className="grid grid-cols-5 gap-2">
-              {BRUSH_COLORS.map((c) => (
+        {/* Color Palette */}
+        <div className="space-y-2 pt-2 border-t border-zinc-800">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400 block">
+            Ink Color
+          </span>
+          <div className="grid grid-cols-5 gap-2">
+            {BRUSH_COLORS.map((color) => {
+              const isSelected = brushColor.toLowerCase() === color.toLowerCase();
+              return (
                 <button
-                  key={c}
-                  onClick={() => onSetBrushColor(c)}
-                  className={`h-8 rounded-lg border flex items-center justify-center transition-all ${
-                    brushColor === c ? 'border-purple-400 ring-2 ring-purple-500/40 scale-105' : 'border-zinc-800'
+                  key={color}
+                  onClick={() => onSetBrushColor(color)}
+                  className={`h-8 rounded-xl border flex items-center justify-center transition-all ${
+                    isSelected
+                      ? 'border-purple-500 ring-2 ring-purple-500/50 scale-105 shadow-sm'
+                      : 'border-zinc-800 hover:scale-105'
                   }`}
-                  style={{ backgroundColor: c }}
+                  style={{ backgroundColor: color }}
                 >
-                  {brushColor === c && (
-                    <Check size={12} className={c === '#ffffff' ? 'text-black' : 'text-white'} />
+                  {isSelected && (
+                    <Check
+                      size={12}
+                      className={color === '#ffffff' || color === '#eab308' ? 'text-black' : 'text-white'}
+                    />
                   )}
                 </button>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

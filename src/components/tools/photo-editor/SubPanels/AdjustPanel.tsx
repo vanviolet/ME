@@ -8,19 +8,22 @@ import {
   Eye,
   RotateCcw,
   Sparkles,
+  X,
 } from 'lucide-react';
-import { ImageAdjustments, DEFAULT_ADJUSTMENTS } from '../types';
+import { ImageAdjustments } from '../types';
 
 interface AdjustPanelProps {
   adjustments: ImageAdjustments;
   onChangeAdjustment: (key: keyof ImageAdjustments, value: number) => void;
   onResetAll: () => void;
+  onClose?: () => void;
 }
 
 export const AdjustPanel: React.FC<AdjustPanelProps> = ({
   adjustments,
   onChangeAdjustment,
   onResetAll,
+  onClose,
 }) => {
   const sliders: Array<{
     key: keyof ImageAdjustments;
@@ -44,49 +47,47 @@ export const AdjustPanel: React.FC<AdjustPanelProps> = ({
   ];
 
   return (
-    <div className="w-80 sm:w-88 bg-zinc-900 border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
+    <div className="w-full md:w-80 lg:w-88 bg-zinc-900 md:border-r border-zinc-800 flex flex-col h-full shrink-0 z-10 select-none overflow-y-auto custom-scrollbar">
       <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sliders size={16} className="text-purple-400" />
           <h2 className="text-sm font-bold text-zinc-100">Image Adjustments</h2>
         </div>
-        <button
-          onClick={onResetAll}
-          className="flex items-center gap-1 text-xs font-semibold text-zinc-400 hover:text-purple-400 transition-colors"
-        >
-          <RotateCcw size={12} />
-          <span>Reset All</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onResetAll}
+            className="flex items-center gap-1 text-xs font-semibold text-zinc-400 hover:text-purple-400 transition-colors"
+          >
+            <RotateCcw size={12} />
+            <span>Reset All</span>
+          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              title="Close panel"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-4">
         {sliders.map((s) => {
-          const val = adjustments[s.key];
-          const isModified = val !== DEFAULT_ADJUSTMENTS[s.key];
-
+          const val = adjustments[s.key] ?? 0;
           return (
-            <div key={s.key} className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-medium text-zinc-300">
-                <span className="flex items-center gap-1.5">
+            <div key={s.key} className="space-y-1.5 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-800/80">
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5 font-medium text-zinc-300">
                   {s.icon}
                   <span>{s.label}</span>
                 </span>
-                <div className="flex items-center gap-1 font-mono">
-                  <span className={isModified ? 'text-purple-400 font-bold' : 'text-zinc-400'}>
-                    {val > 0 && s.min < 0 ? `+${val}` : val}{s.unit}
-                  </span>
-                  {isModified && (
-                    <button
-                      onClick={() => onChangeAdjustment(s.key, DEFAULT_ADJUSTMENTS[s.key])}
-                      className="text-zinc-500 hover:text-rose-400 transition-colors ml-1"
-                      title="Reset slider"
-                    >
-                      <RotateCcw size={10} />
-                    </button>
-                  )}
-                </div>
+                <span className="font-mono text-purple-400 font-bold text-[11px]">
+                  {val > 0 && s.min < 0 ? `+${val}` : val}
+                  {s.unit}
+                </span>
               </div>
-
               <input
                 type="range"
                 min={s.min}
