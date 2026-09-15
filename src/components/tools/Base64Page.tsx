@@ -12,6 +12,13 @@ import {
   Upload,
   FileText,
   Image as ImageIcon,
+  BarChart2,
+  Sparkles,
+  Eye,
+  Sliders,
+  CheckCircle2,
+  AlertCircle,
+  Code,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -23,7 +30,7 @@ function utf8ToBase64(str: string): string {
         String.fromCharCode(parseInt(p1, 16))
       )
     );
-  } catch (e) {
+  } catch {
     return 'Error encoding string';
   }
 }
@@ -36,22 +43,47 @@ function base64ToUtf8(str: string): string {
         .call(atob(cleanStr), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
         .join('')
     );
-  } catch (e) {
+  } catch {
     return 'Invalid Base64 string';
   }
 }
 
+const BASE64_PRESETS = [
+  {
+    name: 'Emoji & Unicode Text',
+    nameId: 'Teks Emoji & Unicode',
+    type: 'encode',
+    text: 'Hello, World! 🚀 Powered by React 19 & TypeScript ✨ 2026',
+  },
+  {
+    name: 'Sample SVG Data URI',
+    nameId: 'Contoh Data URI SVG',
+    type: 'decode',
+    text: 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNlMTFkNDgiIHN0cm9rZS13aWR0aD0iMiI+PHBhdGggZD0iTTEyIDJ2MjBNMTcgNXZ4NE03IDV2MTRNOSA5aDZNOSAxNWg2Ii8+PC9zdmc+',
+  },
+  {
+    name: 'Config JSON Payload',
+    nameId: 'Payload Konfigurasi JSON',
+    type: 'encode',
+    text: '{"app": "DevStudio", "version": "3.2.0", "active": true, "env": "production"}',
+  },
+];
+
 export const Base64Page: React.FC = () => {
   const { language } = usePortfolio();
   const [mode, setMode] = useState<'encode' | 'decode' | 'file'>('encode');
-  const [input, setInput] = useState<string>('Hello World! Welcome to Muchamad Irvan Developer Tools.');
+  const [input, setInput] = useState<string>(
+    'Hello World! Welcome to Muchamad Irvan Developer Tools & Utility Studio.'
+  );
   const [urlSafe, setUrlSafe] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const [activeView, setActiveView] = useState<'text' | 'analysis'>('text');
 
   // File Upload State
   const [fileDataUri, setFileDataUri] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
   const [fileType, setFileType] = useState<string>('');
+  const [fileSize, setFileSize] = useState<number>(0);
 
   // Computed Conversion
   const output = useMemo(() => {
@@ -74,6 +106,29 @@ export const Base64Page: React.FC = () => {
     return fileDataUri;
   }, [input, mode, urlSafe, fileDataUri]);
 
+  // Detected Image or SVG preview for decoded data
+  const detectedPreviewType = useMemo(() => {
+    const raw = (mode === 'decode' ? output : input).trim();
+    if (raw.startsWith('<svg') && raw.endsWith('</svg>')) return 'svg';
+    if (fileDataUri && fileType.startsWith('image/')) return 'image';
+    return null;
+  }, [output, input, mode, fileDataUri, fileType]);
+
+  // Base64 Analytics
+  const stats = useMemo(() => {
+    const rawInputBytes = new TextEncoder().encode(input).length;
+    const base64Length = mode === 'encode' ? output.length : input.length;
+    const paddingCount = (mode === 'encode' ? output : input).split('=').length - 1;
+    const inflation = rawInputBytes > 0 ? Math.round(((base64Length - rawInputBytes) / rawInputBytes) * 100) : 33;
+
+    return {
+      rawInputBytes,
+      base64Length,
+      paddingCount,
+      inflation: inflation > 0 ? `+${inflation}%` : `${inflation}%`,
+    };
+  }, [input, output, mode]);
+
   const handleSwap = () => {
     if (mode === 'encode') {
       setMode('decode');
@@ -90,6 +145,7 @@ export const Base64Page: React.FC = () => {
 
     setFileName(file.name);
     setFileType(file.type);
+    setFileSize(file.size);
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -115,211 +171,281 @@ export const Base64Page: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-8">
+    <div className="min-h-screen pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
       <Seo
-        title={language === 'en' ? 'Base64 Encoder & Decoder — Tools' : 'Enkoder & Dekoder Base64 — Tool Pengembang'}
+        title={
+          language === 'en'
+            ? 'Interactive Base64 Encoder, Decoder & Media Studio — Tools'
+            : 'Enkoder & Dekoder Base64, Media Studio Interaktif — Tools'
+        }
         description={
           language === 'en'
-            ? 'Encode text or files to Base64, or decode Base64 strings safely with UTF-8 support.'
-            : 'Enkripsi teks atau berkas ke Base64, atau dekode string Base64 secara instan.'
+            ? 'Encode text and files to Base64, decode Base64 strings with live SVG & image visualizer, URL-safe toggle, and memory inflation analytics.'
+            : 'Enkode teks & berkas ke Base64, dekode string Base64 dengan penampil media SVG/gambar langsung, mode URL-safe, dan analisis rasio ukuran data.'
         }
         url="/tools/base64"
       />
 
-      {/* Header */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-500 font-mono">
-          <Link to="/" className="hover:text-stone-900 dark:hover:text-zinc-200 transition-colors">
-            {language === 'en' ? 'Home' : 'Beranda'}
-          </Link>
-          <span>/</span>
-          <Link to="/tools" className="hover:text-stone-900 dark:hover:text-zinc-200 transition-colors">
-            {language === 'en' ? 'Tools' : 'Perkakas'}
-          </Link>
-          <span>/</span>
-          <span className="text-stone-900 dark:text-zinc-100 font-medium">Base64 Converter</span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 shadow-xs">
-                <Binary size={18} />
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
-                Base64 Encoder & Decoder
-              </h1>
-            </div>
-            <p className="text-xs sm:text-sm text-stone-500 dark:text-zinc-400 pt-1">
-              {language === 'en'
-                ? 'Encode strings and files to Base64 or decode Base64 strings with UTF-8 support.'
-                : 'Enkode teks & berkas ke Base64 atau dekode string Base64 dengan dukungan karakter UTF-8.'}
-            </p>
-          </div>
-
-          <Link
-            to="/tools"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-900/50 text-xs font-medium transition-colors shadow-xs self-start sm:self-auto"
-          >
-            <ArrowLeft size={13} />
-            <span>{language === 'en' ? 'All Tools' : 'Semua Perkakas'}</span>
-          </Link>
-        </div>
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-500 font-mono">
+        <Link to="/" className="hover:text-stone-900 dark:hover:text-zinc-200 transition-colors">
+          {language === 'en' ? 'Home' : 'Beranda'}
+        </Link>
+        <span>/</span>
+        <Link to="/tools" className="hover:text-stone-900 dark:hover:text-zinc-200 transition-colors">
+          {language === 'en' ? 'Tools' : 'Perkakas'}
+        </Link>
+        <span>/</span>
+        <span className="text-stone-900 dark:text-zinc-100 font-semibold">Base64 Converter</span>
       </div>
 
-      {/* Main Container */}
-      <div className="space-y-4">
-        {/* Mode Selector & Options Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs">
-          <div className="flex items-center gap-1 bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl border border-stone-200 dark:border-zinc-700">
-            {[
-              { id: 'encode', label: language === 'en' ? 'Encode Text' : 'Enkode Teks' },
-              { id: 'decode', label: language === 'en' ? 'Decode Base64' : 'Dekode Base64' },
-              { id: 'file', label: language === 'en' ? 'File to Base64' : 'Berkas ke Base64' },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setMode(tab.id as any)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  mode === tab.id
-                    ? 'bg-rose-600 text-white dark:bg-rose-600 dark:text-white shadow-xs'
-                    : 'text-stone-500 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-200 dark:border-zinc-800 pb-5">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-semibold border border-rose-500/20">
+            <Binary size={14} />
+            <span>{language === 'en' ? 'Data Transfer & Binary Encoding' : 'Enkoding Biner & Format Data'}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-zinc-100">
+            Base64 Encoder & Decoder
+          </h1>
+          <p className="text-xs sm:text-sm text-stone-600 dark:text-zinc-400 max-w-3xl leading-relaxed">
+            {language === 'en'
+              ? 'Convert text and media files into Base64 data URIs, inspect encoded byte inflation, preview embedded images and SVG vectors in real-time, with full UTF-8 support.'
+              : 'Konversi teks dan berkas ke Base64 data URI, analisis rasio inflasi ukuran biner, pratinjau vektor SVG atau gambar langsung, dengan dukungan penuh UTF-8.'}
+          </p>
+        </div>
+
+        <Link
+          to="/tools"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-semibold transition-colors shadow-xs self-start md:self-auto"
+        >
+          <ArrowLeft size={13} />
+          <span>{language === 'en' ? 'All Tools' : 'Semua Perkakas'}</span>
+        </Link>
+      </div>
+
+      {/* Mode & Presets Quick Bar */}
+      <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
+          {[
+            { id: 'encode', label: language === 'en' ? 'Encode Text' : 'Enkode Teks' },
+            { id: 'decode', label: language === 'en' ? 'Decode Base64' : 'Dekode Base64' },
+            { id: 'file', label: language === 'en' ? 'File to Base64' : 'Berkas Media' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setMode(tab.id as any)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                mode === tab.id
+                  ? 'bg-rose-600 text-white font-bold shadow-xs'
+                  : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Presets */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-stone-500 font-mono text-[11px]">
+            {language === 'en' ? 'Presets:' : 'Contoh:'}
+          </span>
+          {BASE64_PRESETS.map((p, idx) => (
+            <button
+              key={idx}
+              onClick={() => {
+                setMode(p.type as any);
+                setInput(p.text);
+              }}
+              className="px-2.5 py-1 rounded-xl text-xs font-medium border border-stone-200 dark:border-zinc-700 hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300"
+            >
+              {language === 'en' ? p.name : p.nameId}
+            </button>
+          ))}
+        </div>
+
+        {/* Options */}
+        {mode !== 'file' && (
+          <div className="flex items-center gap-3 text-xs">
+            <label className="flex items-center gap-2 cursor-pointer text-stone-700 dark:text-zinc-300 select-none">
+              <input
+                type="checkbox"
+                checked={urlSafe}
+                onChange={e => setUrlSafe(e.target.checked)}
+                className="rounded border-stone-300 text-rose-600 focus:ring-rose-500"
+              />
+              <span className="font-mono text-[11px]">URL-Safe (- / _)</span>
+            </label>
+
+            <button
+              onClick={handleSwap}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-medium transition-colors"
+              title="Swap"
+            >
+              <ArrowRightLeft size={13} />
+              <span>Swap</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Stats & Inflation Metric Card */}
+      {mode !== 'file' && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs">
+            <span className="text-[11px] text-stone-500 block font-medium">Raw Bytes (UTF-8)</span>
+            <span className="font-mono font-bold text-stone-900 dark:text-zinc-100 text-sm">
+              {stats.rawInputBytes} bytes
+            </span>
           </div>
 
-          {mode !== 'file' && (
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer text-xs text-stone-700 dark:text-zinc-300 select-none">
-                <input
-                  type="checkbox"
-                  checked={urlSafe}
-                  onChange={e => setUrlSafe(e.target.checked)}
-                  className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-stone-300 dark:border-zinc-700 accent-rose-600 dark:accent-rose-500"
-                />
-                <span>URL Safe Base64</span>
-              </label>
+          <div className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs">
+            <span className="text-[11px] text-stone-500 block font-medium">Base64 Length</span>
+            <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">
+              {stats.base64Length} chars
+            </span>
+          </div>
 
-              <button
-                onClick={handleSwap}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-900/50 text-xs font-medium transition-colors"
-                title={language === 'en' ? 'Swap Input & Output' : 'Tukar Input & Output'}
-              >
-                <ArrowRightLeft size={13} />
-                <span>{language === 'en' ? 'Swap' : 'Tukar'}</span>
-              </button>
+          <div className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs">
+            <span className="text-[11px] text-stone-500 block font-medium">Size Inflation</span>
+            <span className="font-mono font-bold text-amber-600 dark:text-amber-400 text-sm">
+              {stats.inflation} (4/3 ratio)
+            </span>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs">
+            <span className="text-[11px] text-stone-500 block font-medium">Padding '=' Chars</span>
+            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-sm">
+              {stats.paddingCount} {stats.paddingCount === 1 ? 'pad' : 'pads'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Main Conversion View */}
+      {mode === 'file' ? (
+        /* File Upload View */
+        <div className="space-y-6 bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-xs">
+          <div className="space-y-2 text-center max-w-md mx-auto">
+            <label className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-stone-300 dark:border-zinc-700 hover:border-rose-400 dark:hover:border-rose-600 bg-stone-50/50 dark:bg-zinc-950/50 cursor-pointer transition-colors group">
+              <Upload size={32} className="text-stone-400 group-hover:scale-110 group-hover:text-rose-500 transition-all mb-2" />
+              <span className="text-xs font-semibold text-stone-900 dark:text-zinc-100">
+                {language === 'en' ? 'Click or drag file to encode to Base64' : 'Klik atau seret berkas untuk dienkode'}
+              </span>
+              <span className="text-[10px] text-stone-400 dark:text-zinc-500 mt-1">
+                PNG, JPG, SVG, WEBP, PDF, TXT (Max 5MB recommended)
+              </span>
+              <input type="file" onChange={handleFileUpload} className="hidden" />
+            </label>
+          </div>
+
+          {fileDataUri && (
+            <div className="space-y-4 pt-4 border-t border-stone-100 dark:border-zinc-800">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-medium text-stone-700 dark:text-zinc-300">
+                  <strong>{fileName}</strong> ({fileType || 'Unknown type'}) • {Math.round(fileSize / 1024)} KB
+                </div>
+                <button
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition-colors"
+                >
+                  {copied ? <Check size={13} /> : <Copy size={13} />}
+                  <span>{copied ? 'Copied Data URI' : 'Copy Data URI'}</span>
+                </button>
+              </div>
+
+              {fileType.startsWith('image/') && (
+                <div className="p-4 bg-stone-50 dark:bg-zinc-950 rounded-xl border border-stone-200 dark:border-zinc-800 flex flex-col items-center gap-2">
+                  <span className="text-[11px] font-mono font-bold text-stone-400 uppercase tracking-wider">
+                    Interactive Image Preview
+                  </span>
+                  <img src={fileDataUri} alt="Preview" className="max-h-56 object-contain rounded-lg shadow-xs" />
+                </div>
+              )}
+
+              <textarea
+                readOnly
+                value={fileDataUri}
+                rows={8}
+                className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-xs font-mono leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden"
+              />
             </div>
           )}
         </div>
-
-        {/* Input & Output Area */}
-        {mode === 'file' ? (
-          /* File Upload View */
-          <div className="space-y-6 bg-white dark:bg-zinc-900/90 p-6 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-xs">
-            <div className="space-y-2 text-center max-w-md mx-auto">
-              <label className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-stone-300 dark:border-zinc-700 hover:border-stone-400 dark:hover:border-zinc-600 bg-stone-50/50 dark:bg-zinc-950/50 cursor-pointer transition-colors group">
-                <Upload size={32} className="text-stone-400 group-hover:scale-110 transition-transform mb-2" />
-                <span className="text-xs font-semibold text-stone-900 dark:text-zinc-100">
-                  {language === 'en' ? 'Click or drag file to encode to Base64' : 'Klik atau seret berkas untuk dienkode'}
-                </span>
-                <span className="text-[10px] text-stone-400 dark:text-zinc-500 mt-1">
-                  PNG, JPG, SVG, WEBP, PDF, TXT (Max 5MB recommended)
-                </span>
-                <input type="file" onChange={handleFileUpload} className="hidden" />
+      ) : (
+        /* Text Dual View */
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+          {/* Input Box */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-stone-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                {mode === 'encode' ? (language === 'en' ? 'Input Plain Text' : 'Teks Biasa') : 'Base64 Input'}
               </label>
+              <button
+                onClick={() => setInput('')}
+                className="text-stone-400 hover:text-rose-500 transition-colors p-1"
+                title="Clear"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+            <textarea
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder={mode === 'encode' ? 'Enter text to encode...' : 'Paste Base64 string to decode...'}
+              rows={14}
+              className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-xs font-mono leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 resize-none"
+            />
+          </div>
+
+          {/* Output Box */}
+          <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-stone-700 dark:text-zinc-300 uppercase tracking-wider font-mono">
+                {mode === 'encode' ? 'Base64 Encoded Output' : (language === 'en' ? 'Decoded Text' : 'Hasil Dekode')}
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition-colors"
+                >
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="p-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-stone-900 dark:hover:text-white transition-colors"
+                  title="Download"
+                >
+                  <Download size={13} />
+                </button>
+              </div>
             </div>
 
-            {fileDataUri && (
-              <div className="space-y-4 pt-4 border-t border-stone-100 dark:border-zinc-800">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-medium text-stone-700 dark:text-zinc-300">
-                    <strong>{fileName}</strong> ({fileType || 'Unknown type'})
-                  </div>
-                  <button
-                    onClick={handleCopy}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900 text-xs font-semibold"
-                  >
-                    {copied ? <Check size={13} /> : <Copy size={13} />}
-                    <span>{copied ? 'Copied Data URI' : 'Copy Data URI'}</span>
-                  </button>
-                </div>
+            <textarea
+              readOnly
+              value={output}
+              rows={14}
+              className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-xs font-mono leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden select-all resize-none"
+            />
 
-                {fileType.startsWith('image/') && (
-                  <div className="p-3 bg-stone-50 dark:bg-zinc-950 rounded-xl border border-stone-200 dark:border-zinc-800 flex justify-center">
-                    <img src={fileDataUri} alt="Preview" className="max-h-48 object-contain rounded-lg" />
-                  </div>
-                )}
-
-                <textarea
-                  readOnly
-                  value={fileDataUri}
-                  rows={8}
-                  className="w-full p-4 rounded-xl bg-zinc-950 text-zinc-100 text-xs font-mono leading-relaxed border border-zinc-800 focus:outline-none"
+            {/* If SVG detected in output, render preview */}
+            {detectedPreviewType === 'svg' && (
+              <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-zinc-950 border border-stone-200 dark:border-zinc-800 space-y-2">
+                <span className="text-[11px] font-mono font-bold text-stone-500 uppercase tracking-wider block">
+                  Rendered SVG Vector Preview
+                </span>
+                <div
+                  className="flex items-center justify-center p-3 bg-white dark:bg-zinc-900 rounded-lg border border-stone-200 dark:border-zinc-800"
+                  dangerouslySetInnerHTML={{ __html: output }}
                 />
               </div>
             )}
           </div>
-        ) : (
-          /* Text Input/Output Dual View */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Input Box */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-stone-500 dark:text-zinc-400 uppercase tracking-wider font-mono">
-                  {mode === 'encode' ? (language === 'en' ? 'Input Plain Text' : 'Teks Biasa') : 'Base64 String'}
-                </label>
-                <button
-                  onClick={() => setInput('')}
-                  className="text-stone-400 hover:text-rose-500 transition-colors p-1"
-                  title="Clear"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                placeholder={mode === 'encode' ? 'Enter text to encode...' : 'Paste Base64 string to decode...'}
-                rows={16}
-                className="w-full p-4 rounded-2xl bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-xs font-mono leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-none focus:ring-1 focus:ring-stone-400"
-              />
-            </div>
-
-            {/* Output Box */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-stone-500 dark:text-zinc-400 uppercase tracking-wider font-mono">
-                  {mode === 'encode' ? 'Base64 Output' : (language === 'en' ? 'Decoded Text Output' : 'Teks Hasil Dekode')}
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCopy}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white dark:bg-rose-600 dark:hover:bg-rose-500 text-xs font-semibold shadow-xs transition-colors"
-                  >
-                    {copied ? <Check size={12} /> : <Copy size={12} />}
-                    <span>{copied ? 'Copied' : 'Copy'}</span>
-                  </button>
-                  <button
-                    onClick={handleDownload}
-                    className="p-1 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-stone-900 dark:hover:text-white"
-                  >
-                    <Download size={12} />
-                  </button>
-                </div>
-              </div>
-              <textarea
-                readOnly
-                value={output}
-                rows={16}
-                className="w-full p-4 rounded-2xl bg-zinc-950 text-zinc-100 text-xs font-mono leading-relaxed border border-zinc-800 focus:outline-none select-all"
-              />
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
