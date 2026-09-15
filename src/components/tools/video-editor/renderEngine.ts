@@ -157,7 +157,7 @@ function renderVisualClip(
   ch: number,
   customGetVideo?: (src: string) => HTMLVideoElement
 ) {
-  const clipProgress = (currentTime - clip.start) / clip.duration;
+  const clipProgress = Math.min(1, Math.max(0, (currentTime - clip.start) / Math.max(0.01, clip.duration)));
   let opacity = clip.opacity ?? 1;
 
   // Handle Fade In / Out
@@ -177,23 +177,93 @@ function renderVisualClip(
   ctx.save();
   ctx.globalAlpha = opacity;
 
+  // Apply Blending Mode
+  if (clip.compositing?.blendMode && clip.compositing.blendMode !== 'source-over') {
+    ctx.globalCompositeOperation = clip.compositing.blendMode;
+  }
+
   // Apply filters
   const filterStr = buildCssFilter(clip.filters);
   if (filterStr !== 'none') {
     ctx.filter = filterStr;
   }
 
+  // Motion Tracking / Path Animation Simulation
+  let motionOffsetX = 0;
+  let motionOffsetY = 0;
+  let motionExtraScale = 1;
+  let motionExtraRot = 0;
+
+  if (clip.compositing?.motion && clip.compositing.motion.preset !== 'none') {
+    const intensity = (clip.compositing.motion.intensity ?? 50) / 100;
+    const preset = clip.compositing.motion.preset;
+
+    if (preset === 'pan-left') {
+      motionOffsetX = (cw * 0.15 * intensity) * (1 - 2 * clipProgress);
+    } else if (preset === 'pan-right') {
+      motionOffsetX = (cw * 0.15 * intensity) * (2 * clipProgress - 1);
+    } else if (preset === 'zoom-in') {
+      motionExtraScale = 1 + 0.35 * intensity * clipProgress;
+    } else if (preset === 'zoom-out') {
+      motionExtraScale = 1 + 0.35 * intensity * (1 - clipProgress);
+    } else if (preset === 'float') {
+      motionOffsetX = Math.sin(clipProgress * Math.PI * 4) * (20 * intensity);
+      motionOffsetY = Math.cos(clipProgress * Math.PI * 3) * (15 * intensity);
+    } else if (preset === 'spin') {
+      motionExtraRot = clipProgress * 360 * intensity;
+    }
+  }
+
   // Center transformation matrix
-  const cx = cw / 2;
-  const cy = ch / 2;
+  const cx = cw / 2 + motionOffsetX;
+  const cy = ch / 2 + motionOffsetY;
   ctx.translate(cx, cy);
 
-  if (clip.rotation) {
-    ctx.rotate((clip.rotation * Math.PI) / 180);
+  const totalRot = (clip.rotation || 0) + motionExtraRot;
+  if (totalRot) {
+    ctx.rotate((totalRot * Math.PI) / 180);
   }
-  const scaleX = (clip.scale ?? 1) * (clip.flipH ? -1 : 1);
-  const scaleY = (clip.scale ?? 1) * (clip.flipV ? -1 : 1);
+  const scaleX = (clip.scale ?? 1) * motionExtraScale * (clip.flipH ? -1 : 1);
+  const scaleY = (clip.scale ?? 1) * motionExtraScale * (clip.flipV ? -1 : 1);
   ctx.scale(scaleX, scaleY);
+
+  // Shape Masking
+  const mask = clip.compositing?.mask;
+  const hasActiveMask = mask && mask.shape && mask.shape !== 'none';
+
+  if (hasActiveMask) {
+    const maskCenterX = ((mask.posX ?? 50) / 100 - 0.5) * cw;
+    const maskCenterY = ((mask.posY ?? 50) / 100 - 0.5) * ch;
+    const maskW = ((mask.sizeX ?? 60) / 100) * cw;
+    const maskH = ((mask.sizeY ?? 60) / 100) * ch;
+
+    ctx.beginPath();
+    if (mask.inverted) {
+      // Invert: draw large outer canvas rect, then shape counter-clockwise
+      ctx.rect(-cw, -ch, cw * 2, ch * 2);
+    }
+
+    if (mask.shape === 'circle') {
+      const radius = Math.min(maskW, maskH) / 2;
+      ctx.arc(maskCenterX, maskCenterY, radius, 0, Math.PI * 2, mask.inverted);
+    } else if (mask.shape === 'ellipse') {
+      ctx.ellipse(maskCenterX, maskCenterY, maskW / 2, maskH / 2, 0, 0, Math.PI * 2, mask.inverted);
+    } else if (mask.shape === 'rounded-rect') {
+      const rx = maskCenterX - maskW / 2;
+      const ry = maskCenterY - maskH / 2;
+      roundRect(ctx, rx, ry, maskW, maskH, Math.min(24, Math.min(maskW, maskH) / 4));
+    } else if (mask.shape === 'rectangle') {
+      const rx = maskCenterX - maskW / 2;
+      const ry = maskCenterY - maskH / 2;
+      ctx.rect(rx, ry, maskW, maskH);
+    } else if (mask.shape === 'vignette') {
+      const radius = Math.min(maskW, maskH) / 2;
+      ctx.arc(maskCenterX, maskCenterY, radius, 0, Math.PI * 2, mask.inverted);
+    }
+
+    ctx.closePath();
+    ctx.clip(mask.inverted ? 'evenodd' : 'nonzero');
+  }
 
   if (clip.type === 'video' && clip.src) {
     const video = customGetVideo ? customGetVideo(clip.src) : getOrCreateVideoElement(clip.src);
@@ -539,7 +609,57 @@ export async function renderProjectAudioBuffer(project: Project): Promise<AudioB
 
       const sourceNode = offlineCtx.createBufferSource();
       sourceNode.buffer = decodedBuffer;
-      sourceNode.playbackRate.value = clip.speed || 1;
+      
+      const pitchShift = clip.audioSettings?.pitch || 0;
+      const pitchRatio = pitchShift !== 0 ? Math.pow(2, pitchShift / 12) : 1;
+      sourceNode.playbackRate.value = (clip.speed || 1) * pitchRatio;
+
+      let lastNode: AudioNode = sourceNode;
+
+      // 3-Band Equalizer & Presets
+      if (clip.audioSettings) {
+        const { bass = 0, mid = 0, treble = 0, pan = 0 } = clip.audioSettings;
+
+        if (bass !== 0) {
+          const bassFilter = offlineCtx.createBiquadFilter();
+          bassFilter.type = 'lowshelf';
+          bassFilter.frequency.value = 180;
+          bassFilter.gain.value = bass;
+          lastNode.connect(bassFilter);
+          lastNode = bassFilter;
+        }
+
+        if (mid !== 0) {
+          const midFilter = offlineCtx.createBiquadFilter();
+          midFilter.type = 'peaking';
+          midFilter.frequency.value = 1200;
+          midFilter.Q.value = 1.0;
+          midFilter.gain.value = mid;
+          lastNode.connect(midFilter);
+          lastNode = midFilter;
+        }
+
+        if (treble !== 0) {
+          const trebleFilter = offlineCtx.createBiquadFilter();
+          trebleFilter.type = 'highshelf';
+          trebleFilter.frequency.value = 5500;
+          trebleFilter.gain.value = treble;
+          lastNode.connect(trebleFilter);
+          lastNode = trebleFilter;
+        }
+
+        // Stereo Pan
+        if (pan !== 0 && typeof offlineCtx.createStereoPanner === 'function') {
+          try {
+            const panner = offlineCtx.createStereoPanner();
+            panner.pan.value = Math.max(-1, Math.min(1, pan));
+            lastNode.connect(panner);
+            lastNode = panner;
+          } catch {
+            // StereoPanner fallback
+          }
+        }
+      }
 
       const gainNode = offlineCtx.createGain();
       const clipVol = clip.volume !== undefined ? clip.volume : 1;
@@ -559,7 +679,7 @@ export async function renderProjectAudioBuffer(project: Project): Promise<AudioB
         gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
       }
 
-      sourceNode.connect(gainNode);
+      lastNode.connect(gainNode);
       gainNode.connect(offlineCtx.destination);
 
       sourceNode.start(startTime, offset, duration);

@@ -6,6 +6,7 @@ import {
   ActiveTab,
   MediaAsset,
   AspectRatio,
+  TimelineMarker,
 } from './types';
 import { SAMPLE_VIDEOS, LUT_PRESETS } from './sampleMedia';
 import { TopNavbar } from './TopNavbar';
@@ -142,6 +143,7 @@ export const VideoEditor: React.FC = () => {
   const [masterVolume, setMasterVolume] = useState(1);
   const [isMasterMuted, setIsMasterMuted] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [selectedClipIds, setSelectedClipIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('media');
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
 
@@ -244,6 +246,14 @@ export const VideoEditor: React.FC = () => {
           e.preventDefault();
           handleSplitClipAtPlayhead();
         }
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        handleAddMarker({
+          id: `marker-${Date.now()}`,
+          time: currentTime,
+          label: `Marker ${(project.markers?.length || 0) + 1}`,
+          color: '#f59e0b',
+        });
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault();
         handleUndo();
@@ -360,6 +370,100 @@ export const VideoEditor: React.FC = () => {
       clips: [...p.clips, duplicated],
     }));
     setSelectedClipId(duplicated.id);
+    setSelectedClipIds([duplicated.id]);
+  };
+
+  // Detach audio from video clip onto a dedicated audio track
+  const handleDetachAudio = (clipId: string) => {
+    const videoClip = project.clips.find((c) => c.id === clipId);
+    if (!videoClip || !videoClip.src) return;
+
+    // Find or create an audio track
+    let audioTrack = project.tracks.find((t) => t.type === 'audio' && !t.locked);
+    let updatedTracks = [...project.tracks];
+    if (!audioTrack) {
+      audioTrack = {
+        id: `track-audio-${Date.now()}`,
+        name: `A${project.tracks.filter((t) => t.type === 'audio').length + 1} Audio`,
+        type: 'audio',
+        muted: false,
+        hidden: false,
+        locked: false,
+      };
+      updatedTracks.push(audioTrack);
+    }
+
+    const detachedAudioClip: Clip = {
+      id: `clip-audio-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      trackId: audioTrack.id,
+      name: `${videoClip.name} (Detached Audio)`,
+      type: 'audio',
+      src: videoClip.src,
+      start: videoClip.start,
+      duration: videoClip.duration,
+      offset: videoClip.offset,
+      sourceDuration: videoClip.sourceDuration,
+      speed: videoClip.speed,
+      volume: videoClip.volume ?? 1,
+      muted: false,
+      fadeIn: videoClip.fadeIn || 0,
+      fadeOut: videoClip.fadeOut || 0,
+      opacity: 1,
+      scale: 1,
+      rotation: 0,
+      flipH: false,
+      flipV: false,
+      fit: 'contain',
+      filters: { ...videoClip.filters },
+      audioSettings: videoClip.audioSettings ? { ...videoClip.audioSettings } : undefined,
+    };
+
+    // Mute original video clip so audio isn't duplicated
+    const updatedClips = project.clips
+      .map((c) => (c.id === videoClip.id ? { ...c, muted: true } : c))
+      .concat(detachedAudioClip);
+
+    updateProjectWithHistory((p) => ({
+      ...p,
+      tracks: updatedTracks,
+      clips: updatedClips,
+    }));
+
+    setSelectedClipId(detachedAudioClip.id);
+    setSelectedClipIds([detachedAudioClip.id]);
+  };
+
+  // Timeline Markers management
+  const handleAddMarker = (marker: TimelineMarker) => {
+    updateProjectWithHistory((p) => {
+      const existing = p.markers ? [...p.markers] : [];
+      const idx = existing.findIndex((m) => m.id === marker.id);
+      let nextMarkers = [...existing];
+      if (idx >= 0) {
+        nextMarkers[idx] = marker;
+      } else {
+        nextMarkers.push(marker);
+      }
+      return { ...p, markers: nextMarkers };
+    });
+  };
+
+  const handleDeleteMarker = (markerId: string) => {
+    updateProjectWithHistory((p) => ({
+      ...p,
+      markers: (p.markers || []).filter((m) => m.id !== markerId),
+    }));
+  };
+
+  // Batch update multiple clips (from multi-drag in canvas timeline)
+  const handleBatchUpdateClips = (updates: { id: string; updates: Partial<Clip> }[]) => {
+    updateProjectWithHistory((p) => {
+      const map = new Map(updates.map((u) => [u.id, u.updates]));
+      return {
+        ...p,
+        clips: p.clips.map((c) => (map.has(c.id) ? { ...c, ...map.get(c.id) } : c)),
+      };
+    });
   };
 
   // Split clip at playhead
@@ -588,7 +692,11 @@ export const VideoEditor: React.FC = () => {
           onUpdateClip={handleUpdateClip}
           onDeleteClip={handleDeleteClip}
           onDuplicateClip={handleDuplicateClip}
-          onDeselectClip={() => setSelectedClipId(null)}
+          onDeselectClip={() => {
+            setSelectedClipId(null);
+            setSelectedClipIds([]);
+          }}
+          onDetachAudio={handleDetachAudio}
         />
       </div>
 
@@ -598,14 +706,26 @@ export const VideoEditor: React.FC = () => {
         currentTime={currentTime}
         onSeek={(time) => setCurrentTime(time)}
         selectedClip={selectedClip}
-        onSelectClip={(c) => setSelectedClipId(c?.id || null)}
+        onSelectClip={(c) => {
+          setSelectedClipId(c?.id || null);
+          setSelectedClipIds(c ? [c.id] : []);
+        }}
+        selectedClipIds={selectedClipIds}
+        onSelectClipIds={(ids) => {
+          setSelectedClipIds(ids);
+          setSelectedClipId(ids.length > 0 ? ids[ids.length - 1] : null);
+        }}
         onUpdateClip={handleUpdateClip}
+        onBatchUpdateClips={handleBatchUpdateClips}
         onDeleteClip={handleDeleteClip}
         onDuplicateClip={handleDuplicateClip}
         onSplitClipAtPlayhead={handleSplitClipAtPlayhead}
         onReorderClips={handleReorderClips}
         onMoveClipToTrack={handleMoveClipToTrack}
         onAddTrack={handleAddTrack}
+        onDetachAudio={handleDetachAudio}
+        onAddMarker={handleAddMarker}
+        onDeleteMarker={handleDeleteMarker}
         onToggleTrackMute={(trackId) =>
           updateProjectWithHistory((p) => ({
             ...p,

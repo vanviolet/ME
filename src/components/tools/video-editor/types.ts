@@ -46,6 +46,71 @@ export interface StickerData {
   rotation?: number;
 }
 
+export type BlendMode =
+  | 'source-over'
+  | 'multiply'
+  | 'screen'
+  | 'overlay'
+  | 'darken'
+  | 'lighten'
+  | 'color-dodge'
+  | 'color-burn'
+  | 'hard-light'
+  | 'soft-light'
+  | 'difference'
+  | 'exclusion';
+
+export type MaskShape = 'none' | 'circle' | 'rectangle' | 'ellipse' | 'vignette' | 'rounded-rect';
+
+export interface MaskSettings {
+  shape: MaskShape;
+  sizeX: number; // percentage (10 to 100)
+  sizeY: number; // percentage (10 to 100)
+  posX: number; // percentage (0 to 100, default 50)
+  posY: number; // percentage (0 to 100, default 50)
+  feather: number; // blur in px (0 to 40)
+  inverted: boolean;
+}
+
+export type MotionPreset =
+  | 'none'
+  | 'pan-left'
+  | 'pan-right'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'float'
+  | 'spin';
+
+export interface MotionSettings {
+  preset: MotionPreset;
+  intensity: number; // 0 to 100 (50 default)
+}
+
+export interface CompositingSettings {
+  blendMode: BlendMode;
+  mask?: MaskSettings;
+  motion?: MotionSettings;
+}
+
+export type EqPreset = 'flat' | 'voice-boost' | 'bass-boost' | 'treble-boost' | 'radio' | 'warm';
+
+export interface AudioSettings {
+  eqPreset: EqPreset;
+  bass: number; // -12dB to +12dB (0 default)
+  mid: number; // -12dB to +12dB (0 default)
+  treble: number; // -12dB to +12dB (0 default)
+  pan: number; // -1.0 (Left) to +1.0 (Right), 0 center
+  noiseGate: boolean;
+  pitch: number; // -12 to +12 semitones (0 default)
+}
+
+export interface TimelineMarker {
+  id: string;
+  time: number; // timestamp in seconds
+  label: string;
+  color: string;
+}
+
 export interface TransitionSettings {
   type: 'none' | 'fade' | 'dissolve' | 'wipe-left' | 'zoom-in';
   duration: number; // in seconds
@@ -77,6 +142,8 @@ export interface Clip {
   textData?: TextData;
   stickerData?: StickerData;
   transition?: TransitionSettings;
+  audioSettings?: AudioSettings;
+  compositing?: CompositingSettings;
 }
 
 export interface Track {
@@ -95,6 +162,7 @@ export interface Project {
   backgroundColor: string;
   tracks: Track[];
   clips: Clip[];
+  markers?: TimelineMarker[];
   duration: number;
   fps: number;
 }

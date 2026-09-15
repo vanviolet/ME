@@ -15,8 +15,13 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  Scissors,
+  Radio,
+  Move,
+  Eye,
+  Disc,
 } from 'lucide-react';
-import { Clip, Project } from './types';
+import { Clip, Project, BlendMode, MaskShape, MotionPreset, EqPreset } from './types';
 import { LUT_PRESETS } from './sampleMedia';
 
 interface RightInspectorProps {
@@ -26,6 +31,7 @@ interface RightInspectorProps {
   onDeleteClip: (clipId: string) => void;
   onDuplicateClip: (clipId: string) => void;
   onDeselectClip: () => void;
+  onDetachAudio?: (clipId: string) => void;
 }
 
 export const RightInspector: React.FC<RightInspectorProps> = ({
@@ -35,6 +41,7 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
   onDeleteClip,
   onDuplicateClip,
   onDeselectClip,
+  onDetachAudio,
 }) => {
   if (!selectedClip) {
     return (
@@ -271,13 +278,48 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
           </div>
         )}
 
-        {/* 2. AUDIO PROPERTIES */}
+        {/* 2. AUDIO & EQUALIZER PROPERTIES */}
         {(isVisual || isAudio) && (
           <div className="space-y-3 pt-2 border-t border-zinc-800">
-            <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
-              Audio & Fade
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                Audio & Equalizer
+              </span>
+              {selectedClip.audioSettings && (
+                <button
+                  onClick={() =>
+                    onUpdateClip(selectedClip.id, {
+                      audioSettings: {
+                        eqPreset: 'flat',
+                        bass: 0,
+                        mid: 0,
+                        treble: 0,
+                        pan: 0,
+                        noiseGate: false,
+                        pitch: 0,
+                      },
+                    })
+                  }
+                  className="text-[10px] text-rose-400 hover:underline cursor-pointer"
+                >
+                  Reset Audio
+                </button>
+              )}
+            </div>
 
+            {/* Detach Audio Button for Video Clips */}
+            {onDetachAudio && selectedClip.type === 'video' && selectedClip.src && (
+              <button
+                onClick={() => onDetachAudio(selectedClip.id)}
+                className="w-full py-1.5 px-3 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-600/40 hover:border-emerald-500 text-emerald-200 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm shadow-emerald-950/50"
+                title="Separate video audio into its own independent editable audio track"
+              >
+                <Scissors size={13} className="text-emerald-400" />
+                <span>Detach Audio to Track</span>
+              </button>
+            )}
+
+            {/* Volume */}
             <div>
               <div className="flex justify-between text-[10px] text-zinc-400 mb-1">
                 <span>Volume</span>
@@ -294,6 +336,7 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
               />
             </div>
 
+            {/* Fade In & Out */}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <span className="text-[10px] text-zinc-400 block mb-1">Fade In (s)</span>
@@ -324,6 +367,491 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
                   className="w-full bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 outline-none"
                 />
               </div>
+            </div>
+
+            {/* EQ Presets */}
+            <div>
+              <span className="text-[10px] text-zinc-400 block mb-1">EQ Preset</span>
+              <div className="grid grid-cols-3 gap-1">
+                {(
+                  [
+                    { id: 'flat', label: 'Flat', b: 0, m: 0, t: 0 },
+                    { id: 'voice-boost', label: 'Voice Boost', b: -2, m: 4, t: 3 },
+                    { id: 'bass-boost', label: 'Bass Boost', b: 6, m: 0, t: -1 },
+                    { id: 'treble-boost', label: 'Treble Boost', b: -1, m: 1, t: 6 },
+                    { id: 'radio', label: 'Radio Lo-Fi', b: -8, m: 6, t: -6 },
+                    { id: 'warm', label: 'Warm Glow', b: 4, m: 2, t: -2 },
+                  ] as { id: EqPreset; label: string; b: number; m: number; t: number }[]
+                ).map((preset) => {
+                  const isActive = (selectedClip.audioSettings?.eqPreset || 'flat') === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      onClick={() =>
+                        onUpdateClip(selectedClip.id, {
+                          audioSettings: {
+                            eqPreset: preset.id,
+                            bass: preset.b,
+                            mid: preset.m,
+                            treble: preset.t,
+                            pan: selectedClip.audioSettings?.pan || 0,
+                            noiseGate: selectedClip.audioSettings?.noiseGate || false,
+                            pitch: selectedClip.audioSettings?.pitch || 0,
+                          },
+                        })
+                      }
+                      className={`py-1 px-1.5 rounded text-[10px] font-medium border text-center transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                          : 'bg-zinc-800/80 border-zinc-700 text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3-Band Equalizer Sliders */}
+            <div className="space-y-2 pt-1 bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-800">
+              <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider block">
+                3-Band EQ Sliders (dB)
+              </span>
+
+              {/* Bass */}
+              <div>
+                <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
+                  <span>Bass (180 Hz)</span>
+                  <span className="font-mono">
+                    {(selectedClip.audioSettings?.bass || 0) > 0 ? '+' : ''}
+                    {selectedClip.audioSettings?.bass || 0} dB
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-12"
+                  max="12"
+                  step="1"
+                  value={selectedClip.audioSettings?.bass || 0}
+                  onChange={(e) =>
+                    onUpdateClip(selectedClip.id, {
+                      audioSettings: {
+                        eqPreset: 'flat',
+                        bass: parseInt(e.target.value),
+                        mid: selectedClip.audioSettings?.mid || 0,
+                        treble: selectedClip.audioSettings?.treble || 0,
+                        pan: selectedClip.audioSettings?.pan || 0,
+                        noiseGate: selectedClip.audioSettings?.noiseGate || false,
+                        pitch: selectedClip.audioSettings?.pitch || 0,
+                      },
+                    })
+                  }
+                  className="w-full h-1 accent-emerald-500 bg-zinc-800 rounded-lg cursor-pointer"
+                />
+              </div>
+
+              {/* Mid */}
+              <div>
+                <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
+                  <span>Mid (1.2 kHz)</span>
+                  <span className="font-mono">
+                    {(selectedClip.audioSettings?.mid || 0) > 0 ? '+' : ''}
+                    {selectedClip.audioSettings?.mid || 0} dB
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-12"
+                  max="12"
+                  step="1"
+                  value={selectedClip.audioSettings?.mid || 0}
+                  onChange={(e) =>
+                    onUpdateClip(selectedClip.id, {
+                      audioSettings: {
+                        eqPreset: 'flat',
+                        bass: selectedClip.audioSettings?.bass || 0,
+                        mid: parseInt(e.target.value),
+                        treble: selectedClip.audioSettings?.treble || 0,
+                        pan: selectedClip.audioSettings?.pan || 0,
+                        noiseGate: selectedClip.audioSettings?.noiseGate || false,
+                        pitch: selectedClip.audioSettings?.pitch || 0,
+                      },
+                    })
+                  }
+                  className="w-full h-1 accent-emerald-500 bg-zinc-800 rounded-lg cursor-pointer"
+                />
+              </div>
+
+              {/* Treble */}
+              <div>
+                <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
+                  <span>Treble (5.5 kHz)</span>
+                  <span className="font-mono">
+                    {(selectedClip.audioSettings?.treble || 0) > 0 ? '+' : ''}
+                    {selectedClip.audioSettings?.treble || 0} dB
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-12"
+                  max="12"
+                  step="1"
+                  value={selectedClip.audioSettings?.treble || 0}
+                  onChange={(e) =>
+                    onUpdateClip(selectedClip.id, {
+                      audioSettings: {
+                        eqPreset: 'flat',
+                        bass: selectedClip.audioSettings?.bass || 0,
+                        mid: selectedClip.audioSettings?.mid || 0,
+                        treble: parseInt(e.target.value),
+                        pan: selectedClip.audioSettings?.pan || 0,
+                        noiseGate: selectedClip.audioSettings?.noiseGate || false,
+                        pitch: selectedClip.audioSettings?.pitch || 0,
+                      },
+                    })
+                  }
+                  className="w-full h-1 accent-emerald-500 bg-zinc-800 rounded-lg cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Stereo Pan & Pitch */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div>
+                <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
+                  <span>Stereo Pan</span>
+                  <span className="font-mono">
+                    {Math.round((selectedClip.audioSettings?.pan || 0) * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-1"
+                  max="1"
+                  step="0.1"
+                  value={selectedClip.audioSettings?.pan || 0}
+                  onChange={(e) =>
+                    onUpdateClip(selectedClip.id, {
+                      audioSettings: {
+                        eqPreset: selectedClip.audioSettings?.eqPreset || 'flat',
+                        bass: selectedClip.audioSettings?.bass || 0,
+                        mid: selectedClip.audioSettings?.mid || 0,
+                        treble: selectedClip.audioSettings?.treble || 0,
+                        pan: parseFloat(e.target.value),
+                        noiseGate: selectedClip.audioSettings?.noiseGate || false,
+                        pitch: selectedClip.audioSettings?.pitch || 0,
+                      },
+                    })
+                  }
+                  className="w-full h-1 accent-emerald-500 bg-zinc-800 rounded-lg cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
+                  <span>Pitch Shift</span>
+                  <span className="font-mono">
+                    {(selectedClip.audioSettings?.pitch || 0) > 0 ? '+' : ''}
+                    {selectedClip.audioSettings?.pitch || 0}st
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-12"
+                  max="12"
+                  step="1"
+                  value={selectedClip.audioSettings?.pitch || 0}
+                  onChange={(e) =>
+                    onUpdateClip(selectedClip.id, {
+                      audioSettings: {
+                        eqPreset: selectedClip.audioSettings?.eqPreset || 'flat',
+                        bass: selectedClip.audioSettings?.bass || 0,
+                        mid: selectedClip.audioSettings?.mid || 0,
+                        treble: selectedClip.audioSettings?.treble || 0,
+                        pan: selectedClip.audioSettings?.pan || 0,
+                        noiseGate: selectedClip.audioSettings?.noiseGate || false,
+                        pitch: parseInt(e.target.value),
+                      },
+                    })
+                  }
+                  className="w-full h-1 accent-emerald-500 bg-zinc-800 rounded-lg cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. MULTI-TRACK COMPOSITING (BLENDING, MASKING & MOTION) */}
+        {isVisual && (
+          <div className="space-y-3 pt-2 border-t border-zinc-800">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                Compositing & Blending
+              </span>
+              {selectedClip.compositing && (
+                <button
+                  onClick={() =>
+                    onUpdateClip(selectedClip.id, {
+                      compositing: undefined,
+                    })
+                  }
+                  className="text-[10px] text-rose-400 hover:underline cursor-pointer"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+
+            {/* Blend Mode Selection */}
+            <div>
+              <span className="text-[10px] text-zinc-400 block mb-1">Blend Mode</span>
+              <select
+                value={selectedClip.compositing?.blendMode || 'source-over'}
+                onChange={(e) =>
+                  onUpdateClip(selectedClip.id, {
+                    compositing: {
+                      ...selectedClip.compositing,
+                      blendMode: e.target.value as BlendMode,
+                    },
+                  })
+                }
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1.5 text-xs text-zinc-200 outline-none cursor-pointer"
+              >
+                <option value="source-over">Normal (Source Over)</option>
+                <option value="multiply">Multiply (Shadows)</option>
+                <option value="screen">Screen (Highlights)</option>
+                <option value="overlay">Overlay (High Contrast)</option>
+                <option value="darken">Darken</option>
+                <option value="lighten">Lighten</option>
+                <option value="color-dodge">Color Dodge</option>
+                <option value="color-burn">Color Burn</option>
+                <option value="hard-light">Hard Light</option>
+                <option value="soft-light">Soft Light</option>
+                <option value="difference">Difference</option>
+                <option value="exclusion">Exclusion</option>
+              </select>
+            </div>
+
+            {/* Shape Masking */}
+            <div className="space-y-2 bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-800">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">
+                  Shape Masking
+                </span>
+                {selectedClip.compositing?.mask?.shape && selectedClip.compositing.mask.shape !== 'none' && (
+                  <span className="text-[9px] text-rose-400 font-semibold">Active</span>
+                )}
+              </div>
+
+              <div>
+                <select
+                  value={selectedClip.compositing?.mask?.shape || 'none'}
+                  onChange={(e) => {
+                    const shape = e.target.value as MaskShape;
+                    onUpdateClip(selectedClip.id, {
+                      compositing: {
+                        blendMode: selectedClip.compositing?.blendMode || 'source-over',
+                        motion: selectedClip.compositing?.motion,
+                        mask:
+                          shape === 'none'
+                            ? undefined
+                            : {
+                                shape,
+                                sizeX: selectedClip.compositing?.mask?.sizeX || 60,
+                                sizeY: selectedClip.compositing?.mask?.sizeY || 60,
+                                posX: selectedClip.compositing?.mask?.posX ?? 50,
+                                posY: selectedClip.compositing?.mask?.posY ?? 50,
+                                feather: selectedClip.compositing?.mask?.feather || 0,
+                                inverted: selectedClip.compositing?.mask?.inverted || false,
+                              },
+                      },
+                    });
+                  }}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1 text-xs text-zinc-200 outline-none cursor-pointer"
+                >
+                  <option value="none">No Mask</option>
+                  <option value="circle">Circle Mask</option>
+                  <option value="rectangle">Rectangle Mask</option>
+                  <option value="ellipse">Ellipse Mask</option>
+                  <option value="rounded-rect">Rounded Rect Mask</option>
+                  <option value="vignette">Soft Vignette</option>
+                </select>
+              </div>
+
+              {selectedClip.compositing?.mask && selectedClip.compositing.mask.shape !== 'none' && (
+                <div className="space-y-2 pt-1 text-[10px]">
+                  {/* Mask Size */}
+                  <div>
+                    <div className="flex justify-between text-zinc-400 mb-0.5">
+                      <span>Mask Scale</span>
+                      <span>{selectedClip.compositing.mask.sizeX}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="15"
+                      max="100"
+                      value={selectedClip.compositing.mask.sizeX}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        onUpdateClip(selectedClip.id, {
+                          compositing: {
+                            ...selectedClip.compositing!,
+                            blendMode: selectedClip.compositing?.blendMode || 'source-over',
+                            mask: {
+                              ...selectedClip.compositing!.mask!,
+                              sizeX: val,
+                              sizeY: val,
+                            },
+                          },
+                        });
+                      }}
+                      className="w-full h-1 accent-rose-500 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Mask Position X / Y */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-zinc-400 block mb-0.5">Center X</span>
+                      <input
+                        type="range"
+                        min="10"
+                        max="90"
+                        value={selectedClip.compositing.mask.posX ?? 50}
+                        onChange={(e) =>
+                          onUpdateClip(selectedClip.id, {
+                            compositing: {
+                              ...selectedClip.compositing!,
+                              blendMode: selectedClip.compositing?.blendMode || 'source-over',
+                              mask: {
+                                ...selectedClip.compositing!.mask!,
+                                posX: parseInt(e.target.value),
+                              },
+                            },
+                          })
+                        }
+                        className="w-full h-1 accent-rose-500 bg-zinc-800 rounded-lg cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <span className="text-zinc-400 block mb-0.5">Center Y</span>
+                      <input
+                        type="range"
+                        min="10"
+                        max="90"
+                        value={selectedClip.compositing.mask.posY ?? 50}
+                        onChange={(e) =>
+                          onUpdateClip(selectedClip.id, {
+                            compositing: {
+                              ...selectedClip.compositing!,
+                              blendMode: selectedClip.compositing?.blendMode || 'source-over',
+                              mask: {
+                                ...selectedClip.compositing!.mask!,
+                                posY: parseInt(e.target.value),
+                              },
+                            },
+                          })
+                        }
+                        className="w-full h-1 accent-rose-500 bg-zinc-800 rounded-lg cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Invert Mask Checkbox */}
+                  <label className="flex items-center gap-2 text-zinc-300 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedClip.compositing.mask.inverted}
+                      onChange={(e) =>
+                        onUpdateClip(selectedClip.id, {
+                          compositing: {
+                            ...selectedClip.compositing!,
+                            blendMode: selectedClip.compositing?.blendMode || 'source-over',
+                            mask: {
+                              ...selectedClip.compositing!.mask!,
+                              inverted: e.target.checked,
+                            },
+                          },
+                        })
+                      }
+                      className="accent-rose-500 rounded"
+                    />
+                    <span>Invert Mask (Cutout Hole)</span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Motion & Tracking Simulation */}
+            <div className="space-y-2 bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-800">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">
+                  Motion Tracking & Path
+                </span>
+                {selectedClip.compositing?.motion?.preset && selectedClip.compositing.motion.preset !== 'none' && (
+                  <span className="text-[9px] text-cyan-400 font-semibold">Animated</span>
+                )}
+              </div>
+
+              <div>
+                <select
+                  value={selectedClip.compositing?.motion?.preset || 'none'}
+                  onChange={(e) => {
+                    const preset = e.target.value as MotionPreset;
+                    onUpdateClip(selectedClip.id, {
+                      compositing: {
+                        blendMode: selectedClip.compositing?.blendMode || 'source-over',
+                        mask: selectedClip.compositing?.mask,
+                        motion:
+                          preset === 'none'
+                            ? undefined
+                            : {
+                                preset,
+                                intensity: selectedClip.compositing?.motion?.intensity || 50,
+                              },
+                      },
+                    });
+                  }}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1 text-xs text-zinc-200 outline-none cursor-pointer"
+                >
+                  <option value="none">Static (No Animation)</option>
+                  <option value="zoom-in">Slow Zoom In (Ken Burns)</option>
+                  <option value="zoom-out">Slow Zoom Out</option>
+                  <option value="pan-left">Pan Smooth Left</option>
+                  <option value="pan-right">Pan Smooth Right</option>
+                  <option value="float">Handheld Float & Shake</option>
+                  <option value="spin">Gradual Spin</option>
+                </select>
+              </div>
+
+              {selectedClip.compositing?.motion && selectedClip.compositing.motion.preset !== 'none' && (
+                <div className="pt-1">
+                  <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
+                    <span>Motion Intensity</span>
+                    <span>{selectedClip.compositing.motion.intensity}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    value={selectedClip.compositing.motion.intensity}
+                    onChange={(e) =>
+                      onUpdateClip(selectedClip.id, {
+                        compositing: {
+                          ...selectedClip.compositing!,
+                          blendMode: selectedClip.compositing?.blendMode || 'source-over',
+                          motion: {
+                            ...selectedClip.compositing!.motion!,
+                            intensity: parseInt(e.target.value),
+                          },
+                        },
+                      })
+                    }
+                    className="w-full h-1 accent-cyan-500 bg-zinc-800 rounded-lg cursor-pointer"
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
