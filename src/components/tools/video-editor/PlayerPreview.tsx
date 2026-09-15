@@ -27,6 +27,10 @@ interface PlayerPreviewProps {
   onUpdateClip: (clipId: string, updates: Partial<Clip>) => void;
   playbackSpeed: number;
   onChangeSpeed: (speed: number) => void;
+  masterVolume: number;
+  onVolumeChange: (volume: number) => void;
+  isMasterMuted: boolean;
+  onToggleMute: () => void;
 }
 
 export const PlayerPreview: React.FC<PlayerPreviewProps> = ({
@@ -40,12 +44,14 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({
   onUpdateClip,
   playbackSpeed,
   onChangeSpeed,
+  masterVolume,
+  onVolumeChange,
+  isMasterMuted,
+  onToggleMute,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isLooping, setIsLooping] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDraggingOverlay, setIsDraggingOverlay] = useState(false);
 
@@ -244,21 +250,20 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({
           {/* Volume Mute */}
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setIsMuted(!isMuted)}
+              onClick={onToggleMute}
               className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
-              title={isMuted ? 'Unmute' : 'Mute'}
+              title={isMasterMuted ? 'Unmute' : 'Mute'}
             >
-              {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              {isMasterMuted || masterVolume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
             <input
               type="range"
               min="0"
               max="1"
               step="0.05"
-              value={isMuted ? 0 : volume}
+              value={isMasterMuted ? 0 : masterVolume}
               onChange={(e) => {
-                setVolume(parseFloat(e.target.value));
-                if (isMuted) setIsMuted(false);
+                onVolumeChange(parseFloat(e.target.value));
               }}
               className="w-16 h-1 accent-rose-500 bg-zinc-800 rounded-lg cursor-pointer hidden sm:inline-block"
             />

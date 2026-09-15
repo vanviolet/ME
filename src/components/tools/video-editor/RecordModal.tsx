@@ -154,6 +154,20 @@ export const RecordModal: React.FC<RecordModalProps> = ({
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
+  const handleCancelAndClose = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.onstop = null; // Prevent saving recording
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        // Ignore stop error
+      }
+    }
+    setIsRecording(false);
+    stopCurrentStream();
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -172,9 +186,9 @@ export const RecordModal: React.FC<RecordModalProps> = ({
           </div>
 
           <button
-            onClick={onClose}
-            disabled={isRecording}
-            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30 transition-colors cursor-pointer"
+            onClick={handleCancelAndClose}
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+            title="Close / Cancel (Esc)"
           >
             <X size={18} />
           </button>
@@ -238,16 +252,25 @@ export const RecordModal: React.FC<RecordModalProps> = ({
             )}
           </div>
 
-          {/* Record Control Button */}
-          <div className="flex items-center justify-center">
+          {/* Record Control Buttons */}
+          <div className="flex items-center justify-center gap-3">
             {isRecording ? (
-              <button
-                onClick={handleStopRecording}
-                className="py-3 px-6 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-red-600/30 active:scale-95 transition-all cursor-pointer"
-              >
-                <Square size={16} fill="currentColor" />
-                <span>Stop Recording & Insert</span>
-              </button>
+              <>
+                <button
+                  onClick={handleStopRecording}
+                  className="py-3 px-6 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-red-600/30 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Square size={16} fill="currentColor" />
+                  <span>Stop & Insert</span>
+                </button>
+                <button
+                  onClick={handleCancelAndClose}
+                  className="py-3 px-5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-semibold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <X size={15} />
+                  <span>Cancel</span>
+                </button>
+              </>
             ) : (
               <button
                 onClick={handleStartRecording}

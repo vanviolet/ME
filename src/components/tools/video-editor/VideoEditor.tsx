@@ -22,6 +22,7 @@ import {
   getOrCreateAudioElement,
   renderProjectFrame,
   getAspectRatioDimensions,
+  syncAllMediaElements,
 } from './renderEngine';
 
 const INITIAL_PROJECT: Project = {
@@ -137,6 +138,8 @@ export const VideoEditor: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [masterVolume, setMasterVolume] = useState(1);
+  const [isMasterMuted, setIsMasterMuted] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('media');
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
@@ -175,20 +178,10 @@ export const VideoEditor: React.FC = () => {
   // Selected clip helper
   const selectedClip = project.clips.find((c) => c.id === selectedClipId) || null;
 
-  // Playback loop
+  // Playback timer loop
   useEffect(() => {
     if (isPlaying) {
       lastTickTimeRef.current = performance.now();
-
-      // Start video elements
-      project.clips.forEach((clip) => {
-        if (clip.type === 'video' && clip.src) {
-          const video = getOrCreateVideoElement(clip.src);
-          if (currentTime >= clip.start && currentTime <= clip.start + clip.duration) {
-            video.play().catch(() => {});
-          }
-        }
-      });
 
       const tick = () => {
         const now = performance.now();
@@ -210,44 +203,17 @@ export const VideoEditor: React.FC = () => {
       playheadTimerRef.current = requestAnimationFrame(tick);
     } else {
       if (playheadTimerRef.current) cancelAnimationFrame(playheadTimerRef.current);
-      // Pause all cached media
-      videoElementCache.forEach((video) => video.pause());
-      audioElementCache.forEach((audio) => audio.pause());
     }
 
     return () => {
       if (playheadTimerRef.current) cancelAnimationFrame(playheadTimerRef.current);
     };
-  }, [isPlaying, playbackSpeed, project.duration, project.clips, currentTime]);
+  }, [isPlaying, playbackSpeed, project.duration]);
 
-  // Audio track synchronization during playback
+  // Master media synchronization (Video and Audio) during playback and scrub
   useEffect(() => {
-    if (isPlaying) {
-      project.clips.forEach((clip) => {
-        if (clip.type === 'audio' && clip.src) {
-          const audio = getOrCreateAudioElement(clip.src);
-          const track = project.tracks.find((t) => t.id === clip.trackId);
-          if (track?.muted || clip.muted) {
-            audio.volume = 0;
-          } else {
-            audio.volume = Math.min(1, Math.max(0, clip.volume || 1));
-          }
-
-          if (currentTime >= clip.start && currentTime <= clip.start + clip.duration) {
-            const targetTime = currentTime - clip.start + clip.offset;
-            if (Math.abs(audio.currentTime - targetTime) > 0.3) {
-              audio.currentTime = targetTime;
-            }
-            if (audio.paused) audio.play().catch(() => {});
-          } else {
-            if (!audio.paused) audio.pause();
-          }
-        }
-      });
-    } else {
-      audioElementCache.forEach((audio) => audio.pause());
-    }
-  }, [isPlaying, currentTime, project.clips, project.tracks]);
+    syncAllMediaElements(project, currentTime, isPlaying, masterVolume, isMasterMuted);
+  }, [isPlaying, currentTime, project, masterVolume, isMasterMuted]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -530,6 +496,24 @@ export const VideoEditor: React.FC = () => {
     reader.readAsText(file);
   };
 
+  // Add new track
+  const handleAddTrack = (type: 'video' | 'audio' | 'overlay') => {
+    const count = project.tracks.filter((t) => t.type === type).length + 1;
+    const typeLabel = type === 'video' ? 'V' : type === 'audio' ? 'A' : 'T';
+    const newTrack: Track = {
+      id: `track-${type}-${Date.now()}`,
+      name: `${typeLabel}${count} ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+      type,
+      muted: false,
+      hidden: false,
+      locked: false,
+    };
+    updateProjectWithHistory((p) => ({
+      ...p,
+      tracks: [...p.tracks, newTrack],
+    }));
+  };
+
   return (
     <div className="fixed inset-0 bg-zinc-950 text-zinc-100 flex flex-col select-none overflow-hidden font-sans z-40">
       {/* Top Navigation Bar */}
@@ -573,21 +557,16 @@ export const VideoEditor: React.FC = () => {
           currentTime={currentTime}
           isPlaying={isPlaying}
           onTogglePlay={() => setIsPlaying((p) => !p)}
-          onSeek={(time) => {
-            setCurrentTime(time);
-            // Seek video elements directly
-            project.clips.forEach((clip) => {
-              if (clip.type === 'video' && clip.src) {
-                const v = getOrCreateVideoElement(clip.src);
-                v.currentTime = Math.max(0, (time - clip.start) * clip.speed + clip.offset);
-              }
-            });
-          }}
+          onSeek={(time) => setCurrentTime(time)}
           selectedClip={selectedClip}
           onSelectClip={(c) => setSelectedClipId(c?.id || null)}
           onUpdateClip={handleUpdateClip}
           playbackSpeed={playbackSpeed}
           onChangeSpeed={setPlaybackSpeed}
+          masterVolume={masterVolume}
+          onVolumeChange={setMasterVolume}
+          isMasterMuted={isMasterMuted}
+          onToggleMute={() => setIsMasterMuted((m) => !m)}
         />
 
         {/* Right Properties Inspector */}
@@ -605,15 +584,7 @@ export const VideoEditor: React.FC = () => {
       <Timeline
         project={project}
         currentTime={currentTime}
-        onSeek={(time) => {
-          setCurrentTime(time);
-          project.clips.forEach((clip) => {
-            if (clip.type === 'video' && clip.src) {
-              const v = getOrCreateVideoElement(clip.src);
-              v.currentTime = Math.max(0, (time - clip.start) * clip.speed + clip.offset);
-            }
-          });
-        }}
+        onSeek={(time) => setCurrentTime(time)}
         selectedClip={selectedClip}
         onSelectClip={(c) => setSelectedClipId(c?.id || null)}
         onUpdateClip={handleUpdateClip}
@@ -622,6 +593,7 @@ export const VideoEditor: React.FC = () => {
         onSplitClipAtPlayhead={handleSplitClipAtPlayhead}
         onReorderClips={handleReorderClips}
         onMoveClipToTrack={handleMoveClipToTrack}
+        onAddTrack={handleAddTrack}
         onToggleTrackMute={(trackId) =>
           updateProjectWithHistory((p) => ({
             ...p,

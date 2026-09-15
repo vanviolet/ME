@@ -14,8 +14,8 @@ export function getOrCreateVideoElement(src: string): HTMLVideoElement {
   video.crossOrigin = 'anonymous';
   video.src = src;
   video.preload = 'auto';
-  video.muted = true; // Muted in canvas renderer, audio handled via audio track or sync
   video.playsInline = true;
+  video.muted = false;
   videoElementCache.set(src, video);
   return video;
 }
@@ -156,34 +156,19 @@ function renderVisualClip(
 
   if (clip.type === 'video' && clip.src) {
     const video = getOrCreateVideoElement(clip.src);
-    // Sync video seek time if not playing smoothly
-    const targetSourceTime = (currentTime - clip.start) * clip.speed + clip.offset;
-    if (Math.abs(video.currentTime - targetSourceTime) > 0.2) {
-      try {
-        video.currentTime = targetSourceTime;
-      } catch {
-        // Seek ignore
-      }
-    }
-
-    if (video.readyState >= 2) {
+    // Draw directly from video element if it has frame dimensions
+    if (video.videoWidth > 0) {
       drawImageOrVideoProp(ctx, video, -cw / 2, -ch / 2, cw, ch, clip.fit || 'contain');
-    } else {
-      // Show loading placeholder texture
-      ctx.fillStyle = '#18181b';
-      ctx.fillRect(-cw / 2, -ch / 2, cw, ch);
-      ctx.fillStyle = '#71717a';
-      ctx.font = '16px Plus Jakarta Sans, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`Loading video...`, 0, 0);
+    } else if (clip.thumbnail) {
+      const thumb = getOrCreateImageElement(clip.thumbnail);
+      if (thumb.complete && thumb.naturalWidth > 0) {
+        drawImageOrVideoProp(ctx, thumb, -cw / 2, -ch / 2, cw, ch, clip.fit || 'contain');
+      }
     }
   } else if (clip.type === 'image' && clip.src) {
     const img = getOrCreateImageElement(clip.src);
     if (img.complete && img.naturalWidth > 0) {
       drawImageOrVideoProp(ctx, img, -cw / 2, -ch / 2, cw, ch, clip.fit || 'contain');
-    } else {
-      ctx.fillStyle = '#18181b';
-      ctx.fillRect(-cw / 2, -ch / 2, cw, ch);
     }
   }
 
@@ -522,4 +507,123 @@ export async function exportVideo(
     recorder.onerror = (e) => reject(e);
     recorder.stop();
   });
+}
+
+/**
+ * Master synchronization function for all video and audio elements in the project.
+ * Keeps media elements in sync with project timeline, ensures audio from uploaded
+ * videos and audio clips plays clearly without mute bugs, and prevents flickering.
+ */
+export function syncAllMediaElements(
+  project: Project,
+  currentTime: number,
+  isPlaying: boolean,
+  masterVolume = 1,
+  isMasterMuted = false
+) {
+  for (const clip of project.clips) {
+    const track = project.tracks.find((t) => t.id === clip.trackId);
+    const isTrackMuted = track?.muted || false;
+    const isTrackHidden = track?.hidden || false;
+    const isActive =
+      currentTime >= clip.start &&
+      currentTime < clip.start + clip.duration &&
+      !isTrackHidden;
+
+    if (clip.type === 'video' && clip.src) {
+      const video = getOrCreateVideoElement(clip.src);
+      const shouldMute = isMasterMuted || isTrackMuted || clip.muted || masterVolume === 0;
+      const targetVol = shouldMute ? 0 : Math.min(1, Math.max(0, (clip.volume ?? 1) * masterVolume));
+
+      video.muted = shouldMute;
+      video.volume = targetVol;
+
+      if (isActive) {
+        const targetSourceTime = (currentTime - clip.start) * clip.speed + clip.offset;
+
+        if (Math.abs(video.playbackRate - clip.speed) > 0.01) {
+          video.playbackRate = clip.speed;
+        }
+
+        if (isPlaying) {
+          // If video drifted by more than 0.35s, seek smoothly
+          if (Math.abs(video.currentTime - targetSourceTime) > 0.35) {
+            try {
+              video.currentTime = targetSourceTime;
+            } catch {
+              // Ignore seek error
+            }
+          }
+          if (video.paused) {
+            video.play().catch(() => {});
+          }
+        } else {
+          // Paused / scrubbing: update position to show paused frame
+          if (Math.abs(video.currentTime - targetSourceTime) > 0.04) {
+            try {
+              video.currentTime = targetSourceTime;
+            } catch {
+              // Ignore seek error
+            }
+          }
+          if (!video.paused) {
+            video.pause();
+          }
+        }
+      } else {
+        if (!video.paused) {
+          video.pause();
+        }
+      }
+    } else if (clip.type === 'audio' && clip.src) {
+      const audio = getOrCreateAudioElement(clip.src);
+      const shouldMute = isMasterMuted || isTrackMuted || clip.muted || masterVolume === 0;
+      const targetVol = shouldMute ? 0 : Math.min(1, Math.max(0, (clip.volume ?? 1) * masterVolume));
+
+      audio.muted = shouldMute;
+      audio.volume = targetVol;
+
+      if (isActive) {
+        const targetSourceTime = (currentTime - clip.start) * clip.speed + clip.offset;
+
+        if (Math.abs(audio.playbackRate - clip.speed) > 0.01) {
+          audio.playbackRate = clip.speed;
+        }
+
+        if (isPlaying) {
+          if (Math.abs(audio.currentTime - targetSourceTime) > 0.35) {
+            try {
+              audio.currentTime = targetSourceTime;
+            } catch {}
+          }
+          if (audio.paused) {
+            audio.play().catch(() => {});
+          }
+        } else {
+          if (Math.abs(audio.currentTime - targetSourceTime) > 0.04) {
+            try {
+              audio.currentTime = targetSourceTime;
+            } catch {}
+          }
+          if (!audio.paused) {
+            audio.pause();
+          }
+        }
+      } else {
+        if (!audio.paused) {
+          audio.pause();
+        }
+      }
+    }
+  }
+
+  // If paused or stopped, ensure inactive media doesn't play audio
+  if (!isPlaying) {
+    videoElementCache.forEach((video) => {
+      if (!video.paused) video.pause();
+    });
+    audioElementCache.forEach((audio) => {
+      if (!audio.paused) audio.pause();
+    });
+  }
 }
