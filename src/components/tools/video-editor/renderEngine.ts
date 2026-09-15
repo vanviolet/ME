@@ -5,6 +5,7 @@ import { ASPECT_RATIOS } from './sampleMedia';
 export const videoElementCache = new Map<string, HTMLVideoElement>();
 export const audioElementCache = new Map<string, HTMLAudioElement>();
 export const imageElementCache = new Map<string, HTMLImageElement>();
+const audioSourceMap = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
 
 export function getOrCreateVideoElement(src: string): HTMLVideoElement {
   if (videoElementCache.has(src)) {
@@ -435,7 +436,8 @@ function drawImageOrVideoProp(
 }
 
 /**
- * High-performance full video export engine using canvas captureStream + MediaRecorder
+ * High-performance full video export engine using canvas captureStream + MediaRecorder.
+ * Plays all project media in real-time to capture true moving video frames and synchronized audio.
  */
 export async function exportVideo(
   project: Project,
@@ -452,16 +454,79 @@ export async function exportVideo(
   offscreenCanvas.height = height;
   const ctx = offscreenCanvas.getContext('2d', { alpha: false })!;
 
-  const totalDuration = Math.max(1, project.duration);
-  const totalFrames = Math.ceil(totalDuration * fps);
+  // 1. Pre-warm video elements so their buffers are loaded before recording
+  for (const clip of project.clips) {
+    if (clip.type === 'video' && clip.src) {
+      const video = getOrCreateVideoElement(clip.src);
+      if (video.readyState < 2) {
+        await new Promise<void>((resolve) => {
+          const onCanPlay = () => {
+            video.removeEventListener('loadeddata', onCanPlay);
+            video.removeEventListener('error', onCanPlay);
+            resolve();
+          };
+          video.addEventListener('loadeddata', onCanPlay, { once: true });
+          video.addEventListener('error', onCanPlay, { once: true });
+          setTimeout(resolve, 800);
+        });
+      }
+    }
+  }
 
-  // Setup Canvas Stream
-  const stream = offscreenCanvas.captureStream(fps);
+  // 2. Setup audio mixing via Web Audio API destination
+  let audioCtx: AudioContext | null = null;
+  let audioDest: MediaStreamAudioDestinationNode | null = null;
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (AudioContextClass) {
+      audioCtx = new AudioContextClass();
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+      audioDest = audioCtx.createMediaStreamDestination();
+    }
+  } catch (err) {
+    console.warn('Audio export context initialization failed', err);
+  }
 
-  // Determine supported mimeType
-  let mimeType = 'video/webm;codecs=vp9';
+  // Connect active media elements to audio destination
+  if (audioCtx && audioDest) {
+    project.clips.forEach((clip) => {
+      if ((clip.type === 'video' || clip.type === 'audio') && clip.src) {
+        const el = clip.type === 'video' ? getOrCreateVideoElement(clip.src) : getOrCreateAudioElement(clip.src);
+        try {
+          let source = audioSourceMap.get(el);
+          if (!source) {
+            source = audioCtx!.createMediaElementSource(el);
+            audioSourceMap.set(el, source);
+          }
+          source.connect(audioDest!);
+        } catch {
+          // Graceful fallback if cross-origin or already connected
+        }
+      }
+    });
+  }
+
+  // 3. Setup MediaStream combining canvas and audio
+  const canvasStream = offscreenCanvas.captureStream(fps);
+  const streamTracks: MediaStreamTrack[] = [...canvasStream.getVideoTracks()];
+
+  if (audioDest) {
+    const audioTracks = audioDest.stream.getAudioTracks();
+    if (audioTracks.length > 0) {
+      streamTracks.push(audioTracks[0]);
+    }
+  }
+
+  const combinedStream = new MediaStream(streamTracks);
+
+  // 4. Determine supported video mimeType
+  let mimeType = 'video/webm;codecs=vp9,opus';
   if (!MediaRecorder.isTypeSupported(mimeType)) {
-    mimeType = 'video/webm;codecs=vp8';
+    mimeType = 'video/webm;codecs=vp8,opus';
   }
   if (!MediaRecorder.isTypeSupported(mimeType)) {
     mimeType = 'video/webm';
@@ -470,42 +535,88 @@ export async function exportVideo(
     mimeType = 'video/mp4';
   }
 
+  const totalDuration = Math.max(1, project.duration);
+  const totalFrames = Math.ceil(totalDuration * fps);
+
   const chunks: BlobPart[] = [];
-  const recorder = new MediaRecorder(stream, {
+  const recorder = new MediaRecorder(combinedStream, {
     mimeType,
-    videoBitsPerSecond: resolution === '1080p' ? 8000000 : 4500000,
+    videoBitsPerSecond: resolution === '1080p' ? 10000000 : 5000000,
   });
 
   recorder.ondataavailable = (e) => {
     if (e.data && e.data.size > 0) chunks.push(e.data);
   };
 
-  recorder.start();
+  // Reset all media to start at 0s
+  syncAllMediaElements(project, 0, false, 1, false);
 
-  // Step through frames
-  for (let f = 0; f <= totalFrames; f++) {
-    if (shouldCancel()) {
-      recorder.stop();
-      throw new Error('Export cancelled by user');
-    }
-
-    const time = f / fps;
-    renderProjectFrame(ctx, project, time, width, height, null);
-
-    onProgress(Math.min(99, Math.round((f / totalFrames) * 100)), f, totalFrames);
-
-    // Give time to capture frame
-    await new Promise((resolve) => setTimeout(resolve, 1000 / fps));
-  }
+  recorder.start(100);
 
   return new Promise((resolve, reject) => {
+    const startTime = performance.now();
+    let animationFrameId: number;
+
+    const cleanup = () => {
+      cancelAnimationFrame(animationFrameId);
+      // Pause all media
+      videoElementCache.forEach((v) => v.pause());
+      audioElementCache.forEach((a) => a.pause());
+      if (audioCtx && audioCtx.state !== 'closed') {
+        audioCtx.close().catch(() => {});
+      }
+    };
+
     recorder.onstop = () => {
+      cleanup();
       const finalBlob = new Blob(chunks, { type: mimeType });
       onProgress(100, totalFrames, totalFrames);
       resolve(finalBlob);
     };
-    recorder.onerror = (e) => reject(e);
-    recorder.stop();
+
+    recorder.onerror = (e) => {
+      cleanup();
+      reject(e);
+    };
+
+    const renderLoop = () => {
+      if (shouldCancel()) {
+        try {
+          recorder.stop();
+        } catch {}
+        cleanup();
+        reject(new Error('Export cancelled by user'));
+        return;
+      }
+
+      const elapsed = (performance.now() - startTime) / 1000;
+      const currentTime = Math.min(totalDuration, elapsed);
+      const currentFrame = Math.min(totalFrames, Math.floor(currentTime * fps));
+
+      // 1. Actively play and sync video and audio elements at current time
+      syncAllMediaElements(project, currentTime, true, 1, false);
+
+      // 2. Draw current live frame from video and canvas elements
+      renderProjectFrame(ctx, project, currentTime, width, height, null);
+
+      // 3. Update export progress
+      const pct = Math.min(99, Math.round((currentTime / totalDuration) * 100));
+      onProgress(pct, currentFrame, totalFrames);
+
+      if (currentTime >= totalDuration) {
+        onProgress(100, totalFrames, totalFrames);
+        try {
+          recorder.stop();
+        } catch {
+          cleanup();
+          resolve(new Blob(chunks, { type: mimeType }));
+        }
+      } else {
+        animationFrameId = requestAnimationFrame(renderLoop);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(renderLoop);
   });
 }
 

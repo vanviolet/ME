@@ -65,6 +65,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     clipId: string;
     mode: 'move' | 'trim-left' | 'trim-right';
     startX: number;
+    hasMoved: boolean;
     initialClipStart: number;
     initialClipDuration: number;
     initialClipOffset: number;
@@ -72,6 +73,8 @@ export const Timeline: React.FC<TimelineProps> = ({
     currentDuration: number;
     snapLine: number | null; // Time in seconds where snap line should appear
   } | null>(null);
+
+  const recentlyClickedClipRef = useRef<boolean>(false);
 
   // Timeline dimensions
   const maxClipEnd = project.clips.reduce((acc, c) => Math.max(acc, c.start + c.duration), 0);
@@ -106,6 +109,9 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   // Handle click on empty space in track
   const handleTrackLaneClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only handle if clicked directly on empty track space, never when clicking a clip
+    if (e.target !== e.currentTarget) return;
+    if (recentlyClickedClipRef.current) return;
     if (dragState) return;
     const targetTime = getSecondsFromMouseEvent(e);
     onSeek(targetTime);
@@ -123,6 +129,10 @@ export const Timeline: React.FC<TimelineProps> = ({
 
       if (dragState) {
         const deltaPx = e.clientX - dragState.startX;
+        if (!dragState.hasMoved && Math.abs(deltaPx) < 4) {
+          return; // Ignore micro-jitters so simple clicks don't drag
+        }
+
         const deltaSec = deltaPx / zoomLevel;
         const currentClip = project.clips.find((c) => c.id === dragState.clipId);
         if (!currentClip) return;
@@ -163,6 +173,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             prev
               ? {
                   ...prev,
+                  hasMoved: true,
                   currentStart: Math.max(0, newStart),
                   snapLine: activeSnapLine,
                 }
@@ -179,6 +190,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             prev
               ? {
                   ...prev,
+                  hasMoved: true,
                   currentStart: newStart,
                   currentDuration: Math.max(0.3, newDuration),
                   snapLine: null,
@@ -205,6 +217,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             prev
               ? {
                   ...prev,
+                  hasMoved: true,
                   currentDuration: Math.max(0.3, newDuration),
                   snapLine: activeSnapLine,
                 }
@@ -220,23 +233,29 @@ export const Timeline: React.FC<TimelineProps> = ({
       }
 
       if (dragState) {
-        if (dragState.mode === 'move') {
-          onUpdateClip(dragState.clipId, {
-            start: Math.round(dragState.currentStart * 100) / 100,
-          });
-        } else if (dragState.mode === 'trim-left') {
-          const deltaStart = dragState.currentStart - dragState.initialClipStart;
-          onUpdateClip(dragState.clipId, {
-            start: Math.round(dragState.currentStart * 100) / 100,
-            duration: Math.round(dragState.currentDuration * 100) / 100,
-            offset: Math.max(0, Math.round((dragState.initialClipOffset + deltaStart) * 100) / 100),
-          });
-        } else if (dragState.mode === 'trim-right') {
-          onUpdateClip(dragState.clipId, {
-            duration: Math.round(dragState.currentDuration * 100) / 100,
-          });
+        if (dragState.hasMoved) {
+          if (dragState.mode === 'move') {
+            onUpdateClip(dragState.clipId, {
+              start: Math.round(dragState.currentStart * 100) / 100,
+            });
+          } else if (dragState.mode === 'trim-left') {
+            const deltaStart = dragState.currentStart - dragState.initialClipStart;
+            onUpdateClip(dragState.clipId, {
+              start: Math.round(dragState.currentStart * 100) / 100,
+              duration: Math.round(dragState.currentDuration * 100) / 100,
+              offset: Math.max(0, Math.round((dragState.initialClipOffset + deltaStart) * 100) / 100),
+            });
+          } else if (dragState.mode === 'trim-right') {
+            onUpdateClip(dragState.clipId, {
+              duration: Math.round(dragState.currentDuration * 100) / 100,
+            });
+          }
         }
         setDragState(null);
+        recentlyClickedClipRef.current = true;
+        setTimeout(() => {
+          recentlyClickedClipRef.current = false;
+        }, 120);
       }
     };
 
@@ -262,11 +281,13 @@ export const Timeline: React.FC<TimelineProps> = ({
   const handleClipMouseDown = (e: React.MouseEvent, clip: Clip) => {
     e.stopPropagation();
     onSelectClip(clip);
+    recentlyClickedClipRef.current = true;
 
     setDragState({
       clipId: clip.id,
       mode: 'move',
       startX: e.clientX,
+      hasMoved: false,
       initialClipStart: clip.start,
       initialClipDuration: clip.duration,
       initialClipOffset: clip.offset,
@@ -280,11 +301,13 @@ export const Timeline: React.FC<TimelineProps> = ({
   const handleTrimLeftMouseDown = (e: React.MouseEvent, clip: Clip) => {
     e.stopPropagation();
     onSelectClip(clip);
+    recentlyClickedClipRef.current = true;
 
     setDragState({
       clipId: clip.id,
       mode: 'trim-left',
       startX: e.clientX,
+      hasMoved: false,
       initialClipStart: clip.start,
       initialClipDuration: clip.duration,
       initialClipOffset: clip.offset,
@@ -298,11 +321,13 @@ export const Timeline: React.FC<TimelineProps> = ({
   const handleTrimRightMouseDown = (e: React.MouseEvent, clip: Clip) => {
     e.stopPropagation();
     onSelectClip(clip);
+    recentlyClickedClipRef.current = true;
 
     setDragState({
       clipId: clip.id,
       mode: 'trim-right',
       startX: e.clientX,
+      hasMoved: false,
       initialClipStart: clip.start,
       initialClipDuration: clip.duration,
       initialClipOffset: clip.offset,
@@ -601,6 +626,14 @@ export const Timeline: React.FC<TimelineProps> = ({
                         <div
                           key={clip.id}
                           onMouseDown={(e) => !track.locked && handleClipMouseDown(e, clip)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectClip(clip);
+                            recentlyClickedClipRef.current = true;
+                            setTimeout(() => {
+                              recentlyClickedClipRef.current = false;
+                            }, 150);
+                          }}
                           style={{
                             left: `${clipLeftPx}px`,
                             width: `${clipWidthPx}px`,
@@ -620,6 +653,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                           {/* Left Trim Handle (In-point) */}
                           <div
                             onMouseDown={(e) => !track.locked && handleTrimLeftMouseDown(e, clip)}
+                            onClick={(e) => e.stopPropagation()}
                             className="absolute left-0 top-0 bottom-0 w-2.5 hover:w-3.5 bg-black/30 hover:bg-rose-500 text-white/70 hover:text-white flex items-center justify-center cursor-ew-resize transition-all z-20"
                             title="Drag to trim start"
                           >
@@ -660,6 +694,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                           {/* Right Trim Handle (Out-point) */}
                           <div
                             onMouseDown={(e) => !track.locked && handleTrimRightMouseDown(e, clip)}
+                            onClick={(e) => e.stopPropagation()}
                             className="absolute right-0 top-0 bottom-0 w-2.5 hover:w-3.5 bg-black/30 hover:bg-rose-500 text-white/70 hover:text-white flex items-center justify-center cursor-ew-resize transition-all z-20"
                             title="Drag to trim end"
                           >
