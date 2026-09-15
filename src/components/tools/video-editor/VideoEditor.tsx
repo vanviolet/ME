@@ -23,6 +23,7 @@ import {
   renderProjectFrame,
   getAspectRatioDimensions,
   syncAllMediaElements,
+  resetMediaElementCache,
 } from './renderEngine';
 
 const INITIAL_PROJECT: Project = {
@@ -214,6 +215,14 @@ export const VideoEditor: React.FC = () => {
   useEffect(() => {
     syncAllMediaElements(project, currentTime, isPlaying, masterVolume, isMasterMuted);
   }, [isPlaying, currentTime, project, masterVolume, isMasterMuted]);
+
+  // Clean mount/unmount lifecycle for media caches
+  useEffect(() => {
+    resetMediaElementCache();
+    return () => {
+      resetMediaElementCache();
+    };
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -528,7 +537,10 @@ export const VideoEditor: React.FC = () => {
         onUndo={handleUndo}
         onRedo={handleRedo}
         onTakeSnapshot={handleTakeSnapshot}
-        onOpenExportModal={() => setIsExportModalOpen(true)}
+        onOpenExportModal={() => {
+          setIsPlaying(false);
+          setIsExportModalOpen(true);
+        }}
         onOpenRecordModal={() => setIsRecordModalOpen(true)}
         onSaveProject={handleSaveProject}
         onLoadProject={handleLoadProject}
@@ -617,7 +629,11 @@ export const VideoEditor: React.FC = () => {
       {/* Export Video Modal */}
       <ExportModal
         isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
+        onClose={() => {
+          setIsExportModalOpen(false);
+          // Resynchronize preview elements so editor remains completely stable and responsive
+          syncAllMediaElements(project, currentTime, false, masterVolume, isMasterMuted);
+        }}
         project={project}
       />
 

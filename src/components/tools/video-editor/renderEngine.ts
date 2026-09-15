@@ -1,15 +1,53 @@
 import { Clip, FilterSettings, Project, AspectRatio } from './types';
 import { ASPECT_RATIOS } from './sampleMedia';
+import {
+  Output,
+  Mp4OutputFormat,
+  WebMOutputFormat,
+  BufferTarget,
+  CanvasSource,
+  AudioBufferSource,
+  canEncodeVideo,
+  canEncodeAudio,
+  Quality,
+} from 'mediabunny';
 
-// Element caches to prevent continuous DOM node allocation
+// Element caches to prevent continuous DOM node allocation in preview
 export const videoElementCache = new Map<string, HTMLVideoElement>();
 export const audioElementCache = new Map<string, HTMLAudioElement>();
 export const imageElementCache = new Map<string, HTMLImageElement>();
-const audioSourceMap = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
+
+/**
+ * Resets and cleans all cached preview media elements.
+ * Call when loading/unloading or recovering from stale audio context states.
+ */
+export function resetMediaElementCache() {
+  videoElementCache.forEach((v) => {
+    try {
+      v.pause();
+      v.removeAttribute('src');
+      v.load();
+    } catch {}
+  });
+  videoElementCache.clear();
+
+  audioElementCache.forEach((a) => {
+    try {
+      a.pause();
+      a.removeAttribute('src');
+      a.load();
+    } catch {}
+  });
+  audioElementCache.clear();
+}
 
 export function getOrCreateVideoElement(src: string): HTMLVideoElement {
   if (videoElementCache.has(src)) {
-    return videoElementCache.get(src)!;
+    const cached = videoElementCache.get(src)!;
+    if (cached.error) {
+      cached.load();
+    }
+    return cached;
   }
   const video = document.createElement('video');
   video.crossOrigin = 'anonymous';
@@ -73,7 +111,8 @@ export function renderProjectFrame(
   currentTime: number,
   canvasWidth: number,
   canvasHeight: number,
-  activeClipId?: string | null
+  activeClipId?: string | null,
+  customGetVideo?: (src: string) => HTMLVideoElement
 ) {
   // 1. Clear background
   ctx.save();
@@ -90,7 +129,7 @@ export function renderProjectFrame(
     const clipsOnTrack = project.clips.filter((c) => c.trackId === track.id);
     for (const clip of clipsOnTrack) {
       if (currentTime >= clip.start && currentTime <= clip.start + clip.duration) {
-        renderVisualClip(ctx, clip, currentTime, canvasWidth, canvasHeight);
+        renderVisualClip(ctx, clip, currentTime, canvasWidth, canvasHeight, customGetVideo);
       }
     }
   }
@@ -115,7 +154,8 @@ function renderVisualClip(
   clip: Clip,
   currentTime: number,
   cw: number,
-  ch: number
+  ch: number,
+  customGetVideo?: (src: string) => HTMLVideoElement
 ) {
   const clipProgress = (currentTime - clip.start) / clip.duration;
   let opacity = clip.opacity ?? 1;
@@ -156,7 +196,7 @@ function renderVisualClip(
   ctx.scale(scaleX, scaleY);
 
   if (clip.type === 'video' && clip.src) {
-    const video = getOrCreateVideoElement(clip.src);
+    const video = customGetVideo ? customGetVideo(clip.src) : getOrCreateVideoElement(clip.src);
     // Draw directly from video element if it has frame dimensions
     if (video.videoWidth > 0) {
       drawImageOrVideoProp(ctx, video, -cw / 2, -ch / 2, cw, ch, clip.fit || 'contain');
@@ -436,8 +476,107 @@ function drawImageOrVideoProp(
 }
 
 /**
- * High-performance full video export engine using canvas captureStream + MediaRecorder.
- * Plays all project media in real-time to capture true moving video frames and synchronized audio.
+ * Helper to seek a video element to target time deterministically
+ */
+function seekVideoElement(video: HTMLVideoElement, targetTime: number): Promise<void> {
+  return new Promise((resolve) => {
+    if (Math.abs(video.currentTime - targetTime) < 0.02) {
+      resolve();
+      return;
+    }
+    const onSeeked = () => {
+      video.removeEventListener('seeked', onSeeked);
+      resolve();
+    };
+    video.addEventListener('seeked', onSeeked, { once: true });
+    const timer = setTimeout(() => {
+      video.removeEventListener('seeked', onSeeked);
+      resolve();
+    }, 180);
+
+    try {
+      video.currentTime = targetTime;
+    } catch {
+      clearTimeout(timer);
+      resolve();
+    }
+  });
+}
+
+/**
+ * Mixes all audio tracks offline with frame-perfect sample accuracy.
+ * Never connects to or mutates the editor's live preview elements.
+ */
+export async function renderProjectAudioBuffer(project: Project): Promise<AudioBuffer | null> {
+  const audioClips = project.clips.filter(
+    (c) => (c.type === 'audio' || c.type === 'video') && c.src && !c.muted
+  );
+  if (audioClips.length === 0) return null;
+
+  const totalDuration = Math.max(1, project.duration);
+  const sampleRate = 44100;
+  const OfflineAudioCtxClass =
+    window.OfflineAudioContext ||
+    (window as unknown as { webkitOfflineAudioContext: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+  if (!OfflineAudioCtxClass) return null;
+
+  const offlineCtx = new OfflineAudioCtxClass(
+    2,
+    Math.ceil(sampleRate * totalDuration),
+    sampleRate
+  );
+
+  let hasAudioTrack = false;
+
+  for (const clip of audioClips) {
+    const track = project.tracks.find((t) => t.id === clip.trackId);
+    if (track?.muted || track?.hidden) continue;
+
+    try {
+      const response = await fetch(clip.src);
+      const arrayBuffer = await response.arrayBuffer();
+      const decodedBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+
+      const sourceNode = offlineCtx.createBufferSource();
+      sourceNode.buffer = decodedBuffer;
+      sourceNode.playbackRate.value = clip.speed || 1;
+
+      const gainNode = offlineCtx.createGain();
+      const clipVol = clip.volume !== undefined ? clip.volume : 1;
+      const startTime = clip.start;
+      const duration = clip.duration;
+      const offset = clip.offset || 0;
+
+      gainNode.gain.setValueAtTime(clipVol, startTime);
+
+      if (clip.fadeIn && clip.fadeIn > 0) {
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(clipVol, startTime + clip.fadeIn);
+      }
+      if (clip.fadeOut && clip.fadeOut > 0) {
+        const fadeStart = startTime + duration - clip.fadeOut;
+        gainNode.gain.setValueAtTime(clipVol, Math.max(startTime, fadeStart));
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+      }
+
+      sourceNode.connect(gainNode);
+      gainNode.connect(offlineCtx.destination);
+
+      sourceNode.start(startTime, offset, duration);
+      hasAudioTrack = true;
+    } catch (err) {
+      console.warn(`Audio decoding skipped for clip "${clip.name}":`, err);
+    }
+  }
+
+  if (!hasAudioTrack) return null;
+  return await offlineCtx.startRendering();
+}
+
+/**
+ * Professional, deterministic video export engine.
+ * Uses mediabunny (WebCodecs + MP4/WebM Muxer) with completely isolated media elements.
+ * Eliminates video stuttering, flickering, and preview corruption after render.
  */
 export async function exportVideo(
   project: Project,
@@ -454,169 +593,281 @@ export async function exportVideo(
   offscreenCanvas.height = height;
   const ctx = offscreenCanvas.getContext('2d', { alpha: false })!;
 
-  // 1. Pre-warm video elements so their buffers are loaded before recording
+  // 1. Completely isolated video elements created exclusively for this export job
+  const exportVideos = new Map<string, HTMLVideoElement>();
+  const getExportVideo = (src: string): HTMLVideoElement => {
+    let v = exportVideos.get(src);
+    if (!v) {
+      v = document.createElement('video');
+      v.crossOrigin = 'anonymous';
+      v.src = src;
+      v.preload = 'auto';
+      v.muted = true; // Silent during export
+      v.playsInline = true;
+      exportVideos.set(src, v);
+    }
+    return v;
+  };
+
+  const cleanupExportElements = () => {
+    exportVideos.forEach((v) => {
+      try {
+        v.pause();
+        v.removeAttribute('src');
+        v.load();
+      } catch {}
+    });
+    exportVideos.clear();
+  };
+
+  // 2. Pre-warm isolated export video elements
   for (const clip of project.clips) {
     if (clip.type === 'video' && clip.src) {
-      const video = getOrCreateVideoElement(clip.src);
-      if (video.readyState < 2) {
+      const v = getExportVideo(clip.src);
+      if (v.readyState < 2) {
         await new Promise<void>((resolve) => {
-          const onCanPlay = () => {
-            video.removeEventListener('loadeddata', onCanPlay);
-            video.removeEventListener('error', onCanPlay);
-            resolve();
-          };
-          video.addEventListener('loadeddata', onCanPlay, { once: true });
-          video.addEventListener('error', onCanPlay, { once: true });
-          setTimeout(resolve, 800);
+          const done = () => resolve();
+          v.addEventListener('loadeddata', done, { once: true });
+          v.addEventListener('error', done, { once: true });
+          setTimeout(done, 1000);
         });
       }
     }
   }
 
-  // 2. Setup audio mixing via Web Audio API destination
-  let audioCtx: AudioContext | null = null;
-  let audioDest: MediaStreamAudioDestinationNode | null = null;
+  // 3. Render mixed audio offline (no interference with preview elements)
+  let mixedAudioBuffer: AudioBuffer | null = null;
   try {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (AudioContextClass) {
-      audioCtx = new AudioContextClass();
-      if (audioCtx.state === 'suspended') {
-        await audioCtx.resume();
-      }
-      audioDest = audioCtx.createMediaStreamDestination();
-    }
+    mixedAudioBuffer = await renderProjectAudioBuffer(project);
   } catch (err) {
-    console.warn('Audio export context initialization failed', err);
-  }
-
-  // Connect active media elements to audio destination
-  if (audioCtx && audioDest) {
-    project.clips.forEach((clip) => {
-      if ((clip.type === 'video' || clip.type === 'audio') && clip.src) {
-        const el = clip.type === 'video' ? getOrCreateVideoElement(clip.src) : getOrCreateAudioElement(clip.src);
-        try {
-          let source = audioSourceMap.get(el);
-          if (!source) {
-            source = audioCtx!.createMediaElementSource(el);
-            audioSourceMap.set(el, source);
-          }
-          source.connect(audioDest!);
-        } catch {
-          // Graceful fallback if cross-origin or already connected
-        }
-      }
-    });
-  }
-
-  // 3. Setup MediaStream combining canvas and audio
-  const canvasStream = offscreenCanvas.captureStream(fps);
-  const streamTracks: MediaStreamTrack[] = [...canvasStream.getVideoTracks()];
-
-  if (audioDest) {
-    const audioTracks = audioDest.stream.getAudioTracks();
-    if (audioTracks.length > 0) {
-      streamTracks.push(audioTracks[0]);
-    }
-  }
-
-  const combinedStream = new MediaStream(streamTracks);
-
-  // 4. Determine supported video mimeType
-  let mimeType = 'video/webm;codecs=vp9,opus';
-  if (!MediaRecorder.isTypeSupported(mimeType)) {
-    mimeType = 'video/webm;codecs=vp8,opus';
-  }
-  if (!MediaRecorder.isTypeSupported(mimeType)) {
-    mimeType = 'video/webm';
-  }
-  if (!MediaRecorder.isTypeSupported(mimeType)) {
-    mimeType = 'video/mp4';
+    console.warn('Audio rendering warning:', err);
   }
 
   const totalDuration = Math.max(1, project.duration);
   const totalFrames = Math.ceil(totalDuration * fps);
 
-  const chunks: BlobPart[] = [];
-  const recorder = new MediaRecorder(combinedStream, {
-    mimeType,
-    videoBitsPerSecond: resolution === '1080p' ? 10000000 : 5000000,
-  });
+  // 4. Try mediabunny WebCodecs pipeline first
+  const canUseWebCodecs = typeof VideoEncoder !== 'undefined';
 
-  recorder.ondataavailable = (e) => {
-    if (e.data && e.data.size > 0) chunks.push(e.data);
-  };
-
-  // Reset all media to start at 0s
-  syncAllMediaElements(project, 0, false, 1, false);
-
-  recorder.start(100);
-
-  return new Promise((resolve, reject) => {
-    const startTime = performance.now();
-    let animationFrameId: number;
-
-    const cleanup = () => {
-      cancelAnimationFrame(animationFrameId);
-      // Pause all media
-      videoElementCache.forEach((v) => v.pause());
-      audioElementCache.forEach((a) => a.pause());
-      if (audioCtx && audioCtx.state !== 'closed') {
-        audioCtx.close().catch(() => {});
-      }
-    };
-
-    recorder.onstop = () => {
-      cleanup();
-      const finalBlob = new Blob(chunks, { type: mimeType });
-      onProgress(100, totalFrames, totalFrames);
-      resolve(finalBlob);
-    };
-
-    recorder.onerror = (e) => {
-      cleanup();
-      reject(e);
-    };
-
-    const renderLoop = () => {
-      if (shouldCancel()) {
-        try {
-          recorder.stop();
-        } catch {}
-        cleanup();
-        reject(new Error('Export cancelled by user'));
-        return;
+  if (canUseWebCodecs) {
+    try {
+      let videoCodec: 'avc' | 'vp9' | 'vp8' = 'avc';
+      if (await canEncodeVideo('avc', { width, height })) {
+        videoCodec = 'avc';
+      } else if (await canEncodeVideo('vp9', { width, height })) {
+        videoCodec = 'vp9';
+      } else if (await canEncodeVideo('vp8', { width, height })) {
+        videoCodec = 'vp8';
       }
 
-      const elapsed = (performance.now() - startTime) / 1000;
-      const currentTime = Math.min(totalDuration, elapsed);
-      const currentFrame = Math.min(totalFrames, Math.floor(currentTime * fps));
+      const isMp4 = videoCodec === 'avc';
+      const format = isMp4 ? new Mp4OutputFormat() : new WebMOutputFormat();
+      const target = new BufferTarget();
+      const output = new Output({ format, target });
 
-      // 1. Actively play and sync video and audio elements at current time
-      syncAllMediaElements(project, currentTime, true, 1, false);
+      const canvasSource = new CanvasSource(offscreenCanvas, {
+        codec: videoCodec,
+        quality: new Quality('high'),
+      });
+      output.addVideoTrack(canvasSource, { frameRate: fps });
 
-      // 2. Draw current live frame from video and canvas elements
-      renderProjectFrame(ctx, project, currentTime, width, height, null);
-
-      // 3. Update export progress
-      const pct = Math.min(99, Math.round((currentTime / totalDuration) * 100));
-      onProgress(pct, currentFrame, totalFrames);
-
-      if (currentTime >= totalDuration) {
-        onProgress(100, totalFrames, totalFrames);
+      let audioSource: AudioBufferSource | null = null;
+      if (mixedAudioBuffer) {
         try {
-          recorder.stop();
-        } catch {
-          cleanup();
-          resolve(new Blob(chunks, { type: mimeType }));
+          let audioCodec: 'aac' | 'opus' | null = null;
+          if (isMp4 && (await canEncodeAudio('aac'))) {
+            audioCodec = 'aac';
+          } else if (await canEncodeAudio('opus')) {
+            audioCodec = 'opus';
+          }
+          if (audioCodec) {
+            audioSource = new AudioBufferSource({
+              codec: audioCodec,
+              quality: new Quality('high'),
+            });
+            output.addAudioTrack(audioSource);
+          }
+        } catch (e) {
+          console.warn('Audio track setup warning:', e);
         }
-      } else {
-        animationFrameId = requestAnimationFrame(renderLoop);
       }
-    };
 
-    animationFrameId = requestAnimationFrame(renderLoop);
+      await output.start();
+
+      if (audioSource && mixedAudioBuffer) {
+        await audioSource.add(mixedAudioBuffer);
+        audioSource.close();
+      }
+
+      // Frame-by-frame exact rendering with zero jitter and zero dropped frames
+      for (let f = 0; f < totalFrames; f++) {
+        if (shouldCancel()) {
+          cleanupExportElements();
+          await output.cancel();
+          throw new Error('Export cancelled by user');
+        }
+
+        const time = f / fps;
+
+        // Seek all active video clips for this frame
+        const seekPromises: Promise<void>[] = [];
+        for (const clip of project.clips) {
+          if (clip.type === 'video' && clip.src) {
+            const isActive = time >= clip.start && time < clip.start + clip.duration;
+            if (isActive) {
+              const v = getExportVideo(clip.src);
+              const targetSourceTime = (time - clip.start) * clip.speed + clip.offset;
+              seekPromises.push(seekVideoElement(v, targetSourceTime));
+            }
+          }
+        }
+        if (seekPromises.length > 0) {
+          await Promise.all(seekPromises);
+        }
+
+        // Draw exact composite frame onto canvas
+        renderProjectFrame(ctx, project, time, width, height, null, getExportVideo);
+
+        // Add sample to video output
+        await canvasSource.add(time, 1 / fps);
+
+        const pct = Math.min(99, Math.round(((f + 1) / totalFrames) * 100));
+        onProgress(pct, f + 1, totalFrames);
+      }
+
+      canvasSource.close();
+      await output.finalize();
+      cleanupExportElements();
+
+      const mimeType = isMp4 ? 'video/mp4' : 'video/webm';
+      onProgress(100, totalFrames, totalFrames);
+      return new Blob([target.buffer!], { type: mimeType });
+    } catch (err) {
+      console.warn('WebCodecs export failed, falling back to MediaRecorder:', err);
+      cleanupExportElements();
+    }
+  }
+
+  // 5. Fallback Engine: MediaRecorder with isolated elements and offline audio playback
+  return new Promise<Blob>(async (resolve, reject) => {
+    try {
+      const fallbackVideos = new Map<string, HTMLVideoElement>();
+      const getFallbackVideo = (src: string): HTMLVideoElement => {
+        let v = fallbackVideos.get(src);
+        if (!v) {
+          v = document.createElement('video');
+          v.crossOrigin = 'anonymous';
+          v.src = src;
+          v.preload = 'auto';
+          v.muted = true;
+          v.playsInline = true;
+          fallbackVideos.set(src, v);
+        }
+        return v;
+      };
+
+      const canvasStream = offscreenCanvas.captureStream(fps);
+      const streamTracks: MediaStreamTrack[] = [...canvasStream.getVideoTracks()];
+
+      let tempAudioCtx: AudioContext | null = null;
+      let bufferSourceNode: AudioBufferSourceNode | null = null;
+
+      if (mixedAudioBuffer) {
+        try {
+          const AudioContextClass =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          tempAudioCtx = new AudioContextClass();
+          const dest = tempAudioCtx.createMediaStreamDestination();
+          bufferSourceNode = tempAudioCtx.createBufferSource();
+          bufferSourceNode.buffer = mixedAudioBuffer;
+          bufferSourceNode.connect(dest);
+          if (dest.stream.getAudioTracks().length > 0) {
+            streamTracks.push(dest.stream.getAudioTracks()[0]);
+          }
+        } catch {}
+      }
+
+      const combinedStream = new MediaStream(streamTracks);
+
+      let mimeType = 'video/webm;codecs=vp9,opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8,opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4';
+
+      const chunks: BlobPart[] = [];
+      const recorder = new MediaRecorder(combinedStream, {
+        mimeType,
+        videoBitsPerSecond: resolution === '1080p' ? 10_000_000 : 5_000_000,
+      });
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      const cleanupFallback = () => {
+        fallbackVideos.forEach((v) => {
+          try {
+            v.pause();
+            v.removeAttribute('src');
+            v.load();
+          } catch {}
+        });
+        fallbackVideos.clear();
+        if (tempAudioCtx && tempAudioCtx.state !== 'closed') {
+          tempAudioCtx.close().catch(() => {});
+        }
+      };
+
+      recorder.onstop = () => {
+        cleanupFallback();
+        onProgress(100, totalFrames, totalFrames);
+        resolve(new Blob(chunks, { type: mimeType }));
+      };
+
+      recorder.onerror = (e) => {
+        cleanupFallback();
+        reject(e);
+      };
+
+      recorder.start(100);
+      if (bufferSourceNode) {
+        bufferSourceNode.start(0);
+      }
+
+      // Draw frames
+      for (let f = 0; f < totalFrames; f++) {
+        if (shouldCancel()) {
+          recorder.stop();
+          cleanupFallback();
+          reject(new Error('Export cancelled by user'));
+          return;
+        }
+
+        const time = f / fps;
+        const seekPromises: Promise<void>[] = [];
+        for (const clip of project.clips) {
+          if (clip.type === 'video' && clip.src) {
+            if (time >= clip.start && time < clip.start + clip.duration) {
+              const v = getFallbackVideo(clip.src);
+              const targetSourceTime = (time - clip.start) * clip.speed + clip.offset;
+              seekPromises.push(seekVideoElement(v, targetSourceTime));
+            }
+          }
+        }
+        if (seekPromises.length > 0) {
+          await Promise.all(seekPromises);
+        }
+
+        renderProjectFrame(ctx, project, time, width, height, null, getFallbackVideo);
+        onProgress(Math.min(99, Math.round(((f + 1) / totalFrames) * 100)), f + 1, totalFrames);
+        await new Promise((r) => setTimeout(r, 1000 / fps));
+      }
+
+      recorder.stop();
+    } catch (err) {
+      reject(err);
+    }
   });
 }
 
