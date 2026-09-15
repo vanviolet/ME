@@ -32,6 +32,7 @@ import { JwtDebuggerPage } from './components/tools/JwtDebuggerPage';
 import { RegexTesterPage } from './components/tools/RegexTesterPage';
 import { UuidGeneratorPage } from './components/tools/UuidGeneratorPage';
 import { SqlFormatterPage } from './components/tools/SqlFormatterPage';
+import { VideoEditor } from './components/tools/video-editor/VideoEditor';
 import { JiraApp } from './components/jira/JiraApp';
 import { JiraProvider } from './components/jira/JiraContext';
 import { AiChatFloating } from './components/AiChatFloating';
@@ -83,8 +84,11 @@ const AppLayout: React.FC = () => {
     location.pathname.startsWith('/tools/crop-image') ||
     location.pathname.startsWith('/tools/photo-editor') ||
     location.pathname.startsWith('/photo-editor');
+  const isVideoEditor =
+    location.pathname.startsWith('/tools/video-editor') ||
+    location.pathname.startsWith('/video-editor');
 
-  const isFullScreenStudio = isJira || isPhotoEditor;
+  const isFullScreenStudio = isJira || isPhotoEditor || isVideoEditor;
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 selection:bg-rose-500/20 selection:text-rose-600 dark:selection:bg-rose-500/30 dark:selection:text-rose-400 font-sans">
@@ -130,6 +134,8 @@ const AppLayout: React.FC = () => {
         <Route path="/tools/crop-image" element={<ImageCropperPage />} />
         <Route path="/tools/photo-editor" element={<ImageCropperPage />} />
         <Route path="/photo-editor" element={<ImageCropperPage />} />
+        <Route path="/tools/video-editor" element={<VideoEditor />} />
+        <Route path="/video-editor" element={<VideoEditor />} />
         {/* Fallback */}
         <Route path="*" element={<HomePage />} />
       </Routes>

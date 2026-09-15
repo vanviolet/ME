@@ -14,6 +14,7 @@ import {
   Code,
   Fingerprint,
   Database,
+  Video,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -21,6 +22,19 @@ export const ToolsIndexPage: React.FC = () => {
   const { language } = usePortfolio();
 
   const toolsList = [
+    {
+      id: 'video-editor',
+      title: 'Video Editor Studio',
+      description:
+        language === 'en'
+          ? 'Professional multi-track web video editor with drag & drop timeline, Web Audio SFX synthesis, mic voiceover recording, animated subtitles, stickers, cinematic LUT filters, and 1080p client-side rendering.'
+          : 'Editor video multi-track profesional berbasis web dengan timeline drag & drop, sintesis efek suara Web Audio, rekaman voiceover mic, subtitle animasi, stiker, filter warna LUT sinematik, dan ekspor render 1080p instan.',
+      icon: Video,
+      category: 'Media & Production',
+      path: '/tools/video-editor',
+      status: 'active',
+      badge: language === 'en' ? 'Featured Studio' : 'Studio Unggulan',
+    },
     {
       id: 'jwt-debugger',
       title: 'JWT Debugger & Decoder',

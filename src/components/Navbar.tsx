@@ -20,6 +20,7 @@ import {
   Palette,
   Crop,
   Kanban,
+  Video,
   Search,
   Bell,
   Check,
@@ -448,6 +449,27 @@ export const Navbar: React.FC = () => {
                 </div>
 
                 <div className="space-y-0.5">
+                  <Link
+                    to="/tools/video-editor"
+                    onClick={() => setToolsDropdownOpen(false)}
+                    className="flex items-center gap-3 p-2 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 hover:bg-rose-100/80 dark:hover:bg-rose-900/40 border border-rose-200/60 dark:border-rose-800/60 transition-colors group mb-1"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                      <Video size={14} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-rose-950 dark:text-rose-200 flex items-center gap-1.5">
+                        <span>Video Editor Studio</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[8px] font-bold uppercase font-mono">
+                          {language === 'en' ? 'New Tool' : 'Tool Baru'}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-rose-700/80 dark:text-rose-300/80">
+                        {language === 'en' ? 'Multi-track timeline, SFX & HD Export' : 'Timeline multi-track, SFX & Ekspor HD'}
+                      </div>
+                    </div>
+                  </Link>
+
                   <Link
                     to="/tools/jira"
                     onClick={() => setToolsDropdownOpen(false)}

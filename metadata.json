@@ -1,6 +1,6 @@
 {
   "name": "Muchamad Irvan - Software Engineer Portfolio",
-  "description": "Personal portfolio of Muchamad Irvan, Fullstack Developer & Software Engineer featuring scalable web systems, interactive applications, developer tools, and an enterprise Jira project management hub.",
-  "requestFramePermissions": [],
+  "description": "Personal portfolio of Muchamad Irvan, Fullstack Developer & Software Engineer featuring scalable web systems, interactive applications, developer tools, photo & video studio suite, and an enterprise Jira project management hub.",
+  "requestFramePermissions": ["camera", "microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
