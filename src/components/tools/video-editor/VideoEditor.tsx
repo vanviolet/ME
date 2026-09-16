@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   FolderOpen,
   Type,
@@ -12,6 +13,10 @@ import {
   Copy,
   Trash2,
   ChevronDown,
+  Monitor,
+  ArrowLeft,
+  Home,
+  Wrench,
 } from 'lucide-react';
 import {
   Project,
@@ -643,6 +648,71 @@ export const VideoEditor: React.FC = () => {
       tracks: [...p.tracks, newTrack],
     }));
   };
+
+  const [bypassMobile, setBypassMobile] = useState(false);
+  const [isMobileScreen, setIsMobileScreen] = useState(() => {
+    return typeof window !== 'undefined' && window.innerWidth < 768;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // If opened on mobile screen and user has not explicitly bypassed, show clean desktop notice
+  if (isMobileScreen && !bypassMobile) {
+    return (
+      <div className="fixed inset-0 bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-6 z-50 select-none text-center font-sans">
+        <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center space-y-6 animate-fadeIn">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center shadow-lg shadow-rose-500/10">
+            <Monitor size={32} />
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-rose-400 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20">
+              Desktop Studio Only
+            </span>
+            <h2 className="text-xl font-bold text-zinc-100">
+              Buka di Layar Desktop / Laptop
+            </h2>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Video Editor Studio dirancang khusus untuk pengalaman layar lebar. Pengeditan timeline multi-track, preview canvas, waveform audio, dan keyframing memerlukan ruang layar desktop agar optimal dan nyaman digunakan.
+            </p>
+          </div>
+
+          <div className="w-full space-y-2.5 pt-2">
+            <Link
+              to="/tools"
+              className="w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-rose-600/25 active:scale-98 transition-all cursor-pointer"
+            >
+              <Wrench size={15} />
+              <span>Lihat Perkakas Lainnya</span>
+            </Link>
+
+            <Link
+              to="/"
+              className="w-full py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer border border-zinc-700/60"
+            >
+              <Home size={14} />
+              <span>Kembali ke Beranda</span>
+            </Link>
+          </div>
+
+          <div className="pt-2 border-t border-zinc-800/80 w-full text-center">
+            <button
+              onClick={() => setBypassMobile(true)}
+              className="text-[11px] text-zinc-500 hover:text-zinc-300 underline underline-offset-4 transition-colors cursor-pointer"
+            >
+              Tetap Buka Editor di HP (Mode Eksperimental)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-zinc-950 text-zinc-100 flex flex-col select-none overflow-hidden font-sans z-40">

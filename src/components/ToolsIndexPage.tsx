@@ -33,7 +33,8 @@ export const ToolsIndexPage: React.FC = () => {
       category: 'Media & Production',
       path: '/tools/video-editor',
       status: 'active',
-      badge: language === 'en' ? 'Featured Studio' : 'Studio Unggulan',
+      badge: language === 'en' ? 'Desktop Studio' : 'Desktop Studio',
+      desktopOnly: true,
     },
     {
       id: 'jwt-debugger',
@@ -200,12 +201,15 @@ export const ToolsIndexPage: React.FC = () => {
         {toolsList.map(tool => {
           const Icon = tool.icon;
           const isComingSoon = tool.status === 'coming_soon';
+          const isDesktopOnly = Boolean(tool.desktopOnly);
 
           return (
             <Link
               to={tool.path}
               key={tool.id}
               className={`group p-6 rounded-2xl bg-white dark:bg-zinc-900/90 border transition-all duration-200 flex flex-col justify-between ${
+                isDesktopOnly ? 'hidden md:flex' : 'flex'
+              } ${
                 isComingSoon
                   ? 'border-amber-500/30 dark:border-amber-500/20 hover:border-amber-500/60 dark:hover:border-amber-500/40 hover:shadow-md'
                   : 'border-stone-200 dark:border-zinc-800 hover:border-rose-300 dark:hover:border-rose-900/50 hover:shadow-md'
