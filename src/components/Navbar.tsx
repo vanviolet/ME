@@ -38,9 +38,11 @@ export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
+  const [communityDropdownOpen, setCommunityDropdownOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
   const location = useLocation();
   const toolsMenuRef = useRef<HTMLDivElement>(null);
+  const communityMenuRef = useRef<HTMLDivElement>(null);
 
   const [isJiraProjectDropdownOpen, setIsJiraProjectDropdownOpen] = useState(false);
   const [isJiraUserDropdownOpen, setIsJiraUserDropdownOpen] = useState(false);
@@ -52,6 +54,9 @@ export const Navbar: React.FC = () => {
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if (communityMenuRef.current && !communityMenuRef.current.contains(event.target as Node)) {
+        setCommunityDropdownOpen(false);
+      }
       if (toolsMenuRef.current && !toolsMenuRef.current.contains(event.target as Node)) {
         setToolsDropdownOpen(false);
       }
@@ -105,6 +110,7 @@ export const Navbar: React.FC = () => {
   const isArticlesPage = location.pathname.startsWith('/articles');
   const isVanpediaPage = location.pathname.startsWith('/vanpedia');
   const isForumPage = location.pathname.startsWith('/forum') || location.pathname.startsWith('/issues');
+  const isCommunityPage = isArticlesPage || isVanpediaPage || isForumPage;
   const isToolsPage =
     location.pathname.startsWith('/tools') ||
     location.pathname.startsWith('/jira') ||
@@ -375,50 +381,149 @@ export const Navbar: React.FC = () => {
             </>
           )}
 
-          {/* Primary Hub: Articles, Vanpedia, Forum, Tools (Only shown outside Jira) */}
+          {/* Primary Hub: Explore (Articles, Vanpedia, Forum) & Tools Dropdown (Only shown outside Jira) */}
           {!isJiraPage && (
             <>
-              {/* Primary Hub: Articles */}
-          <Link
-            id="nav-link-articles"
-            to="/articles"
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-150 ${
-              isArticlesPage
-                ? 'bg-rose-600 text-white shadow-xs font-semibold'
-                : 'text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400'
-            }`}
-          >
-            <BookOpen size={13} />
-            <span>{language === 'en' ? 'Articles' : 'Artikel'}</span>
-          </Link>
+              {/* Grouped Explore Dropdown: Articles, Vanpedia, Forum */}
+              <div className="relative" ref={communityMenuRef}>
+                <button
+                  id="nav-link-explore"
+                  type="button"
+                  onClick={() => setCommunityDropdownOpen(!communityDropdownOpen)}
+                  onMouseEnter={() => setCommunityDropdownOpen(true)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-150 cursor-pointer ${
+                    isCommunityPage || communityDropdownOpen
+                      ? 'bg-rose-600 text-white shadow-xs font-semibold'
+                      : 'text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400'
+                  }`}
+                >
+                  <Compass size={13} />
+                  <span>{language === 'en' ? 'Explore' : 'Eksplorasi'}</span>
+                  <ChevronDown
+                    size={12}
+                    className={`transition-transform duration-200 ${communityDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
 
-          {/* Primary Hub: Vanpedia (Kamus Istilah) */}
-          <Link
-            id="nav-link-vanpedia"
-            to="/vanpedia"
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-150 ${
-              isVanpediaPage
-                ? 'bg-rose-600 text-white shadow-xs font-semibold'
-                : 'text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400'
-            }`}
-          >
-            <Compass size={13} />
-            <span>Vanpedia</span>
-          </Link>
+                {/* Explore Dropdown Card */}
+                {communityDropdownOpen && (
+                  <div
+                    className="absolute top-full left-0 mt-2 w-72 p-2 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                    onMouseLeave={() => setCommunityDropdownOpen(false)}
+                  >
+                    <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider font-bold text-stone-400 dark:text-zinc-500 border-b border-stone-100 dark:border-zinc-800 mb-1">
+                      {language === 'en' ? 'Knowledge & Community' : 'Pengetahuan & Komunitas'}
+                    </div>
 
-          {/* Primary Hub: Forum (Public & Private) */}
-          <Link
-            id="nav-link-forum"
-            to="/forum"
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-150 ${
-              isForumPage
-                ? 'bg-rose-600 text-white shadow-xs font-semibold'
-                : 'text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400'
-            }`}
-          >
-            <MessageSquare size={13} />
-            <span>Forum</span>
-          </Link>
+                    <div className="space-y-0.5">
+                      {/* Artikel */}
+                      <Link
+                        to="/articles"
+                        onClick={() => setCommunityDropdownOpen(false)}
+                        className={`flex items-center gap-3 p-2 rounded-xl transition-colors group ${
+                          isArticlesPage
+                            ? 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200/70 dark:border-rose-800/70'
+                            : 'hover:bg-stone-100 dark:hover:bg-zinc-800/80'
+                        }`}
+                      >
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform ${
+                            isArticlesPage
+                              ? 'bg-rose-500 text-white shadow-xs'
+                              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                          }`}
+                        >
+                          <BookOpen size={14} />
+                        </div>
+                        <div className="text-left flex-1 min-w-0">
+                          <div
+                            className={`text-xs font-bold transition-colors ${
+                              isArticlesPage
+                                ? 'text-rose-700 dark:text-rose-300'
+                                : 'text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400'
+                            }`}
+                          >
+                            {language === 'en' ? 'Articles' : 'Artikel'}
+                          </div>
+                          <div className="text-[10px] text-stone-500 dark:text-zinc-400 truncate">
+                            {language === 'en' ? 'Tech insights, tutorials & AI' : 'Catatan rekayasa & AI'}
+                          </div>
+                        </div>
+                      </Link>
+
+                      {/* Vanpedia */}
+                      <Link
+                        to="/vanpedia"
+                        onClick={() => setCommunityDropdownOpen(false)}
+                        className={`flex items-center gap-3 p-2 rounded-xl transition-colors group ${
+                          isVanpediaPage
+                            ? 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200/70 dark:border-rose-800/70'
+                            : 'hover:bg-stone-100 dark:hover:bg-zinc-800/80'
+                        }`}
+                      >
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform ${
+                            isVanpediaPage
+                              ? 'bg-rose-500 text-white shadow-xs'
+                              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                          }`}
+                        >
+                          <Compass size={14} />
+                        </div>
+                        <div className="text-left flex-1 min-w-0">
+                          <div
+                            className={`text-xs font-bold transition-colors ${
+                              isVanpediaPage
+                                ? 'text-rose-700 dark:text-rose-300'
+                                : 'text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400'
+                            }`}
+                          >
+                            Vanpedia
+                          </div>
+                          <div className="text-[10px] text-stone-500 dark:text-zinc-400 truncate">
+                            {language === 'en' ? 'Glossary & terminology guide' : 'Kamus istilah & ensiklopedia'}
+                          </div>
+                        </div>
+                      </Link>
+
+                      {/* Forum */}
+                      <Link
+                        to="/forum"
+                        onClick={() => setCommunityDropdownOpen(false)}
+                        className={`flex items-center gap-3 p-2 rounded-xl transition-colors group ${
+                          isForumPage
+                            ? 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200/70 dark:border-rose-800/70'
+                            : 'hover:bg-stone-100 dark:hover:bg-zinc-800/80'
+                        }`}
+                      >
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform ${
+                            isForumPage
+                              ? 'bg-rose-500 text-white shadow-xs'
+                              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                          }`}
+                        >
+                          <MessageSquare size={14} />
+                        </div>
+                        <div className="text-left flex-1 min-w-0">
+                          <div
+                            className={`text-xs font-bold transition-colors ${
+                              isForumPage
+                                ? 'text-rose-700 dark:text-rose-300'
+                                : 'text-stone-900 dark:text-zinc-100 group-hover:text-rose-600 dark:group-hover:text-rose-400'
+                            }`}
+                          >
+                            {language === 'en' ? 'Discussion Forum' : 'Forum Komunitas'}
+                          </div>
+                          <div className="text-[10px] text-stone-500 dark:text-zinc-400 truncate">
+                            {language === 'en' ? 'Public threads & discussions' : 'Diskusi terbuka & tanya jawab'}
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
 
           {/* Primary Hub: Tools Dropdown */}
           <div className="relative" ref={toolsMenuRef}>
