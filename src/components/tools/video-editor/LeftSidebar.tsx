@@ -37,6 +37,8 @@ interface LeftSidebarProps {
   onApplyLutToSelectedClip: (lutId: string) => void;
   onUpdateProjectBgColor: (color: string) => void;
   onOpenRecordModal: () => void;
+  isMobileDrawer?: boolean;
+  onCloseMobileDrawer?: () => void;
 }
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -49,6 +51,8 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onApplyLutToSelectedClip,
   onUpdateProjectBgColor,
   onOpenRecordModal,
+  isMobileDrawer = false,
+  onCloseMobileDrawer,
 }) => {
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -227,7 +231,13 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   };
 
   return (
-    <aside className="w-80 sm:w-88 bg-zinc-900 border-r border-zinc-800 flex shrink-0 text-zinc-100 select-none z-20">
+    <aside
+      className={`${
+        isMobileDrawer
+          ? 'w-full h-full flex'
+          : 'hidden lg:flex w-80 xl:w-88 border-r border-zinc-800'
+      } bg-zinc-900 shrink-0 text-zinc-100 select-none z-20 overflow-hidden`}
+    >
       {/* Tab Navigation Rail */}
       <div className="w-16 bg-zinc-950/80 border-r border-zinc-800/80 flex flex-col items-center py-3 gap-1.5 shrink-0">
         {tabs.map((tab) => {

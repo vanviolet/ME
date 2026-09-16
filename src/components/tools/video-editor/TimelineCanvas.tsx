@@ -976,6 +976,152 @@ export const TimelineCanvas: React.FC<TimelineCanvasProps> = ({
     }
   };
 
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 0) return;
+    const touch = e.touches[0];
+    const coords = getTimelineCoordinates(touch.clientX, touch.clientY);
+
+    if (coords.isRuler) {
+      const hitMarker = findMarkerAt(coords.worldX, coords.rawY);
+      if (hitMarker) {
+        onSeek(hitMarker.time);
+        interactionRef.current = {
+          mode: 'drag-marker',
+          startX: coords.worldX,
+          startY: coords.rawY,
+          initialMouseTime: coords.time,
+          markerId: hitMarker.id,
+          hasMoved: false,
+        };
+        return;
+      }
+
+      onSeek(coords.time);
+      interactionRef.current = {
+        mode: 'scrub',
+        startX: coords.worldX,
+        startY: coords.rawY,
+        initialMouseTime: coords.time,
+        hasMoved: false,
+      };
+      return;
+    }
+
+    const hit = findClipAt(coords.worldX, coords.worldY);
+    if (hit) {
+      if (hit.isLeftTrim || hit.isRightTrim) {
+        interactionRef.current = {
+          mode: hit.isLeftTrim ? 'trim-left' : 'trim-right',
+          startX: coords.worldX,
+          startY: coords.rawY,
+          initialMouseTime: coords.time,
+          targetClipId: hit.clip.id,
+          initialClipPositions: new Map([
+            [hit.clip.id, { start: hit.clip.start, duration: hit.clip.duration, offset: hit.clip.offset }],
+          ]),
+          hasMoved: false,
+        };
+        if (!selectedClipIds.includes(hit.clip.id)) {
+          onSelectClipIds([hit.clip.id]);
+        }
+        return;
+      }
+
+      onSelectClipIds([hit.clip.id]);
+      const posMap = new Map<string, { start: number; duration: number; offset: number }>();
+      posMap.set(hit.clip.id, { start: hit.clip.start, duration: hit.clip.duration, offset: hit.clip.offset });
+
+      interactionRef.current = {
+        mode: 'move-clips',
+        startX: coords.worldX,
+        startY: coords.rawY,
+        initialMouseTime: coords.time,
+        targetClipId: hit.clip.id,
+        initialClipPositions: posMap,
+        hasMoved: false,
+      };
+    } else {
+      onSeek(coords.time);
+      interactionRef.current = {
+        mode: 'scrub',
+        startX: coords.worldX,
+        startY: coords.worldY,
+        initialMouseTime: coords.time,
+        hasMoved: false,
+      };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 0) return;
+    const touch = e.touches[0];
+    const coords = getTimelineCoordinates(touch.clientX, touch.clientY);
+    const interaction = interactionRef.current;
+
+    if (interaction.mode === 'scrub') {
+      interaction.hasMoved = true;
+      onSeek(coords.time);
+    } else if (interaction.mode === 'drag-marker' && interaction.markerId && onAddMarker) {
+      interaction.hasMoved = true;
+      const marker = project.markers?.find((m) => m.id === interaction.markerId);
+      if (marker) {
+        onAddMarker({ ...marker, time: Math.max(0, Math.min(totalDuration, coords.time)) });
+      }
+    } else if (interaction.mode === 'trim-left' && interaction.targetClipId) {
+      interaction.hasMoved = true;
+      const clip = project.clips.find((c) => c.id === interaction.targetClipId);
+      const init = interaction.initialClipPositions?.get(interaction.targetClipId);
+      if (clip && init) {
+        const delta = coords.time - interaction.initialMouseTime;
+        const newStart = Math.max(0, init.start + delta);
+        const newDuration = Math.max(0.2, init.duration - delta);
+        const newOffset = Math.max(0, init.offset + delta);
+        if (newDuration >= 0.2) {
+          onUpdateClip(clip.id, { start: newStart, duration: newDuration, offset: newOffset });
+        }
+      }
+    } else if (interaction.mode === 'trim-right' && interaction.targetClipId) {
+      interaction.hasMoved = true;
+      const clip = project.clips.find((c) => c.id === interaction.targetClipId);
+      const init = interaction.initialClipPositions?.get(interaction.targetClipId);
+      if (clip && init) {
+        const delta = coords.time - interaction.initialMouseTime;
+        const newDuration = Math.max(0.2, init.duration + delta);
+        onUpdateClip(clip.id, { duration: newDuration });
+      }
+    } else if (interaction.mode === 'move-clips' && interaction.initialClipPositions) {
+      interaction.hasMoved = true;
+      const delta = coords.time - interaction.initialMouseTime;
+      const selectedIds = Array.from(interaction.initialClipPositions.keys());
+      const primaryInit = interaction.initialClipPositions.get(interaction.targetClipId || selectedIds[0]);
+      let finalDelta = delta;
+
+      if (primaryInit) {
+        const proposedStart = Math.max(0, primaryInit.start + delta);
+        const snap = findSnap(proposedStart, selectedIds);
+        setActiveSnapLine(snap.snapPoint);
+        finalDelta = snap.snappedTime - primaryInit.start;
+      }
+
+      const batch: { id: string; updates: Partial<Clip> }[] = [];
+      interaction.initialClipPositions.forEach((initPos, clipId) => {
+        batch.push({ id: clipId, updates: { start: Math.max(0, initPos.start + finalDelta) } });
+      });
+
+      if (batch.length > 0) {
+        if (onBatchUpdateClips) {
+          onBatchUpdateClips(batch);
+        } else {
+          batch.forEach((item) => onUpdateClip(item.id, item.updates));
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    handleMouseUp();
+  };
+
   return (
     <canvas
       ref={canvasRef}
@@ -983,11 +1129,16 @@ export const TimelineCanvas: React.FC<TimelineCanvasProps> = ({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       onDoubleClick={handleDoubleClick}
       style={{
         cursor: hoverCursor,
         width: `${canvasWidth}px`,
         height: `${canvasHeight}px`,
+        touchAction: 'none',
       }}
       className="block outline-none"
     />

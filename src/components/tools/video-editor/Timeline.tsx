@@ -191,11 +191,11 @@ export const Timeline: React.FC<TimelineProps> = ({
     !selectedClip.muted;
 
   return (
-    <div className="h-72 sm:h-80 bg-zinc-950 border-t border-zinc-800 flex flex-col select-none shrink-0 z-20 shadow-2xl relative">
+    <div className="h-48 sm:h-64 lg:h-72 bg-zinc-950 border-t border-zinc-800 flex flex-col select-none shrink-0 z-20 shadow-2xl relative">
       {/* 1. Timeline Action & Navigation Bar */}
-      <div className="h-10 px-3 sm:px-4 bg-zinc-900/95 border-b border-zinc-800 flex items-center justify-between text-xs shrink-0 gap-2">
+      <div className="h-10 px-2 sm:px-4 bg-zinc-900/95 border-b border-zinc-800 flex items-center justify-between text-xs shrink-0 gap-2 overflow-x-auto custom-scrollbar">
         {/* Left: Quick Actions */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Split at Playhead */}
           <button
             onClick={onSplitClipAtPlayhead}
@@ -382,9 +382,9 @@ export const Timeline: React.FC<TimelineProps> = ({
       {/* 2. Main Timeline Split View (Headers on Left + Canvas/Tracks on Right) */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left Side: Fixed Track Control Headers */}
-        <div className="w-36 sm:w-44 bg-zinc-900/90 border-r border-zinc-800 flex flex-col shrink-0 z-20">
-          <div className="h-7 bg-zinc-900 border-b border-zinc-800 px-3 flex items-center justify-between text-[10px] uppercase tracking-wider font-bold text-zinc-500 shrink-0">
-            <span>Tracks ({project.tracks.length})</span>
+        <div className="w-24 xs:w-32 sm:w-44 bg-zinc-900/90 border-r border-zinc-800 flex flex-col shrink-0 z-20">
+          <div className="h-7 bg-zinc-900 border-b border-zinc-800 px-2 sm:px-3 flex items-center justify-between text-[10px] uppercase tracking-wider font-bold text-zinc-500 shrink-0">
+            <span>Tracks</span>
             {selectedClipIds.length > 1 && (
               <span className="text-rose-400 font-normal lowercase">{selectedClipIds.length} sel</span>
             )}

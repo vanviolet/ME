@@ -1,5 +1,19 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
+  FolderOpen,
+  Type,
+  Music2,
+  Smile,
+  Palette,
+  Sliders,
+  LayoutGrid,
+  X,
+  Scissors,
+  Copy,
+  Trash2,
+  ChevronDown,
+} from 'lucide-react';
+import {
   Project,
   Clip,
   Track,
@@ -146,6 +160,9 @@ export const VideoEditor: React.FC = () => {
   const [selectedClipIds, setSelectedClipIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('media');
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
+  const [mobileDrawerTab, setMobileDrawerTab] = useState<
+    'media' | 'audio' | 'text' | 'stickers' | 'filters' | 'canvas' | 'inspector' | null
+  >(null);
 
   // Modals
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -745,6 +762,236 @@ export const VideoEditor: React.FC = () => {
           }))
         }
       />
+
+      {/* Floating Mobile Quick Action Bar (shown when clip selected on mobile) */}
+      {selectedClip && !mobileDrawerTab && (
+        <div className="lg:hidden fixed bottom-16 left-1/2 -translate-x-1/2 z-35 bg-zinc-900/95 backdrop-blur-md border border-zinc-700/80 px-3 py-1.5 rounded-full shadow-2xl flex items-center gap-1 text-xs">
+          <span className="font-semibold text-zinc-300 truncate max-w-[90px] mr-1 text-[11px]">
+            {selectedClip.name}
+          </span>
+          <button
+            onClick={handleSplitClipAtPlayhead}
+            className="p-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 active:scale-95 transition-all"
+            title="Split Clip"
+          >
+            <Scissors size={14} className="text-rose-400" />
+          </button>
+          <button
+            onClick={() => handleDuplicateClip(selectedClip.id)}
+            className="p-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 active:scale-95 transition-all"
+            title="Duplicate Clip"
+          >
+            <Copy size={14} />
+          </button>
+          <button
+            onClick={() => setMobileDrawerTab('inspector')}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-semibold text-[11px] shadow-sm shadow-rose-600/30 active:scale-95 transition-all"
+          >
+            <Sliders size={12} />
+            <span>Edit</span>
+          </button>
+          <button
+            onClick={() => handleDeleteClip(selectedClip.id)}
+            className="p-1.5 rounded-full bg-zinc-800 hover:bg-red-900/50 text-red-400 active:scale-95 transition-all"
+            title="Delete Clip"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Mobile Bottom Navigation Toolbar (lg:hidden) */}
+      <nav className="lg:hidden h-14 bg-zinc-950 border-t border-zinc-800/90 px-1 flex items-center justify-around text-zinc-400 select-none z-30 shrink-0">
+        <button
+          onClick={() => {
+            setActiveTab('media');
+            setMobileDrawerTab('media');
+          }}
+          className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+            mobileDrawerTab === 'media' ? 'text-rose-400 font-bold' : 'hover:text-zinc-200'
+          }`}
+        >
+          <FolderOpen size={17} />
+          <span>Media</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('text');
+            setMobileDrawerTab('text');
+          }}
+          className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+            mobileDrawerTab === 'text' ? 'text-rose-400 font-bold' : 'hover:text-zinc-200'
+          }`}
+        >
+          <Type size={17} />
+          <span>Text</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('audio');
+            setMobileDrawerTab('audio');
+          }}
+          className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+            mobileDrawerTab === 'audio' ? 'text-rose-400 font-bold' : 'hover:text-zinc-200'
+          }`}
+        >
+          <Music2 size={17} />
+          <span>Audio</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('stickers');
+            setMobileDrawerTab('stickers');
+          }}
+          className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+            mobileDrawerTab === 'stickers' ? 'text-rose-400 font-bold' : 'hover:text-zinc-200'
+          }`}
+        >
+          <Smile size={17} />
+          <span>Stickers</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('filters');
+            setMobileDrawerTab('filters');
+          }}
+          className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+            mobileDrawerTab === 'filters' ? 'text-rose-400 font-bold' : 'hover:text-zinc-200'
+          }`}
+        >
+          <Palette size={17} />
+          <span>Filters</span>
+        </button>
+
+        <button
+          onClick={() => setMobileDrawerTab('inspector')}
+          className={`relative flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+            mobileDrawerTab === 'inspector'
+              ? 'text-rose-400 font-bold'
+              : selectedClip
+              ? 'text-zinc-200 font-semibold'
+              : 'hover:text-zinc-200'
+          }`}
+        >
+          <Sliders size={17} />
+          <span>{selectedClip ? 'Clip' : 'Settings'}</span>
+          {selectedClip && (
+            <span className="absolute top-1 right-2 w-1.5 h-1.5 rounded-full bg-rose-500" />
+          )}
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab('canvas');
+            setMobileDrawerTab('canvas');
+          }}
+          className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+            mobileDrawerTab === 'canvas' ? 'text-rose-400 font-bold' : 'hover:text-zinc-200'
+          }`}
+        >
+          <LayoutGrid size={17} />
+          <span>Canvas</span>
+        </button>
+      </nav>
+
+      {/* Mobile Tool Drawer / Bottom Sheet Modal */}
+      {mobileDrawerTab && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div
+            className="flex-1"
+            onClick={() => setMobileDrawerTab(null)}
+          />
+
+          <div className="w-full max-h-[82vh] bg-zinc-900 border-t border-zinc-700/80 rounded-t-2xl shadow-2xl flex flex-col overflow-hidden animate-slideUp">
+            {/* Drawer Header */}
+            <div className="px-4 py-2.5 border-b border-zinc-800 bg-zinc-950 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-rose-500/15 text-rose-400 flex items-center justify-center">
+                  {mobileDrawerTab === 'inspector' ? (
+                    <Sliders size={14} />
+                  ) : mobileDrawerTab === 'media' ? (
+                    <FolderOpen size={14} />
+                  ) : mobileDrawerTab === 'text' ? (
+                    <Type size={14} />
+                  ) : mobileDrawerTab === 'audio' ? (
+                    <Music2 size={14} />
+                  ) : mobileDrawerTab === 'stickers' ? (
+                    <Smile size={14} />
+                  ) : mobileDrawerTab === 'filters' ? (
+                    <Palette size={14} />
+                  ) : (
+                    <LayoutGrid size={14} />
+                  )}
+                </div>
+                <div className="text-xs font-bold text-zinc-200 uppercase tracking-wide">
+                  {mobileDrawerTab === 'inspector'
+                    ? selectedClip
+                      ? `Edit: ${selectedClip.name}`
+                      : 'Project Properties'
+                    : `${mobileDrawerTab} Studio`}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setMobileDrawerTab(null)}
+                className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+              >
+                <span>Done</span>
+                <X size={13} />
+              </button>
+            </div>
+
+            {/* Drawer Content */}
+            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
+              {mobileDrawerTab === 'inspector' ? (
+                <RightInspector
+                  isMobileDrawer={true}
+                  selectedClip={selectedClip}
+                  project={project}
+                  onUpdateClip={handleUpdateClip}
+                  onDeleteClip={(id) => {
+                    handleDeleteClip(id);
+                    setMobileDrawerTab(null);
+                  }}
+                  onDuplicateClip={handleDuplicateClip}
+                  onDeselectClip={() => {
+                    setSelectedClipId(null);
+                    setSelectedClipIds([]);
+                  }}
+                  onDetachAudio={handleDetachAudio}
+                />
+              ) : (
+                <LeftSidebar
+                  isMobileDrawer={true}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  project={project}
+                  mediaAssets={mediaAssets}
+                  onAddMediaAsset={(asset) => setMediaAssets((prev) => [asset, ...prev])}
+                  onAddClipToTimeline={(clip) => {
+                    handleAddClipToTimeline(clip);
+                    setMobileDrawerTab(null);
+                  }}
+                  onApplyLutToSelectedClip={(lutId) => {
+                    handleApplyLutToSelectedClip(lutId);
+                  }}
+                  onUpdateProjectBgColor={(backgroundColor) =>
+                    updateProjectWithHistory((p) => ({ ...p, backgroundColor }))
+                  }
+                  onOpenRecordModal={() => {
+                    setMobileDrawerTab(null);
+                    setIsRecordModalOpen(true);
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Export Video Modal */}
       <ExportModal

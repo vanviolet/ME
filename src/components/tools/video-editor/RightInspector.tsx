@@ -32,6 +32,7 @@ interface RightInspectorProps {
   onDuplicateClip: (clipId: string) => void;
   onDeselectClip: () => void;
   onDetachAudio?: (clipId: string) => void;
+  isMobileDrawer?: boolean;
 }
 
 export const RightInspector: React.FC<RightInspectorProps> = ({
@@ -42,10 +43,15 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
   onDuplicateClip,
   onDeselectClip,
   onDetachAudio,
+  isMobileDrawer = false,
 }) => {
   if (!selectedClip) {
     return (
-      <aside className="w-72 bg-zinc-900 border-l border-zinc-800 p-4 flex flex-col justify-between text-zinc-100 select-none shrink-0 z-10">
+      <aside
+        className={`${
+          isMobileDrawer ? 'w-full h-full flex' : 'hidden lg:flex w-72 xl:w-80 border-l border-zinc-800'
+        } bg-zinc-900 p-4 flex-col justify-between text-zinc-100 select-none shrink-0 z-10`}
+      >
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-zinc-800">
             <Layers size={16} className="text-zinc-400" />
@@ -100,7 +106,11 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
   const isSticker = selectedClip.type === 'sticker';
 
   return (
-    <aside className="w-72 bg-zinc-900 border-l border-zinc-800 flex flex-col text-zinc-100 select-none shrink-0 z-10">
+    <aside
+      className={`${
+        isMobileDrawer ? 'w-full h-full flex' : 'hidden lg:flex w-72 xl:w-80 border-l border-zinc-800'
+      } bg-zinc-900 flex-col text-zinc-100 select-none shrink-0 z-10 overflow-hidden`}
+    >
       {/* Inspector Header */}
       <div className="p-3.5 border-b border-zinc-800 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
@@ -572,12 +582,63 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
                         pan: selectedClip.audioSettings?.pan || 0,
                         noiseGate: selectedClip.audioSettings?.noiseGate || false,
                         pitch: parseInt(e.target.value),
+                        ducking: selectedClip.audioSettings?.ducking,
                       },
                     })
                   }
                   className="w-full h-1 accent-emerald-500 bg-zinc-800 rounded-lg cursor-pointer"
                 />
               </div>
+            </div>
+
+            {/* Auto-Ducking & Reset */}
+            <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
+              <label className="flex items-center gap-2 text-[11px] text-zinc-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!selectedClip.audioSettings?.ducking}
+                  onChange={(e) =>
+                    onUpdateClip(selectedClip.id, {
+                      audioSettings: {
+                        eqPreset: selectedClip.audioSettings?.eqPreset || 'flat',
+                        bass: selectedClip.audioSettings?.bass || 0,
+                        mid: selectedClip.audioSettings?.mid || 0,
+                        treble: selectedClip.audioSettings?.treble || 0,
+                        pan: selectedClip.audioSettings?.pan || 0,
+                        noiseGate: selectedClip.audioSettings?.noiseGate || false,
+                        pitch: selectedClip.audioSettings?.pitch || 0,
+                        ducking: e.target.checked,
+                      },
+                    })
+                  }
+                  className="accent-emerald-500 rounded"
+                />
+                <span>Auto-Duck (Lowers during speech)</span>
+              </label>
+
+              <button
+                onClick={() =>
+                  onUpdateClip(selectedClip.id, {
+                    volume: 1,
+                    muted: false,
+                    fadeIn: 0,
+                    fadeOut: 0,
+                    audioSettings: {
+                      eqPreset: 'flat',
+                      bass: 0,
+                      mid: 0,
+                      treble: 0,
+                      pan: 0,
+                      noiseGate: false,
+                      pitch: 0,
+                      ducking: false,
+                    },
+                  })
+                }
+                className="text-[10px] text-zinc-400 hover:text-white hover:underline cursor-pointer"
+              >
+                Reset Audio
+              </button>
             </div>
           </div>
         )}
@@ -850,6 +911,180 @@ export const RightInspector: React.FC<RightInspectorProps> = ({
                     }
                     className="w-full h-1 accent-cyan-500 bg-zinc-800 rounded-lg cursor-pointer"
                   />
+                </div>
+              )}
+            </div>
+
+            {/* Chroma Key / Green Screen Removal */}
+            <div className="space-y-2 bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-800">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">
+                  Chroma Key (Green Screen)
+                </span>
+                {selectedClip.compositing?.chromaKey?.enabled && (
+                  <span className="text-[9px] text-emerald-400 font-semibold">Active</span>
+                )}
+              </div>
+
+              <label className="flex items-center gap-2 text-[11px] text-zinc-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!selectedClip.compositing?.chromaKey?.enabled}
+                  onChange={(e) =>
+                    onUpdateClip(selectedClip.id, {
+                      compositing: {
+                        blendMode: selectedClip.compositing?.blendMode || 'source-over',
+                        mask: selectedClip.compositing?.mask,
+                        motion: selectedClip.compositing?.motion,
+                        chromaKey: {
+                          enabled: e.target.checked,
+                          color: selectedClip.compositing?.chromaKey?.color || '#00ff00',
+                          tolerance: selectedClip.compositing?.chromaKey?.tolerance ?? 40,
+                          smoothness: selectedClip.compositing?.chromaKey?.smoothness ?? 15,
+                          spill: selectedClip.compositing?.chromaKey?.spill ?? 30,
+                        },
+                      },
+                    })
+                  }
+                  className="accent-emerald-500 rounded"
+                />
+                <span>Remove Color / Keying</span>
+              </label>
+
+              {selectedClip.compositing?.chromaKey?.enabled && (
+                <div className="space-y-2 pt-1 border-t border-zinc-800/80">
+                  {/* Color Selector */}
+                  <div>
+                    <span className="text-[10px] text-zinc-400 block mb-1">Key Color</span>
+                    <div className="flex items-center gap-2">
+                      {[
+                        { label: 'Green', val: '#00ff00', bg: 'bg-[#00ff00]' },
+                        { label: 'Blue', val: '#0000ff', bg: 'bg-[#0000ff]' },
+                        { label: 'Black', val: '#000000', bg: 'bg-[#000000]' },
+                      ].map((c) => (
+                        <button
+                          key={c.val}
+                          type="button"
+                          onClick={() =>
+                            onUpdateClip(selectedClip.id, {
+                              compositing: {
+                                ...selectedClip.compositing!,
+                                chromaKey: {
+                                  ...selectedClip.compositing!.chromaKey!,
+                                  color: c.val,
+                                },
+                              },
+                            })
+                          }
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] border cursor-pointer ${
+                            selectedClip.compositing?.chromaKey?.color === c.val
+                              ? 'border-emerald-400 text-emerald-300 bg-emerald-950/40'
+                              : 'border-zinc-700 text-zinc-400 bg-zinc-800'
+                          }`}
+                        >
+                          <span className={`w-2.5 h-2.5 rounded-full ${c.bg} inline-block border border-white/20`} />
+                          {c.label}
+                        </button>
+                      ))}
+
+                      {/* Custom Color Input */}
+                      <input
+                        type="color"
+                        value={selectedClip.compositing?.chromaKey?.color || '#00ff00'}
+                        onChange={(e) =>
+                          onUpdateClip(selectedClip.id, {
+                            compositing: {
+                              ...selectedClip.compositing!,
+                              chromaKey: {
+                                ...selectedClip.compositing!.chromaKey!,
+                                color: e.target.value,
+                              },
+                            },
+                          })
+                        }
+                        className="w-7 h-6 rounded bg-transparent border-0 cursor-pointer p-0"
+                        title="Pick custom key color"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tolerance / Similarity Slider */}
+                  <div>
+                    <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
+                      <span>Tolerance / Range</span>
+                      <span>{selectedClip.compositing.chromaKey.tolerance}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="5"
+                      max="90"
+                      value={selectedClip.compositing.chromaKey.tolerance}
+                      onChange={(e) =>
+                        onUpdateClip(selectedClip.id, {
+                          compositing: {
+                            ...selectedClip.compositing!,
+                            chromaKey: {
+                              ...selectedClip.compositing!.chromaKey!,
+                              tolerance: parseInt(e.target.value),
+                            },
+                          },
+                        })
+                      }
+                      className="w-full h-1 accent-emerald-500 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Edge Smoothness / Feathering */}
+                  <div>
+                    <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
+                      <span>Edge Feathering</span>
+                      <span>{selectedClip.compositing.chromaKey.smoothness}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="50"
+                      value={selectedClip.compositing.chromaKey.smoothness}
+                      onChange={(e) =>
+                        onUpdateClip(selectedClip.id, {
+                          compositing: {
+                            ...selectedClip.compositing!,
+                            chromaKey: {
+                              ...selectedClip.compositing!.chromaKey!,
+                              smoothness: parseInt(e.target.value),
+                            },
+                          },
+                        })
+                      }
+                      className="w-full h-1 accent-emerald-500 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Spill Suppression */}
+                  <div>
+                    <div className="flex justify-between text-[10px] text-zinc-400 mb-0.5">
+                      <span>Spill Suppression</span>
+                      <span>{selectedClip.compositing.chromaKey.spill}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={selectedClip.compositing.chromaKey.spill}
+                      onChange={(e) =>
+                        onUpdateClip(selectedClip.id, {
+                          compositing: {
+                            ...selectedClip.compositing!,
+                            chromaKey: {
+                              ...selectedClip.compositing!.chromaKey!,
+                              spill: parseInt(e.target.value),
+                            },
+                          },
+                        })
+                      }
+                      className="w-full h-1 accent-emerald-500 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
+                  </div>
                 </div>
               )}
             </div>

@@ -86,10 +86,19 @@ export interface MotionSettings {
   intensity: number; // 0 to 100 (50 default)
 }
 
+export interface ChromaKeySettings {
+  enabled: boolean;
+  color: string; // Hex e.g. '#00ff00'
+  tolerance: number; // 0 to 100 (default 40)
+  smoothness: number; // 0 to 100 (default 15)
+  spill: number; // 0 to 100 (default 30)
+}
+
 export interface CompositingSettings {
   blendMode: BlendMode;
   mask?: MaskSettings;
   motion?: MotionSettings;
+  chromaKey?: ChromaKeySettings;
 }
 
 export type EqPreset = 'flat' | 'voice-boost' | 'bass-boost' | 'treble-boost' | 'radio' | 'warm';
@@ -102,6 +111,7 @@ export interface AudioSettings {
   pan: number; // -1.0 (Left) to +1.0 (Right), 0 center
   noiseGate: boolean;
   pitch: number; // -12 to +12 semitones (0 default)
+  ducking?: boolean; // Automatically lowers background volume during speech
 }
 
 export interface TimelineMarker {

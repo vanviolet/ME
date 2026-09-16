@@ -94,24 +94,24 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   };
 
   return (
-    <header className="h-14 bg-zinc-900 border-b border-zinc-800 px-4 flex items-center justify-between text-zinc-100 select-none z-30 shrink-0">
+    <header className="h-13 sm:h-14 bg-zinc-900 border-b border-zinc-800 px-2 sm:px-4 flex items-center justify-between text-zinc-100 select-none z-30 shrink-0 gap-1.5 sm:gap-3">
       {/* Left Section: Back, Brand & Title */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
         <Link
           to="/tools"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+          className="flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors shrink-0"
           title="Back to Tools Hub"
         >
           <ArrowLeft size={16} />
           <span className="hidden sm:inline font-medium">Tools</span>
         </Link>
 
-        <div className="h-4 w-px bg-zinc-800" />
+        <div className="h-4 w-px bg-zinc-800 hidden sm:block" />
 
         {/* Project Title with inline editor */}
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-xs border border-rose-500/20">
-            <Video size={14} />
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center font-bold text-xs border border-rose-500/20 shrink-0">
+            <Video size={13} />
           </div>
 
           {isEditingTitle ? (
@@ -122,54 +122,54 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
               onBlur={handleTitleBlur}
               onKeyDown={(e) => e.key === 'Enter' && handleTitleBlur()}
               autoFocus
-              className="bg-zinc-800 text-xs sm:text-sm font-semibold text-zinc-100 px-2.5 py-1 rounded-md border border-rose-500 outline-none w-48 sm:w-64"
+              className="bg-zinc-800 text-xs sm:text-sm font-semibold text-zinc-100 px-2 py-0.5 rounded border border-rose-500 outline-none w-28 sm:w-64"
             />
           ) : (
             <button
               onClick={() => setIsEditingTitle(true)}
-              className="group flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-zinc-200 hover:text-white px-2 py-1 rounded-md hover:bg-zinc-800/80 transition-colors text-left"
+              className="group flex items-center gap-1 text-xs sm:text-sm font-semibold text-zinc-200 hover:text-white px-1.5 py-1 rounded hover:bg-zinc-800/80 transition-colors text-left truncate"
               title="Click to rename project"
             >
-              <span className="truncate max-w-[140px] sm:max-w-[220px]">{project.title}</span>
-              <span className="text-[10px] text-zinc-500 font-mono group-hover:text-rose-400">✎</span>
+              <span className="truncate max-w-[80px] xs:max-w-[120px] sm:max-w-[220px]">{project.title}</span>
+              <span className="text-[10px] text-zinc-500 font-mono group-hover:text-rose-400 hidden xs:inline">✎</span>
             </button>
           )}
         </div>
 
         {/* Undo / Redo */}
-        <div className="hidden md:flex items-center gap-1 ml-1">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={onUndo}
             disabled={!canUndo}
-            className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
-            title="Undo (Ctrl+Z)"
+            className="p-1 sm:p-1.5 rounded text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+            title="Undo"
           >
-            <Undo2 size={16} />
+            <Undo2 size={15} />
           </button>
           <button
             onClick={onRedo}
             disabled={!canRedo}
-            className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
-            title="Redo (Ctrl+Y)"
+            className="p-1 sm:p-1.5 rounded text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+            title="Redo"
           >
-            <Redo2 size={16} />
+            <Redo2 size={15} />
           </button>
         </div>
       </div>
 
       {/* Middle Section: Aspect Ratio Picker */}
-      <div className="relative" ref={aspectRef}>
+      <div className="relative shrink-0" ref={aspectRef}>
         <button
           onClick={() => setAspectDropdownOpen(!aspectDropdownOpen)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800/90 hover:bg-zinc-700/90 text-xs font-semibold text-zinc-200 border border-zinc-700/60 transition-colors shadow-2xs cursor-pointer"
+          className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-zinc-800/90 hover:bg-zinc-700/90 text-xs font-semibold text-zinc-200 border border-zinc-700/60 transition-colors shadow-2xs cursor-pointer"
         >
           <span className="text-rose-400">{getAspectIcon(project.aspectRatio)}</span>
-          <span>{project.aspectRatio}</span>
-          <ChevronDown size={13} className={`text-zinc-400 transition-transform ${aspectDropdownOpen ? 'rotate-180' : ''}`} />
+          <span className="hidden xs:inline">{project.aspectRatio}</span>
+          <ChevronDown size={12} className={`text-zinc-400 transition-transform ${aspectDropdownOpen ? 'rotate-180' : ''}`} />
         </button>
 
         {aspectDropdownOpen && (
-          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+          <div className="absolute top-full right-0 sm:left-1/2 sm:-translate-x-1/2 mt-2 w-56 sm:w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
             <div className="px-2.5 py-1 text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
               Canvas Aspect Ratio
             </div>
@@ -202,11 +202,11 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
       </div>
 
       {/* Right Section: Actions (Record, Snapshot, Save/Load, Export) */}
-      <div className="flex items-center gap-2">
-        {/* Record Camera / Screen */}
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        {/* Record Camera / Screen (Desktop/Tablet) */}
         <button
           onClick={onOpenRecordModal}
-          className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 border border-zinc-700/60 transition-colors cursor-pointer"
+          className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 border border-zinc-700/60 transition-colors cursor-pointer"
           title="Record Screen or Webcam"
         >
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -216,26 +216,26 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         {/* Snapshot button */}
         <button
           onClick={onTakeSnapshot}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer hidden sm:block"
           title="Capture Current Frame as PNG Image"
         >
-          <Camera size={16} />
+          <Camera size={15} />
         </button>
 
         {/* Save / Load JSON */}
         <button
           onClick={onSaveProject}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer hidden sm:block"
           title="Save Project File (.json)"
         >
-          <Save size={16} />
+          <Save size={15} />
         </button>
 
         <label
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer hidden sm:block"
           title="Open / Import Project (.json)"
         >
-          <FolderOpen size={16} />
+          <FolderOpen size={15} />
           <input
             ref={fileInputRef}
             type="file"
@@ -248,11 +248,11 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         {/* Export Video Button */}
         <button
           onClick={onOpenExportModal}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white font-semibold text-xs shadow-md shadow-rose-500/20 active:scale-95 transition-all cursor-pointer"
+          className="flex items-center gap-1 px-2.5 sm:px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white font-semibold text-xs shadow-md shadow-rose-500/20 active:scale-95 transition-all cursor-pointer"
         >
-          <Download size={14} />
+          <Download size={13} />
           <span>Export</span>
-          <Sparkles size={12} className="text-rose-200" />
+          <Sparkles size={11} className="text-rose-200 hidden xs:inline" />
         </button>
       </div>
     </header>

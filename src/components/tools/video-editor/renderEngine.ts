@@ -1,4 +1,4 @@
-import { Clip, FilterSettings, Project, AspectRatio } from './types';
+import { Clip, FilterSettings, Project, AspectRatio, ChromaKeySettings } from './types';
 import { ASPECT_RATIOS } from './sampleMedia';
 import {
   Output,
@@ -265,11 +265,17 @@ function renderVisualClip(
     ctx.clip(mask.inverted ? 'evenodd' : 'nonzero');
   }
 
+  const chroma = clip.compositing?.chromaKey;
+
   if (clip.type === 'video' && clip.src) {
     const video = customGetVideo ? customGetVideo(clip.src) : getOrCreateVideoElement(clip.src);
     // Draw directly from video element if it has frame dimensions
     if (video.videoWidth > 0) {
-      drawImageOrVideoProp(ctx, video, -cw / 2, -ch / 2, cw, ch, clip.fit || 'contain');
+      if (chroma && chroma.enabled) {
+        drawWithChromaKey(ctx, video, -cw / 2, -ch / 2, cw, ch, clip.fit || 'contain', chroma);
+      } else {
+        drawImageOrVideoProp(ctx, video, -cw / 2, -ch / 2, cw, ch, clip.fit || 'contain');
+      }
     } else if (clip.thumbnail) {
       const thumb = getOrCreateImageElement(clip.thumbnail);
       if (thumb.complete && thumb.naturalWidth > 0) {
@@ -279,7 +285,11 @@ function renderVisualClip(
   } else if (clip.type === 'image' && clip.src) {
     const img = getOrCreateImageElement(clip.src);
     if (img.complete && img.naturalWidth > 0) {
-      drawImageOrVideoProp(ctx, img, -cw / 2, -ch / 2, cw, ch, clip.fit || 'contain');
+      if (chroma && chroma.enabled) {
+        drawWithChromaKey(ctx, img, -cw / 2, -ch / 2, cw, ch, clip.fit || 'contain', chroma);
+      } else {
+        drawImageOrVideoProp(ctx, img, -cw / 2, -ch / 2, cw, ch, clip.fit || 'contain');
+      }
     }
   }
 
@@ -543,6 +553,102 @@ function drawImageOrVideoProp(
   const dy = y + (h - dh) / 2;
 
   ctx.drawImage(img, dx, dy, dw, dh);
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const clean = hex.replace('#', '');
+  if (clean.length === 3) {
+    return {
+      r: parseInt(clean[0] + clean[0], 16),
+      g: parseInt(clean[1] + clean[1], 16),
+      b: parseInt(clean[2] + clean[2], 16),
+    };
+  }
+  return {
+    r: parseInt(clean.substring(0, 2), 16) || 0,
+    g: parseInt(clean.substring(2, 4), 16) || 255,
+    b: parseInt(clean.substring(4, 6), 16) || 0,
+  };
+}
+
+let chromaCanvas: HTMLCanvasElement | null = null;
+let chromaCtx: CanvasRenderingContext2D | null = null;
+
+function drawWithChromaKey(
+  ctx: CanvasRenderingContext2D,
+  source: CanvasImageSource,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+  fit: 'contain' | 'cover',
+  chroma: ChromaKeySettings
+) {
+  if (!chroma.enabled) {
+    drawImageOrVideoProp(ctx, source, dx, dy, dw, dh, fit);
+    return;
+  }
+
+  // Fast offscreen canvas processing
+  const procW = Math.min(640, Math.round(Math.abs(dw)));
+  const procH = Math.min(360, Math.round(Math.abs(dh)));
+
+  if (!chromaCanvas) {
+    chromaCanvas = document.createElement('canvas');
+    chromaCtx = chromaCanvas.getContext('2d', { willReadFrequently: true });
+  }
+
+  if (chromaCanvas.width !== procW || chromaCanvas.height !== procH) {
+    chromaCanvas.width = procW;
+    chromaCanvas.height = procH;
+  }
+
+  if (!chromaCtx) {
+    drawImageOrVideoProp(ctx, source, dx, dy, dw, dh, fit);
+    return;
+  }
+
+  chromaCtx.clearRect(0, 0, procW, procH);
+  drawImageOrVideoProp(chromaCtx, source, 0, 0, procW, procH, fit);
+
+  try {
+    const imgData = chromaCtx.getImageData(0, 0, procW, procH);
+    const data = imgData.data;
+    const { r: keyR, g: keyG, b: keyB } = hexToRgb(chroma.color || '#00ff00');
+    const tol = ((chroma.tolerance ?? 40) / 100) * 255;
+    const smooth = Math.max(1, ((chroma.smoothness ?? 15) / 100) * 100);
+    const spillFactor = (chroma.spill ?? 30) / 100;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      const dist = Math.sqrt((r - keyR) ** 2 + (g - keyG) ** 2 + (b - keyB) ** 2);
+
+      if (dist < tol) {
+        data[i + 3] = 0;
+      } else if (dist < tol + smooth) {
+        const edgeAlpha = (dist - tol) / smooth;
+        data[i + 3] = Math.round(data[i + 3] * edgeAlpha);
+      }
+
+      // Spill suppression
+      if (spillFactor > 0 && data[i + 3] > 0) {
+        if (keyG > keyR && keyG > keyB) {
+          const maxRB = (r + b) / 2;
+          if (g > maxRB) {
+            data[i + 1] = Math.round(g * (1 - spillFactor) + maxRB * spillFactor);
+          }
+        }
+      }
+    }
+
+    chromaCtx.putImageData(imgData, 0, 0);
+    ctx.drawImage(chromaCanvas, dx, dy, dw, dh);
+  } catch {
+    drawImageOrVideoProp(ctx, source, dx, dy, dw, dh, fit);
+  }
 }
 
 /**
@@ -991,10 +1097,137 @@ export async function exportVideo(
   });
 }
 
+interface LiveAudioNodeChain {
+  source: MediaElementAudioSourceNode;
+  bassFilter: BiquadFilterNode;
+  midFilter: BiquadFilterNode;
+  trebleFilter: BiquadFilterNode;
+  panner: StereoPannerNode | null;
+  gainNode: GainNode;
+}
+
+const liveAudioChains = new WeakMap<HTMLMediaElement, LiveAudioNodeChain>();
+let masterLiveAudioCtx: AudioContext | null = null;
+let masterLiveAnalyser: AnalyserNode | null = null;
+
+export function getOrCreateLiveAudioContext(): { ctx: AudioContext; analyser: AnalyserNode } {
+  if (!masterLiveAudioCtx || masterLiveAudioCtx.state === 'closed') {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    masterLiveAudioCtx = new AudioContextClass();
+    masterLiveAnalyser = masterLiveAudioCtx.createAnalyser();
+    masterLiveAnalyser.fftSize = 64; // 32 frequency bins
+    masterLiveAnalyser.smoothingTimeConstant = 0.8;
+    masterLiveAnalyser.connect(masterLiveAudioCtx.destination);
+  }
+
+  if (masterLiveAudioCtx.state === 'suspended') {
+    masterLiveAudioCtx.resume().catch(() => {});
+  }
+
+  return { ctx: masterLiveAudioCtx, analyser: masterLiveAnalyser! };
+}
+
+export function attachLiveAudioProcessing(element: HTMLMediaElement): LiveAudioNodeChain | null {
+  if (liveAudioChains.has(element)) {
+    return liveAudioChains.get(element)!;
+  }
+
+  try {
+    const { ctx, analyser } = getOrCreateLiveAudioContext();
+    const source = ctx.createMediaElementSource(element);
+
+    const bassFilter = ctx.createBiquadFilter();
+    bassFilter.type = 'lowshelf';
+    bassFilter.frequency.value = 180;
+    bassFilter.gain.value = 0;
+
+    const midFilter = ctx.createBiquadFilter();
+    midFilter.type = 'peaking';
+    midFilter.frequency.value = 1200;
+    midFilter.Q.value = 1.0;
+    midFilter.gain.value = 0;
+
+    const trebleFilter = ctx.createBiquadFilter();
+    trebleFilter.type = 'highshelf';
+    trebleFilter.frequency.value = 5500;
+    trebleFilter.gain.value = 0;
+
+    let panner: StereoPannerNode | null = null;
+    if (typeof ctx.createStereoPanner === 'function') {
+      try {
+        panner = ctx.createStereoPanner();
+        panner.pan.value = 0;
+      } catch {}
+    }
+
+    const gainNode = ctx.createGain();
+    gainNode.gain.value = 1;
+
+    source.connect(bassFilter);
+    bassFilter.connect(midFilter);
+    midFilter.connect(trebleFilter);
+
+    if (panner) {
+      trebleFilter.connect(panner);
+      panner.connect(gainNode);
+    } else {
+      trebleFilter.connect(gainNode);
+    }
+
+    gainNode.connect(analyser);
+
+    const chain: LiveAudioNodeChain = {
+      source,
+      bassFilter,
+      midFilter,
+      trebleFilter,
+      panner,
+      gainNode,
+    };
+
+    liveAudioChains.set(element, chain);
+    return chain;
+  } catch {
+    return null;
+  }
+}
+
+export function getLiveAudioMetrics(): {
+  frequencies: Uint8Array;
+  leftPeak: number;
+  rightPeak: number;
+  hasAudio: boolean;
+} {
+  if (!masterLiveAnalyser) {
+    return { frequencies: new Uint8Array(32), leftPeak: 0, rightPeak: 0, hasAudio: false };
+  }
+
+  const data = new Uint8Array(masterLiveAnalyser.frequencyBinCount);
+  masterLiveAnalyser.getByteFrequencyData(data);
+
+  let sumLeft = 0;
+  let sumRight = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (i < data.length / 2) sumLeft += data[i];
+    else sumRight += data[i];
+  }
+  const leftPeak = Math.min(1, (sumLeft / (data.length / 2)) / 255);
+  const rightPeak = Math.min(1, (sumRight / (data.length / 2)) / 255);
+
+  return {
+    frequencies: data,
+    leftPeak,
+    rightPeak,
+    hasAudio: leftPeak > 0.02 || rightPeak > 0.02,
+  };
+}
+
 /**
  * Master synchronization function for all video and audio elements in the project.
- * Keeps media elements in sync with project timeline, ensures audio from uploaded
- * videos and audio clips plays clearly without mute bugs, and prevents flickering.
+ * Keeps media elements in sync with project timeline, updates audio EQ, pan, volume,
+ * fade-in, fade-out, pitch, and auto-ducking live in real time.
  */
 export function syncAllMediaElements(
   project: Project,
@@ -1003,6 +1236,25 @@ export function syncAllMediaElements(
   masterVolume = 1,
   isMasterMuted = false
 ) {
+  // Wake up Web Audio context on user action if suspended
+  if (isPlaying && masterLiveAudioCtx && masterLiveAudioCtx.state === 'suspended') {
+    masterLiveAudioCtx.resume().catch(() => {});
+  }
+
+  // Pre-check if speech or foreground audio is playing for Auto-Ducking
+  let isSpeechActiveElsewhere = false;
+  for (const c of project.clips) {
+    if (!c.audioSettings?.ducking && (c.type === 'video' || c.type === 'audio') && !c.muted && c.src) {
+      const t = project.tracks.find((trk) => trk.id === c.trackId);
+      if (t && !t.muted && !t.hidden) {
+        if (currentTime >= c.start && currentTime < c.start + c.duration) {
+          isSpeechActiveElsewhere = true;
+          break;
+        }
+      }
+    }
+  }
+
   for (const clip of project.clips) {
     const track = project.tracks.find((t) => t.id === clip.trackId);
     const isTrackMuted = track?.muted || false;
@@ -1012,88 +1264,107 @@ export function syncAllMediaElements(
       currentTime < clip.start + clip.duration &&
       !isTrackHidden;
 
-    if (clip.type === 'video' && clip.src) {
-      const video = getOrCreateVideoElement(clip.src);
-      const shouldMute = isMasterMuted || isTrackMuted || clip.muted || masterVolume === 0;
-      const targetVol = shouldMute ? 0 : Math.min(1, Math.max(0, (clip.volume ?? 1) * masterVolume));
+    if ((clip.type === 'video' || clip.type === 'audio') && clip.src) {
+      const element: HTMLMediaElement =
+        clip.type === 'video'
+          ? getOrCreateVideoElement(clip.src)
+          : getOrCreateAudioElement(clip.src);
 
-      video.muted = shouldMute;
-      video.volume = targetVol;
-
-      if (isActive) {
-        const targetSourceTime = (currentTime - clip.start) * clip.speed + clip.offset;
-
-        if (Math.abs(video.playbackRate - clip.speed) > 0.01) {
-          video.playbackRate = clip.speed;
-        }
-
-        if (isPlaying) {
-          // If video drifted by more than 0.35s, seek smoothly
-          if (Math.abs(video.currentTime - targetSourceTime) > 0.35) {
-            try {
-              video.currentTime = targetSourceTime;
-            } catch {
-              // Ignore seek error
-            }
-          }
-          if (video.paused) {
-            video.play().catch(() => {});
-          }
-        } else {
-          // Paused / scrubbing: update position to show paused frame
-          if (Math.abs(video.currentTime - targetSourceTime) > 0.04) {
-            try {
-              video.currentTime = targetSourceTime;
-            } catch {
-              // Ignore seek error
-            }
-          }
-          if (!video.paused) {
-            video.pause();
-          }
-        }
-      } else {
-        if (!video.paused) {
-          video.pause();
+      // Fade-in and Fade-out calculation
+      let fadeMultiplier = 1.0;
+      if (clip.fadeIn && clip.fadeIn > 0) {
+        const timeSinceStart = currentTime - clip.start;
+        if (timeSinceStart >= 0 && timeSinceStart < clip.fadeIn) {
+          fadeMultiplier *= Math.min(1, Math.max(0, timeSinceStart / clip.fadeIn));
         }
       }
-    } else if (clip.type === 'audio' && clip.src) {
-      const audio = getOrCreateAudioElement(clip.src);
-      const shouldMute = isMasterMuted || isTrackMuted || clip.muted || masterVolume === 0;
-      const targetVol = shouldMute ? 0 : Math.min(1, Math.max(0, (clip.volume ?? 1) * masterVolume));
+      if (clip.fadeOut && clip.fadeOut > 0) {
+        const timeUntilEnd = clip.start + clip.duration - currentTime;
+        if (timeUntilEnd >= 0 && timeUntilEnd < clip.fadeOut) {
+          fadeMultiplier *= Math.min(1, Math.max(0, timeUntilEnd / clip.fadeOut));
+        }
+      }
 
-      audio.muted = shouldMute;
-      audio.volume = targetVol;
+      // Auto-Ducking: reduce music by -12dB (0.25x) if foreground voice is active
+      const duckMultiplier =
+        clip.audioSettings?.ducking && isSpeechActiveElsewhere ? 0.25 : 1.0;
 
+      const shouldMute =
+        isMasterMuted || isTrackMuted || clip.muted || masterVolume === 0;
+
+      const clipVolume = clip.volume !== undefined ? clip.volume : 1.0;
+      const targetVol = shouldMute
+        ? 0
+        : Math.min(1, Math.max(0, clipVolume * masterVolume * fadeMultiplier * duckMultiplier));
+
+      // Pitch shifting & playback speed
+      const pitchShift = clip.audioSettings?.pitch || 0;
+      const pitchRatio = pitchShift !== 0 ? Math.pow(2, pitchShift / 12) : 1;
+      const effectivePlaybackRate = Math.max(0.1, Math.min(4.0, (clip.speed || 1) * pitchRatio));
+
+      if (Math.abs(element.playbackRate - effectivePlaybackRate) > 0.01) {
+        element.playbackRate = effectivePlaybackRate;
+      }
+      try {
+        (element as any).preservesPitch = pitchShift === 0;
+        (element as any).mozPreservesPitch = pitchShift === 0;
+        (element as any).webkitPreservesPitch = pitchShift === 0;
+      } catch {}
+
+      // Web Audio Node Chain update (EQ, Pan, Volume)
+      const chain = attachLiveAudioProcessing(element);
+      if (chain && masterLiveAudioCtx) {
+        element.muted = false;
+        element.volume = 1;
+
+        const now = masterLiveAudioCtx.currentTime;
+        chain.gainNode.gain.setTargetAtTime(targetVol, now, 0.015);
+
+        const bass = clip.audioSettings?.bass ?? 0;
+        const mid = clip.audioSettings?.mid ?? 0;
+        const treble = clip.audioSettings?.treble ?? 0;
+        const pan = clip.audioSettings?.pan ?? 0;
+
+        chain.bassFilter.gain.setTargetAtTime(bass, now, 0.02);
+        chain.midFilter.gain.setTargetAtTime(mid, now, 0.02);
+        chain.trebleFilter.gain.setTargetAtTime(treble, now, 0.02);
+
+        if (chain.panner) {
+          chain.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, pan)), now, 0.02);
+        }
+      } else {
+        // Direct media element fallback
+        element.muted = shouldMute;
+        element.volume = targetVol;
+      }
+
+      // Timeline Playhead Seeking & Sync
       if (isActive) {
         const targetSourceTime = (currentTime - clip.start) * clip.speed + clip.offset;
 
-        if (Math.abs(audio.playbackRate - clip.speed) > 0.01) {
-          audio.playbackRate = clip.speed;
-        }
-
         if (isPlaying) {
-          if (Math.abs(audio.currentTime - targetSourceTime) > 0.35) {
+          if (Math.abs(element.currentTime - targetSourceTime) > 0.35) {
             try {
-              audio.currentTime = targetSourceTime;
+              element.currentTime = targetSourceTime;
             } catch {}
           }
-          if (audio.paused) {
-            audio.play().catch(() => {});
+          if (element.paused) {
+            element.play().catch(() => {});
           }
         } else {
-          if (Math.abs(audio.currentTime - targetSourceTime) > 0.04) {
+          // Paused/scrubbing
+          if (Math.abs(element.currentTime - targetSourceTime) > 0.04) {
             try {
-              audio.currentTime = targetSourceTime;
+              element.currentTime = targetSourceTime;
             } catch {}
           }
-          if (!audio.paused) {
-            audio.pause();
+          if (!element.paused) {
+            element.pause();
           }
         }
       } else {
-        if (!audio.paused) {
-          audio.pause();
+        if (!element.paused) {
+          element.pause();
         }
       }
     }
