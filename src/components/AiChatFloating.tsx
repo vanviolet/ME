@@ -867,9 +867,20 @@ export const AiChatFloating: React.FC = () => {
                         )}
 
                         {/* Content */}
-                        <div className="prose prose-sm dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed break-words">
-                          {renderMarkdownWithMath(msg.content)}
-                        </div>
+                        <div
+                          className={`prose prose-sm max-w-none text-xs sm:text-sm leading-relaxed break-words ${
+                            isUser
+                              ? 'prose-invert text-white dark:text-zinc-900 [&_p]:text-white dark:[&_p]:text-zinc-900'
+                              : 'dark:prose-invert text-stone-800 dark:text-zinc-200'
+                          } [&>p]:mb-2 [&>p:last-child]:mb-0 [&>h1]:text-base [&>h1]:font-bold [&>h1]:my-2 [&>h2]:text-sm [&>h2]:font-bold [&>h2]:my-2 [&>h3]:text-xs [&>h3]:font-bold [&>h3]:my-1.5 [&>ul]:list-disc [&>ul]:pl-4 [&>ul]:my-2 [&>ol]:list-decimal [&>ol]:pl-4 [&>ol]:my-2 [&>li]:my-0.5 [&_strong]:font-semibold [&_hr]:my-2 [&_hr]:border-stone-200/60 dark:[&_hr]:border-zinc-800 [&_blockquote]:border-l-2 [&_blockquote]:border-stone-300 dark:[&_blockquote]:border-zinc-700 [&_blockquote]:pl-2.5 [&_blockquote]:italic [&_pre]:bg-stone-900 dark:[&_pre]:bg-black [&_pre]:text-stone-100 [&_pre]:p-2.5 [&_pre]:rounded-xl [&_pre]:overflow-x-auto [&_pre]:text-[11px] [&_pre]:my-2 [&_code]:font-mono [&_code]:text-[11px] [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded ${
+                            isUser
+                              ? '[&_code]:bg-white/20 dark:[&_code]:bg-black/15'
+                              : '[&_code]:bg-stone-200/70 dark:[&_code]:bg-zinc-800 text-stone-900 dark:text-zinc-100'
+                          }`}
+                          dangerouslySetInnerHTML={{
+                            __html: renderMarkdownWithMath(msg.content, { language }),
+                          }}
+                        />
 
                         {/* Footer toolbar inside message */}
                         <div
