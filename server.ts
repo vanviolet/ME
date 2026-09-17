@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { Type } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import {
   executeSmartAiRouting,
@@ -574,6 +574,60 @@ Keluaran HARUS berupa JSON dengan properti:
       console.error("Error in AI assist:", error);
       res.status(500).json({
         error: error.message || "Failed to execute AI assist",
+      });
+    }
+  });
+
+  // Speech-to-Text / Audio Transcription Endpoint (Gemini Multimodal Audio)
+  app.post("/api/ai/transcribe-audio", async (req, res) => {
+    try {
+      const { audioBase64, mimeType = "audio/webm", language = "id" } = req.body;
+
+      if (!audioBase64 || typeof audioBase64 !== "string") {
+        res.status(400).json({ error: "audioBase64 string is required." });
+        return;
+      }
+
+      // Clean base64 data prefix if present
+      const base64Data = audioBase64.replace(/^data:audio\/[a-z0-9-+.]+;base64,/, "").trim();
+
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt =
+        language === "en"
+          ? "Transcribe the spoken audio with maximum precision into text. Keep technical terms, acronyms, and proper names accurate. Output ONLY the plain transcription text without any extra commentary, quotation marks, or markdown wrappers."
+          : "Transkripsikan rekaman suara percakapan ini secara akurat dan presisi ke dalam teks (Bahasa Indonesia atau bahasa yang diucapkan pengguna). Pertahankan istilah teknis, nama fitur/proyek, dan singkatan dengan tepat. Keluarkan HANYA teks transkripsi polos tanpa tanda kutip pembuka/penutup dan tanpa komentar tambahan.";
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                inlineData: {
+                  mimeType,
+                  data: base64Data,
+                },
+              },
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+      });
+
+      const transcript = response.text ? response.text.trim() : "";
+
+      res.json({
+        success: true,
+        transcript,
+        provider: "Google Gemini Audio Intelligence",
+      });
+    } catch (error: any) {
+      console.error("Error in audio transcription:", error);
+      res.status(500).json({
+        error: error.message || "Failed to transcribe audio",
       });
     }
   });

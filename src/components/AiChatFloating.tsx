@@ -20,11 +20,14 @@ import {
   Brain,
   ArrowRight,
   Zap,
-  BookOpen,
   PlusCircle,
+  Loader2,
+  Languages,
+  AlertCircle,
+  Radio,
 } from 'lucide-react';
 import { renderMarkdownWithMath } from '../lib/renderMath';
-import { AI_MODELS_LIST, getCleanModelName } from '../lib/models';
+import { AI_MODELS_LIST } from '../lib/models';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -74,7 +77,7 @@ export const AiChatFloating: React.FC = () => {
   const { language } = usePortfolio();
   const navigate = useNavigate();
 
-  // State
+  // Modal & View State
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [showModelMenu, setShowModelMenu] = useState<boolean>(false);
@@ -90,7 +93,15 @@ export const AiChatFloating: React.FC = () => {
 
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+
+  // Speech to Text (STT) State
   const [isListening, setIsListening] = useState<boolean>(false);
+  const [speechLanguage, setSpeechLanguage] = useState<'id' | 'en'>(language === 'en' ? 'en' : 'id');
+  const [interimTranscript, setInterimTranscript] = useState<string>('');
+  const [speechDuration, setSpeechDuration] = useState<number>(0);
+  const [isTranscribingAudio, setIsTranscribingAudio] = useState<boolean>(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+
   const [hasNewUnread, setHasNewUnread] = useState<boolean>(false);
 
   // Chat messages
@@ -104,20 +115,29 @@ export const AiChatFloating: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const speechRef = useRef<any>(null);
+  const speechRecognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const speechTimerRef = useRef<NodeJS.Timeout | null>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
 
   // Active selected model object
   const activeModel = AI_MODELS_LIST.find((m) => m.id === selectedModelId) || AI_MODELS_LIST[0];
 
-  // Save messages
+  // Sync language selection when main language changes
+  useEffect(() => {
+    setSpeechLanguage(language === 'en' ? 'en' : 'id');
+  }, [language]);
+
+  // Save messages to local storage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     } catch {}
   }, [messages]);
 
-  // Save model
+  // Save model selection
   useEffect(() => {
     try {
       localStorage.setItem(MODEL_STORAGE_KEY, selectedModelId);
@@ -167,7 +187,7 @@ export const AiChatFloating: React.FC = () => {
     };
   }, [isLoading]);
 
-  // Web Speech Synthesis (TTS)
+  // Web Speech Synthesis (Text-to-Speech)
   const handleToggleSpeak = (text: string) => {
     if (!('speechSynthesis' in window)) return;
     if (isSpeaking) {
@@ -178,7 +198,7 @@ export const AiChatFloating: React.FC = () => {
 
     const cleanText = text.replace(/[*#`_\[\]]/g, '').slice(0, 500);
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = language === 'en' ? 'en-US' : 'id-ID';
+    utterance.lang = speechLanguage === 'en' ? 'en-US' : 'id-ID';
     utterance.rate = 1.0;
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
@@ -186,42 +206,250 @@ export const AiChatFloating: React.FC = () => {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Web Speech Recognition (Mic Input)
-  const handleToggleVoice = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert(
-        language === 'en'
-          ? 'Speech recognition is not supported in your browser.'
-          : 'Browser Anda tidak mendukung input suara (Speech Recognition).'
-      );
-      return;
+  // Stop all active voice capture methods
+  const stopAllListening = () => {
+    if (speechTimerRef.current) {
+      clearInterval(speechTimerRef.current);
+      speechTimerRef.current = null;
     }
+
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {}
+      speechRecognitionRef.current = null;
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {}
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+
+    setIsListening(false);
+    setInterimTranscript('');
+    setSpeechDuration(0);
+  };
+
+  // Clean up listening on unmount
+  useEffect(() => {
+    return () => {
+      stopAllListening();
+    };
+  }, []);
+
+  // Gemini Multimodal Audio Transcription fallback
+  const transcribeAudioWithGemini = async (audioBlob: Blob) => {
+    try {
+      setIsTranscribingAudio(true);
+      setSpeechError(null);
+
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+
+      reader.onloadend = async () => {
+        const base64Audio = reader.result as string;
+
+        try {
+          const res = await fetch('/api/ai/transcribe-audio', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audioBase64: base64Audio,
+              mimeType: audioBlob.type || 'audio/webm',
+              language: speechLanguage,
+            }),
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Transcribe failed: ${res.status}`);
+          }
+
+          const data = await res.json();
+          if (data.transcript && data.transcript.trim()) {
+            const newText = data.transcript.trim();
+            setInputMessage((prev) => (prev ? `${prev} ${newText}` : newText));
+            setTimeout(() => inputRef.current?.focus(), 150);
+          } else {
+            setSpeechError(
+              speechLanguage === 'en'
+                ? 'No clear speech detected. Please speak closer to your microphone.'
+                : 'Tidak ada suara yang terdeteksi jelas. Silakan coba bicara lebih dekat ke mikrofon.'
+            );
+          }
+        } catch (err: any) {
+          console.error('Audio transcribe error:', err);
+          setSpeechError(err.message || 'Gagal mentranskripsi rekaman suara.');
+        } finally {
+          setIsTranscribingAudio(false);
+        }
+      };
+    } catch (err: any) {
+      console.error('FileReader error:', err);
+      setIsTranscribingAudio(false);
+      setSpeechError('Gagal memproses file rekaman.');
+    }
+  };
+
+  // Fallback Audio Recording via MediaRecorder
+  const startMediaRecorderFallback = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
+        : 'audio/webm';
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        if (audioBlob.size > 1000) {
+          transcribeAudioWithGemini(audioBlob);
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+        }
+      };
+
+      mediaRecorder.start(250);
+      setIsListening(true);
+      setSpeechDuration(0);
+      setSpeechError(null);
+
+      speechTimerRef.current = setInterval(() => {
+        setSpeechDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (err: any) {
+      console.error('Microphone access error:', err);
+      setIsListening(false);
+      setSpeechError(
+        speechLanguage === 'en'
+          ? 'Microphone permission denied. Please enable mic access in your browser settings.'
+          : 'Izin mikrofon tidak diberikan. Silakan aktifkan izin mikrofon pada browser Anda.'
+      );
+    }
+  };
+
+  // Main Speech to Text Toggle Handler
+  const handleToggleVoice = () => {
+    setSpeechError(null);
 
     if (isListening) {
-      if (speechRef.current) speechRef.current.stop();
-      setIsListening(false);
+      stopAllListening();
       return;
     }
 
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = language === 'en' ? 'en-US' : 'id-ID';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-      recognition.onstart = () => setIsListening(true);
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInputMessage((prev) => (prev ? `${prev} ${transcript}` : transcript));
-      };
-      recognition.onerror = () => setIsListening(false);
-      recognition.onend = () => setIsListening(false);
+    // If Web Speech API is supported in this browser
+    if (SpeechRecognition) {
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.lang = speechLanguage === 'en' ? 'en-US' : 'id-ID';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
 
-      speechRef.current = recognition;
-      recognition.start();
-    } catch {
-      setIsListening(false);
+        recognition.onstart = () => {
+          setIsListening(true);
+          setSpeechDuration(0);
+          setSpeechError(null);
+
+          if (speechTimerRef.current) clearInterval(speechTimerRef.current);
+          speechTimerRef.current = setInterval(() => {
+            setSpeechDuration((prev) => prev + 1);
+          }, 1000);
+        };
+
+        recognition.onresult = (event: any) => {
+          let interimStr = '';
+          let finalStr = '';
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalStr += transcript;
+            } else {
+              interimStr += transcript;
+            }
+          }
+
+          if (finalStr.trim()) {
+            setInputMessage((prev) => (prev ? `${prev.trim()} ${finalStr.trim()}` : finalStr.trim()));
+            setInterimTranscript('');
+          } else {
+            setInterimTranscript(interimStr);
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          console.warn('Speech recognition event error:', event.error);
+          if (event.error === 'not-allowed') {
+            setSpeechError(
+              speechLanguage === 'en'
+                ? 'Microphone access was blocked. Please click the lock/settings icon in the browser URL bar to allow microphone.'
+                : 'Akses mikrofon diblokir. Silakan klik ikon gembok di bilah alamat browser untuk mengizinkan mikrofon.'
+            );
+            stopAllListening();
+          } else if (event.error === 'network') {
+            stopAllListening();
+            startMediaRecorderFallback();
+          }
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+          setInterimTranscript('');
+          if (speechTimerRef.current) {
+            clearInterval(speechTimerRef.current);
+            speechTimerRef.current = null;
+          }
+        };
+
+        speechRecognitionRef.current = recognition;
+        recognition.start();
+      } catch (err: any) {
+        console.warn('SpeechRecognition start failed, trying fallback...', err);
+        startMediaRecorderFallback();
+      }
+    } else {
+      // Browser does not have Web Speech API -> Use MediaRecorder + Gemini Audio
+      startMediaRecorderFallback();
+    }
+  };
+
+  // Format seconds to mm:ss
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Handle immediate send on speech completion
+  const handleVoiceSendNow = () => {
+    const combined = (inputMessage + (interimTranscript ? ` ${interimTranscript}` : '')).trim();
+    stopAllListening();
+    if (combined) {
+      handleSendMessage(combined);
     }
   };
 
@@ -246,18 +474,17 @@ export const AiChatFloating: React.FC = () => {
     };
   }, [messages, isLoading, selectedModelId, activeModel]);
 
-  // Copy message
+  // Copy message text
   const handleCopyMessage = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedMessageId(id);
     setTimeout(() => setCopiedMessageId(null), 2000);
   };
 
-  // Add response directly into VanPedia create form
+  // Add response directly into Vanpedia create form
   const handleAddToVanpedia = (msg: ChatMessage) => {
     let termName = msg.termName || '';
     if (!termName) {
-      // Deduce title/term from first line or bold markdown
       const boldMatch = msg.content.match(/\*\*([^*]+)\*\*/);
       if (boldMatch) {
         termName = boldMatch[1].trim();
@@ -267,7 +494,6 @@ export const AiChatFloating: React.FC = () => {
       }
     }
 
-    // Extract core definition from first non-header paragraph
     const cleanParagraphs = msg.content
       .split(/\n\s*\n/)
       .map((p) => p.replace(/[*#`_]/g, '').trim())
@@ -295,7 +521,6 @@ export const AiChatFloating: React.FC = () => {
     const query = (textToSend || inputMessage).trim();
     if (!query || isLoading) return;
 
-    // Deduce target term if not provided
     let targetTerm = customTermName;
     if (!targetTerm) {
       const termMatch =
@@ -317,6 +542,7 @@ export const AiChatFloating: React.FC = () => {
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
     setInputMessage('');
+    setInterimTranscript('');
     setIsLoading(true);
 
     try {
@@ -448,251 +674,308 @@ export const AiChatFloating: React.FC = () => {
             </div>
           )}
 
-          {/* Unread dot */}
           {hasNewUnread && !isOpen && (
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+            <span className="absolute -top-1 -left-1 flex h-3.5 w-3.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-600"></span>
+            </span>
           )}
         </motion.button>
       </div>
 
-      {/* Floating Chat Drawer / Window */}
+      {/* Main Chat Drawer Modal */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            id="vanbot-chat-window"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 24, scale: 0.97 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            className={`fixed bottom-20 right-4 sm:right-6 z-50 flex flex-col bg-white dark:bg-zinc-950 border border-stone-200/90 dark:border-zinc-800/90 rounded-2xl shadow-2xl shadow-stone-950/20 dark:shadow-black/70 overflow-hidden transition-all duration-300 ${
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className={`fixed bottom-22 right-4 sm:right-6 z-50 flex flex-col bg-white dark:bg-zinc-950 border border-stone-200 dark:border-zinc-800/80 rounded-3xl shadow-2xl overflow-hidden transition-all duration-300 ${
               isExpanded
-                ? 'w-[calc(100vw-2rem)] sm:w-[680px] h-[calc(100vh-7rem)] max-h-[780px]'
-                : 'w-[calc(100vw-2rem)] sm:w-[440px] h-[580px] max-h-[calc(100vh-7rem)]'
+                ? 'w-[94vw] sm:w-[680px] md:w-[760px] h-[86vh] max-h-[900px]'
+                : 'w-[92vw] sm:w-[420px] md:w-[460px] h-[580px] max-h-[82vh]'
             }`}
           >
-            {/* Header: Minimalist Top Bar */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-stone-100 dark:border-zinc-900 bg-stone-50/50 dark:bg-zinc-900/40 shrink-0">
+            {/* Header */}
+            <div className="px-4 py-3 bg-stone-50/80 dark:bg-zinc-900/60 border-b border-stone-100 dark:border-zinc-900 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center text-xs">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400 dark:text-amber-500" />
+                <div className="w-8 h-8 rounded-xl bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center shadow-xs">
+                  <Sparkles className="w-4 h-4 text-amber-400 dark:text-amber-600" />
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-xs tracking-tight text-stone-900 dark:text-zinc-100">
+                    <h3 className="font-semibold text-xs text-stone-900 dark:text-zinc-100">
                       Vanviolet AI
+                    </h3>
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 bg-stone-200/60 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 rounded-md">
+                      v2.5
                     </span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   </div>
+                  <p className="text-[10px] text-stone-500 dark:text-zinc-400 truncate max-w-[200px]">
+                    {language === 'en' ? 'Live Voice & Multi-Tier AI' : 'Suara Langsung & Multi-Tier AI'}
+                  </p>
                 </div>
               </div>
 
-              {/* Header Right Action Buttons */}
-              <div className="flex items-center gap-0.5">
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1 text-stone-400 dark:text-zinc-500">
                 <button
                   onClick={handleClearChat}
-                  title="Clear Chat"
-                  className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-md transition"
+                  title={language === 'en' ? 'Clear conversation' : 'Hapus percakapan'}
+                  className="p-1.5 rounded-lg hover:bg-stone-200/60 dark:hover:bg-zinc-800 hover:text-stone-700 dark:hover:text-zinc-300 transition"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
 
                 <button
                   onClick={() => setIsExpanded((prev) => !prev)}
-                  title={isExpanded ? 'Minimize' : 'Expand'}
-                  className="hidden sm:block p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-md transition"
+                  title={isExpanded ? 'Minimize' : 'Maximize'}
+                  className="p-1.5 rounded-lg hover:bg-stone-200/60 dark:hover:bg-zinc-800 hover:text-stone-700 dark:hover:text-zinc-300 transition"
                 >
                   {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                 </button>
 
                 <button
                   onClick={() => setIsOpen(false)}
-                  title="Close"
-                  className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-md transition"
+                  title={language === 'en' ? 'Close' : 'Tutup'}
+                  className="p-1.5 rounded-lg hover:bg-stone-200/60 dark:hover:bg-zinc-800 hover:text-stone-700 dark:hover:text-zinc-300 transition"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Conversation Feed (Pure Minimalist Typography, No Clunky Cards) */}
-            <div
-              onClick={handleMessageClick}
-              className="flex-1 px-4 py-4 overflow-y-auto space-y-5 text-sm selection:bg-amber-500/20"
-            >
-              {/* Empty / Welcome State */}
-              {messages.length === 0 && (
-                <div className="h-full flex flex-col justify-center items-center text-center px-2 py-4">
-                  <div className="w-10 h-10 rounded-full bg-stone-100 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 flex items-center justify-center text-stone-700 dark:text-zinc-200 mb-3">
-                    <Sparkles className="w-5 h-5 text-amber-500" />
-                  </div>
-                  <h4 className="font-semibold text-sm text-stone-900 dark:text-zinc-100 mb-1">
-                    {language === 'en' ? 'How can I assist you today?' : 'Ada yang bisa saya bantu?'}
-                  </h4>
-                  <p className="text-xs text-stone-500 dark:text-zinc-400 max-w-xs mb-5 leading-relaxed">
-                    {language === 'en'
-                      ? 'Discuss portfolio projects, technical deep-dives, or browse the Vanpedia lexicon.'
-                      : 'Eksplorasi proyek portofolio, artikel teknis, atau ensiklopedia Vanpedia.'}
-                  </p>
+            {/* Error Notification Banner if any */}
+            {speechError && (
+              <div className="px-3.5 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2 animate-fadeIn shrink-0">
+                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex-1 text-[11px] leading-relaxed">{speechError}</div>
+                <button
+                  onClick={() => setSpeechError(null)}
+                  className="text-amber-500 hover:text-amber-700 p-0.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
-                  {/* Suggestion Chips */}
-                  <div className="w-full space-y-1.5">
+            {/* Messages Container */}
+            <div
+              className="flex-1 overflow-y-auto p-4 space-y-4 text-xs sm:text-sm text-stone-800 dark:text-zinc-200"
+              onClick={handleMessageClick}
+            >
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col justify-center items-center text-center px-4 py-8 space-y-5">
+                  <div className="w-12 h-12 rounded-2xl bg-stone-100 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 flex items-center justify-center text-stone-900 dark:text-zinc-100 shadow-sm">
+                    <Bot className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1 max-w-[280px]">
+                    <h4 className="font-semibold text-stone-900 dark:text-zinc-100 text-sm">
+                      {language === 'en' ? 'How can I assist you today?' : 'Ada yang bisa saya bantu hari ini?'}
+                    </h4>
+                    <p className="text-[11px] text-stone-500 dark:text-zinc-400 leading-relaxed">
+                      {language === 'en'
+                        ? 'Type or speak via voice microphone to ask about Van, tech stack, Vanpedia, or code.'
+                        : 'Ketik atau bicara langsung lewat mikrofon untuk bertanya tentang proyek Van, stack teknologi, Vanpedia, atau kode.'}
+                    </p>
+                  </div>
+
+                  {/* Suggested Prompts */}
+                  <div className="w-full grid grid-cols-1 gap-2 pt-2 text-left">
                     {SUGGESTED_PROMPTS.map((item, idx) => (
                       <button
                         key={idx}
                         onClick={() => handleSendMessage(item.prompt)}
-                        className="w-full px-3 py-2 rounded-xl text-left text-xs text-stone-700 dark:text-zinc-300 bg-stone-50 dark:bg-zinc-900/60 hover:bg-stone-100 dark:hover:bg-zinc-800/80 transition flex items-center justify-between group border border-stone-200/50 dark:border-zinc-800/60"
+                        className="p-2.5 rounded-xl border border-stone-200/80 dark:border-zinc-800/80 hover:border-stone-400 dark:hover:border-zinc-600 bg-stone-50/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 transition flex items-center justify-between group cursor-pointer text-[11px]"
                       >
-                        <span className="truncate">{language === 'en' ? item.labelEn : item.labelId}</span>
-                        <ArrowRight className="w-3 h-3 text-stone-400 opacity-0 group-hover:opacity-100 transition shrink-0 ml-2" />
+                        <span className="font-medium text-stone-700 dark:text-zinc-300 group-hover:text-stone-900 dark:group-hover:text-white">
+                          {language === 'en' ? item.labelEn : item.labelId}
+                        </span>
+                        <ArrowRight className="w-3.5 h-3.5 text-stone-400 group-hover:text-stone-900 dark:group-hover:text-white transition-transform group-hover:translate-x-0.5" />
                       </button>
                     ))}
                   </div>
                 </div>
-              )}
+              ) : (
+                messages.map((msg) => {
+                  const isUser = msg.role === 'user';
+                  const isThinkingExpanded = Boolean(expandedThinkingIds[msg.id]);
 
-              {/* Message List */}
-              {messages.map((msg) => {
-                const isUser = msg.role === 'user';
-                const hasThinking = Boolean(msg.thinking && msg.thinking.steps?.length);
-                const isThinkingExpanded = expandedThinkingIds[msg.id];
-                const cleanName = getCleanModelName(msg.model || activeModel.name);
-
-                return (
-                  <div key={msg.id} className="space-y-1.5">
-                    {isUser ? (
-                      /* User Message: Clean soft pill aligned right */
-                      <div className="flex justify-end">
-                        <div className="bg-stone-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-2xl rounded-tr-sm px-3.5 py-2 text-xs sm:text-[13px] leading-relaxed max-w-[85%] shadow-sm">
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
+                    >
+                      {!isUser && (
+                        <div className="w-6 h-6 rounded-lg bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                          <Bot className="w-3.5 h-3.5" />
                         </div>
-                      </div>
-                    ) : (
-                      /* Assistant Message: Borderless, typography-first */
-                      <div className="flex flex-col space-y-1 text-stone-800 dark:text-zinc-200">
-                        {/* Thinking Accordion (Minimalist inline line, NO Card) */}
-                        {hasThinking && (
-                          <div className="mb-1">
+                      )}
+
+                      <div
+                        className={`relative max-w-[85%] rounded-2xl p-3 shadow-xs ${
+                          isUser
+                            ? 'bg-stone-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                            : 'bg-stone-100/90 dark:bg-zinc-900/90 border border-stone-200/60 dark:border-zinc-800 text-stone-800 dark:text-zinc-200'
+                        }`}
+                      >
+                        {/* Thinking Accordion for AI Assistant */}
+                        {!isUser && msg.thinking && msg.thinking.steps && msg.thinking.steps.length > 0 && (
+                          <div className="mb-2.5 pb-2 border-b border-stone-200/60 dark:border-zinc-800">
                             <button
                               onClick={() => toggleThinking(msg.id)}
-                              className="inline-flex items-center gap-1.5 text-[11px] font-mono text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200 transition py-0.5 px-1 rounded hover:bg-stone-100 dark:hover:bg-zinc-900"
+                              className="w-full flex items-center justify-between text-[10px] font-medium text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200 transition cursor-pointer"
                             >
-                              <Brain className="w-3 h-3 text-amber-500" />
-                              <span>
-                                {language === 'en' ? 'Reasoning' : 'Proses Berpikir'} ({msg.thinking?.steps.length} langkah)
+                              <span className="flex items-center gap-1.5">
+                                <Brain className="w-3 h-3 text-amber-500" />
+                                <span>
+                                  {language === 'en' ? 'Reasoning Process' : 'Proses Berpikir Model'}
+                                </span>
                               </span>
                               {isThinkingExpanded ? (
-                                <ChevronUp className="w-3 h-3 opacity-60" />
+                                <ChevronUp className="w-3 h-3" />
                               ) : (
-                                <ChevronDown className="w-3 h-3 opacity-60" />
+                                <ChevronDown className="w-3 h-3" />
                               )}
                             </button>
 
-                            {isThinkingExpanded && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                className="mt-1.5 pl-3 border-l-2 border-stone-200 dark:border-zinc-800 space-y-1 text-[11px] font-mono text-stone-500 dark:text-zinc-400"
-                              >
-                                {msg.thinking?.steps.map((step, sIdx) => (
-                                  <div key={sIdx} className="flex items-start gap-1.5">
-                                    <span className="text-emerald-500 shrink-0">✓</span>
-                                    <span>{step}</span>
-                                  </div>
-                                ))}
-                              </motion.div>
-                            )}
+                            <AnimatePresence>
+                              {isThinkingExpanded && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="mt-2 space-y-1 text-[10px] text-stone-600 dark:text-zinc-400 bg-white/60 dark:bg-zinc-950/60 p-2 rounded-lg border border-stone-200/40 dark:border-zinc-800/60 font-mono"
+                                >
+                                  {msg.thinking.steps.map((step, sIdx) => (
+                                    <div key={sIdx} className="flex items-start gap-1.5">
+                                      <span className="text-emerald-500">✓</span>
+                                      <span>{step}</span>
+                                    </div>
+                                  ))}
+                                  {msg.thinking.executionPath && (
+                                    <div className="pt-1 text-[9px] text-stone-400 dark:text-zinc-500 border-t border-stone-200/40 dark:border-zinc-800/40">
+                                      Path: {msg.thinking.executionPath.join(' → ')}
+                                    </div>
+                                  )}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
                           </div>
                         )}
 
-                        {/* Message Text Flow */}
+                        {/* Content */}
+                        <div className="prose prose-sm dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed break-words">
+                          {renderMarkdownWithMath(msg.content)}
+                        </div>
+
+                        {/* Footer toolbar inside message */}
                         <div
-                          className="prose prose-stone dark:prose-invert text-xs sm:text-[13px] leading-relaxed max-w-none break-words [&>p]:mb-2.5 [&>p:last-child]:mb-0 [&>ul]:mb-2.5 [&>pre]:my-2 [&>pre]:p-3 [&>pre]:bg-zinc-900 [&>pre]:text-zinc-100 [&>pre]:rounded-xl [&>pre]:overflow-x-auto"
-                          dangerouslySetInnerHTML={{
-                            __html: renderMarkdownWithMath(msg.content, { language }),
-                          }}
-                        />
-
-                        {/* Minimalist Message Footer Actions */}
-                        <div className="flex flex-col gap-2 pt-1.5 text-[11px] text-stone-400 dark:text-zinc-500">
-                          {/* Dedicated Action Button: Tambahkan ke VanPedia */}
-                          <div className="pt-1 border-t border-stone-200/60 dark:border-zinc-800/80 flex items-center justify-between gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleAddToVanpedia(msg)}
-                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-[11px] font-medium transition cursor-pointer shadow-2xs group"
-                            >
-                              <BookOpen className="w-3 h-3 text-rose-500 group-hover:scale-110 transition-transform" />
-                              <span>{language === 'en' ? 'Add to VanPedia' : 'Tambahkan ke VanPedia'}</span>
-                              <ArrowRight className="w-2.5 h-2.5 text-rose-400 group-hover:translate-x-0.5 transition-transform" />
-                            </button>
-
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-stone-100 dark:bg-zinc-900 text-stone-600 dark:text-zinc-400 mr-1">
-                                {cleanName}
+                          className={`flex items-center justify-between gap-2 mt-2 pt-1.5 text-[9px] border-t ${
+                            isUser
+                              ? 'border-white/10 text-white/60 dark:border-black/10 dark:text-zinc-500'
+                              : 'border-stone-200/40 dark:border-zinc-800 text-stone-400 dark:text-zinc-500'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            {!isUser && msg.model && (
+                              <span className="font-mono font-medium px-1.5 py-0.5 rounded bg-stone-200/60 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400">
+                                {msg.model}
                               </span>
-                              <button
-                                onClick={() => handleCopyMessage(msg.id, msg.content)}
-                                title="Copy response"
-                                className="p-1 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded transition"
-                              >
-                                {copiedMessageId === msg.id ? (
-                                  <Check className="w-3 h-3 text-emerald-500" />
-                                ) : (
-                                  <Copy className="w-3 h-3" />
-                                )}
-                              </button>
+                            )}
+                            <span>
+                              {new Date(msg.createdAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {/* TTS Listen Button */}
+                            {!isUser && (
                               <button
                                 onClick={() => handleToggleSpeak(msg.content)}
-                                title="Read aloud"
-                                className="p-1 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded transition"
+                                title={isSpeaking ? 'Stop voice' : 'Listen with TTS'}
+                                className="p-1 hover:text-stone-900 dark:hover:text-zinc-100 transition cursor-pointer"
                               >
-                                {isSpeaking ? (
-                                  <VolumeX className="w-3 h-3 text-rose-500" />
-                                ) : (
-                                  <Volume2 className="w-3 h-3" />
-                                )}
+                                {isSpeaking ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
                               </button>
-                            </div>
+                            )}
+
+                            {/* Add to Vanpedia Button */}
+                            {!isUser && (
+                              <button
+                                onClick={() => handleAddToVanpedia(msg)}
+                                title={language === 'en' ? 'Add as Vanpedia term' : 'Tambahkan ke Vanpedia'}
+                                className="p-1 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer flex items-center gap-0.5"
+                              >
+                                <PlusCircle className="w-3 h-3" />
+                              </button>
+                            )}
+
+                            {/* Copy button */}
+                            <button
+                              onClick={() => handleCopyMessage(msg.id, msg.content)}
+                              title="Copy"
+                              className="p-1 hover:text-stone-900 dark:hover:text-zinc-100 transition cursor-pointer"
+                            >
+                              {copiedMessageId === msg.id ? (
+                                <Check className="w-3 h-3 text-emerald-500" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                            </button>
                           </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
 
-              {/* Minimalist Thinking Indicator (NO Card, Sleek Shimmering Text & Pulse) */}
+                      {isUser && (
+                        <div className="w-6 h-6 rounded-lg bg-stone-200 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">
+                          <User className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+
+              {/* Loading & Thinking Indicator */}
               {isLoading && (
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center gap-2 text-xs text-stone-500 dark:text-zinc-400 font-mono">
-                    <div className="relative flex items-center justify-center w-3.5 h-3.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping opacity-75" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                    </div>
-                    <span className="shimmer-text">
-                      {language === 'en'
-                        ? `Reasoning with ${activeModel.name}...`
-                        : `Berpikir dengan ${activeModel.name}...`}
-                    </span>
+                <div className="flex gap-2.5 justify-start animate-fadeIn">
+                  <div className="w-6 h-6 rounded-lg bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">
+                    <Bot className="w-3.5 h-3.5 animate-pulse" />
                   </div>
-
-                  {/* Clean inline thinking trace (left bordered, no card) */}
-                  <div className="pl-3 border-l-2 border-amber-500/40 space-y-1 text-[11px] font-mono text-stone-400 dark:text-zinc-500">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-emerald-500">✓</span>
-                      <span>Menganalisis pertanyaan & konteks teknis...</span>
+                  <div className="bg-stone-100 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl p-3 text-xs space-y-2 max-w-[80%]">
+                    <div className="flex items-center gap-2 text-stone-500 dark:text-zinc-400 font-mono text-[10px]">
+                      <Brain className="w-3.5 h-3.5 text-amber-500 animate-spin" />
+                      <span>
+                        {currentThinkingStep === 0
+                          ? language === 'en'
+                            ? 'Analyzing query & context...'
+                            : 'Menganalisis pertanyaan & konteks...'
+                          : currentThinkingStep === 1
+                          ? language === 'en'
+                            ? 'Routing model & formulating answer...'
+                            : `Menghubungkan ke ${activeModel.name}...`
+                          : language === 'en'
+                          ? 'Rendering structured response...'
+                          : 'Menyusun respon berstandar produksi...'}
+                      </span>
                     </div>
-                    {currentThinkingStep >= 1 && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-emerald-500">✓</span>
-                        <span>Menghubungkan basis pengetahuan portofolio & Vanpedia...</span>
-                      </div>
-                    )}
-                    {currentThinkingStep >= 2 && (
-                      <div className="flex items-center gap-1.5 text-stone-600 dark:text-zinc-300 animate-pulse">
-                        <span className="text-amber-500">⏳</span>
-                        <span>Menyusun formulasi teks presisi...</span>
-                      </div>
-                    )}
+                    <div className="flex gap-1">
+                      <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" />
+                      <span
+                        className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"
+                        style={{ animationDelay: '0.2s' }}
+                      />
+                      <span
+                        className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"
+                        style={{ animationDelay: '0.4s' }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -700,21 +983,136 @@ export const AiChatFloating: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Live Speech to Text (STT) Recording Bar (Pops up when mic is active or transcribing) */}
+            <AnimatePresence>
+              {(isListening || isTranscribingAudio) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: 10, height: 0 }}
+                  className="px-3.5 py-2.5 bg-rose-500/10 dark:bg-rose-950/40 border-t border-rose-500/20 flex flex-col gap-2 shrink-0 select-none"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex items-center justify-center">
+                        <span className="w-2.5 h-2.5 bg-rose-600 rounded-full animate-ping absolute" />
+                        <span className="w-2.5 h-2.5 bg-rose-600 rounded-full relative" />
+                      </div>
+
+                      <span className="text-[11px] font-semibold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
+                        {isTranscribingAudio ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>{language === 'en' ? 'Transcribing audio...' : 'Mentranskripsikan audio...'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>{language === 'en' ? 'Listening...' : 'Mendengarkan...'}</span>
+                            <span className="font-mono font-normal opacity-80">({formatTimer(speechDuration)})</span>
+                          </>
+                        )}
+                      </span>
+
+                      {/* Equalizer Visualizer Bars */}
+                      {!isTranscribingAudio && (
+                        <div className="flex items-center gap-0.5 ml-1 h-3.5">
+                          {[40, 80, 50, 100, 60, 90, 40].map((height, i) => (
+                            <motion.span
+                              key={i}
+                              animate={{
+                                height: ['20%', `${height}%`, '30%'],
+                              }}
+                              transition={{
+                                repeat: Infinity,
+                                duration: 0.6 + (i % 3) * 0.2,
+                                ease: 'easeInOut',
+                              }}
+                              className="w-0.5 bg-rose-500 rounded-full"
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Language Switcher & Controls */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setSpeechLanguage((prev) => (prev === 'id' ? 'en' : 'id'))}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-white dark:bg-zinc-900 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 flex items-center gap-1 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition cursor-pointer"
+                        title={language === 'en' ? 'Switch speech language' : 'Ganti bahasa input suara'}
+                      >
+                        <Languages className="w-3 h-3" />
+                        <span>{speechLanguage === 'id' ? '🇮🇩 ID' : '🇬🇧 EN'}</span>
+                      </button>
+
+                      <button
+                        onClick={stopAllListening}
+                        className="p-1 rounded-md text-stone-500 hover:text-stone-800 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-rose-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                        title={language === 'en' ? 'Stop & Keep Text' : 'Selesai & Simpan Teks'}
+                      >
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      </button>
+
+                      <button
+                        onClick={handleVoiceSendNow}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-rose-600 text-white hover:bg-rose-500 transition shadow-xs flex items-center gap-1 cursor-pointer"
+                        title={language === 'en' ? 'Send immediately' : 'Kirim Sekarang'}
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>{language === 'en' ? 'Send' : 'Kirim'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Real-time Interim Live Transcript Display */}
+                  {interimTranscript && (
+                    <div className="text-[11px] italic text-stone-600 dark:text-zinc-300 bg-white/70 dark:bg-zinc-900/70 p-2 rounded-xl border border-rose-200/50 dark:border-rose-900/30 truncate">
+                      "{interimTranscript}"
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Bottom Composer & Controls Toolbar */}
             <div className="p-3 border-t border-stone-100 dark:border-zinc-900 bg-stone-50/70 dark:bg-zinc-900/40 shrink-0 space-y-2">
               {/* Text Input Box */}
               <div className="relative flex items-end gap-2 bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl p-1.5 focus-within:border-stone-400 dark:focus-within:border-zinc-600 focus-within:ring-2 focus-within:ring-stone-400/10 transition shadow-xs">
-                {/* Voice Input */}
+                {/* Voice Input Button (Speech to Text) */}
                 <button
+                  type="button"
                   onClick={handleToggleVoice}
-                  title={isListening ? 'Stop recording' : 'Voice input'}
-                  className={`p-2 rounded-xl transition ${
+                  title={
                     isListening
-                      ? 'bg-rose-500 text-white animate-pulse'
+                      ? language === 'en'
+                        ? 'Stop listening'
+                        : 'Hentikan rekaman suara'
+                      : language === 'en'
+                      ? 'Speech-to-Text (Voice input)'
+                      : 'Bicara lewat suara (Speech-to-Text)'
+                  }
+                  className={`relative p-2 rounded-xl transition cursor-pointer shrink-0 ${
+                    isListening
+                      ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 animate-pulse'
+                      : isTranscribingAudio
+                      ? 'bg-amber-500 text-white'
                       : 'text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800'
                   }`}
                 >
-                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  {isTranscribingAudio ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : isListening ? (
+                    <Radio className="w-4 h-4 animate-pulse text-white" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+
+                  {isListening && (
+                    <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
+                    </span>
+                  )}
                 </button>
 
                 {/* Textarea */}
@@ -724,9 +1122,13 @@ export const AiChatFloating: React.FC = () => {
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={
-                    language === 'en'
-                      ? 'Ask Vanviolet AI anything...'
-                      : 'Tanya apa saja ke Vanviolet AI...'
+                    isListening
+                      ? language === 'en'
+                        ? 'Listening to your voice...'
+                        : 'Mendengarkan suara Anda...'
+                      : language === 'en'
+                      ? 'Ask Vanviolet AI or click the mic to speak...'
+                      : 'Tanya apa saja ke Vanviolet AI atau klik mikrofon...'
                   }
                   rows={1}
                   className="flex-1 bg-transparent resize-none border-none outline-none text-xs sm:text-sm text-stone-900 dark:text-zinc-100 placeholder-stone-400 dark:placeholder-zinc-500 max-h-24 py-1 px-1"
@@ -736,7 +1138,7 @@ export const AiChatFloating: React.FC = () => {
                 <button
                   disabled={!inputMessage.trim() || isLoading}
                   onClick={() => handleSendMessage()}
-                  className={`p-2 rounded-xl flex items-center justify-center transition ${
+                  className={`p-2 rounded-xl flex items-center justify-center transition shrink-0 ${
                     inputMessage.trim() && !isLoading
                       ? 'bg-stone-900 text-white dark:bg-zinc-100 dark:text-zinc-900 hover:opacity-90 cursor-pointer shadow-xs'
                       : 'bg-stone-100 dark:bg-zinc-800 text-stone-300 dark:text-zinc-600 cursor-not-allowed'
@@ -746,13 +1148,13 @@ export const AiChatFloating: React.FC = () => {
                 </button>
               </div>
 
-              {/* Bottom Toolbar: MODEL SELECTOR AT THE BOTTOM */}
+              {/* Bottom Toolbar: MODEL SELECTOR & STATUS AT THE BOTTOM */}
               <div className="flex items-center justify-between px-1 text-[11px]" ref={modelMenuRef}>
                 {/* Model Selector Pill (Bottom Left/Center) */}
                 <div className="relative">
                   <button
                     onClick={() => setShowModelMenu((prev) => !prev)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-stone-700 dark:text-zinc-300 bg-stone-100 hover:bg-stone-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-800 border border-stone-200/60 dark:border-zinc-700/60 transition"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-stone-700 dark:text-zinc-300 bg-stone-100 hover:bg-stone-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-800 border border-stone-200/60 dark:border-zinc-700/60 transition cursor-pointer"
                   >
                     <Zap className="w-3 h-3 text-amber-500 shrink-0" />
                     <span className="font-medium tracking-tight">{activeModel.name}</span>
@@ -782,7 +1184,7 @@ export const AiChatFloating: React.FC = () => {
                                   setSelectedModelId(model.id);
                                   setShowModelMenu(false);
                                 }}
-                                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition ${
+                                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between transition cursor-pointer ${
                                   isSelected
                                     ? 'bg-stone-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-medium'
                                     : 'text-stone-700 dark:text-zinc-300 hover:bg-stone-100 dark:hover:bg-zinc-800'
@@ -813,9 +1215,10 @@ export const AiChatFloating: React.FC = () => {
                 </div>
 
                 {/* Subtitle / Hint */}
-                <span className="text-[10px] text-stone-400 dark:text-zinc-500">
-                  Enter ↵ to send
-                </span>
+                <div className="flex items-center gap-2 text-[10px] text-stone-400 dark:text-zinc-500">
+                  <span className="hidden sm:inline">🎙️ Speech-to-Text siap</span>
+                  <span>Enter ↵ kirim</span>
+                </div>
               </div>
             </div>
           </motion.div>
