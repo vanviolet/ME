@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useAuth } from '../context/AuthContext';
 import { createArticleInFirestore } from '../services/firestoreService';
@@ -31,6 +31,7 @@ import { AiModelSelect } from './AiModelSelect';
 
 export const CreateArticlePage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { language } = usePortfolio();
   const { user, isAdmin, adminEmail, signInWithGoogle } = useAuth();
 
@@ -59,6 +60,48 @@ export const CreateArticlePage: React.FC = () => {
   const [showTemplateUpload, setShowTemplateUpload] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  // Auto-prefill form from location.state (e.g. from AI Chatbot "Olah & Tambahkan ke Article")
+  useEffect(() => {
+    const prefill = (location.state as any)?.prefill;
+    if (prefill) {
+      if (prefill.titleId || prefill.title || prefill.topic) {
+        const t = prefill.titleId || prefill.title || prefill.topic;
+        setAiTopic(t);
+        setTitleId(t);
+        setTitleEn(prefill.titleEn || t);
+        setSlugInput(
+          (prefill.slug || t)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '')
+        );
+      }
+      if (prefill.category) {
+        setCategory(prefill.category);
+      }
+      if (prefill.tags) {
+        setTags(Array.isArray(prefill.tags) ? prefill.tags.join(', ') : prefill.tags);
+      }
+      if (prefill.summaryId || prefill.summary) {
+        setSummaryId(prefill.summaryId || prefill.summary);
+        setSummaryEn(prefill.summaryEn || prefill.summaryId || prefill.summary);
+      }
+      if (prefill.content) {
+        setContentId(prefill.content);
+        setContentEn(prefill.content);
+      }
+      if (prefill.aiModel) {
+        setAiModel(getCleanModelName(prefill.aiModel));
+      }
+      setIsAiAssisted(true);
+      setFeedback(
+        language === 'en'
+          ? `Article successfully synthesized and formatted with ${getCleanModelName(prefill.aiModel || 'AI Assistant')}! Review and publish.`
+          : `Artikel berhasil diolah dan distrukturkan rapi oleh ${getCleanModelName(prefill.aiModel || 'AI Assistant')}! Silakan tinjau dan terbitkan.`
+      );
+    }
+  }, [location.state, language]);
 
   // Fast-Track AI Generation Handler
   const handleGenerateWithAi = async () => {

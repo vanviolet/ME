@@ -4,7 +4,6 @@ import {
   X,
   Send,
   Sparkles,
-  Bot,
   User,
   Trash2,
   Maximize2,
@@ -25,11 +24,15 @@ import {
   Languages,
   AlertCircle,
   Radio,
+  FileText,
+  BookOpen,
+  Terminal,
 } from 'lucide-react';
 import { renderMarkdownWithMath } from '../lib/renderMath';
 import { AI_MODELS_LIST } from '../lib/models';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useNavigate } from 'react-router-dom';
+import { generateArticleWithAi, generateVanpediaWithAi } from '../services/aiService';
 
 export interface ChatMessage {
   id: string;
@@ -52,25 +55,34 @@ const MODEL_STORAGE_KEY = 'vanbot_selected_model_v2';
 
 const SUGGESTED_PROMPTS = [
   {
-    labelId: 'Keahlian & Stack Van',
-    labelEn: "Van's Tech Stack",
-    prompt: 'Apa saja keahlian utama, teknologi yang dikuasai, dan latar belakang pengalaman Van?',
+    labelId: 'Proyek yang Dibuat Irvan',
+    labelEn: 'Projects Built by Irvan',
+    prompt: 'Proyek apa saja yang telah dibuat oleh Muchamad Irvan di portofolio ini?',
   },
   {
-    labelId: 'Rekomendasi Proyek',
-    labelEn: 'Featured Projects',
-    prompt: 'Bisa jelaskan proyek-proyek teknologi dan AI terbaik yang ada di portofolio ini?',
+    labelId: 'Sistem Kampus & University LMS',
+    labelEn: 'University LMS & Systems',
+    prompt: 'Ceritakan tentang sistem kampus yang dibangun Irvan seperti University LMS dan Sistem Kurikulum Terintegrasi OBE.',
   },
   {
-    labelId: 'Apa itu Vanpedia?',
-    labelEn: 'What is Vanpedia?',
-    prompt: 'Jelaskan apa itu fitur Vanpedia di website ini dan bagaimana konsep glosarium istilahnya?',
+    labelId: 'Presensi Biometrik Wajah Remote',
+    labelEn: 'Biometric Attendance System',
+    prompt: 'Bagaimana sistem absensi biometrik wajah anti-spoofing dan geofence remote dibangun oleh Irvan?',
   },
   {
-    labelId: 'Arsitektur Multi-Tier AI',
-    labelEn: 'AI Architecture',
-    prompt: 'Bagaimana arsitektur sistem routing AI multi-tier bekerja di website ini?',
+    labelId: 'Proyek Musik NoteLogic',
+    labelEn: 'NoteLogic Music Project',
+    prompt: 'Jelaskan aplikasi NoteLogic yang dibuat Irvan dan bagaimana teknologi Web Audio API digunakan di sana.',
   },
+];
+
+const COOL_THINKING_STEPS = [
+  { id: 'working', textId: 'Working...', textEn: 'Working...' },
+  { id: 'hacking', textId: 'Hacking...', textEn: 'Hacking...' },
+  { id: 'triangulation', textId: 'Triangulation...', textEn: 'Triangulation...' },
+  { id: 'deciphering', textId: 'Deciphering matrix...', textEn: 'Deciphering matrix...' },
+  { id: 'bypassing', textId: 'Bypassing latency barriers...', textEn: 'Bypassing latency barriers...' },
+  { id: 'synthesizing', textId: 'Synthesizing output...', textEn: 'Synthesizing output...' },
 ];
 
 export const AiChatFloating: React.FC = () => {
@@ -83,13 +95,17 @@ export const AiChatFloating: React.FC = () => {
   const [showModelMenu, setShowModelMenu] = useState<boolean>(false);
 
   const [selectedModelId, setSelectedModelId] = useState<string>(() => {
-    return localStorage.getItem(MODEL_STORAGE_KEY) || 'nemotron-3-ultra';
+    return localStorage.getItem(MODEL_STORAGE_KEY) || 'gemini-3.8-flash';
   });
 
   const [inputMessage, setInputMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentThinkingStep, setCurrentThinkingStep] = useState<number>(0);
   const [expandedThinkingIds, setExpandedThinkingIds] = useState<Record<string, boolean>>({});
+
+  // Action states for AI Distillation into Vanpedia & Article
+  const [processingAction, setProcessingAction] = useState<{ id: string; type: 'vanpedia' | 'article' } | null>(null);
+  const [actionToast, setActionToast] = useState<{ text: string; type: 'info' | 'success' | 'error' } | null>(null);
 
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
@@ -177,8 +193,8 @@ export const AiChatFloating: React.FC = () => {
     if (isLoading) {
       setCurrentThinkingStep(0);
       interval = setInterval(() => {
-        setCurrentThinkingStep((prev) => (prev < 2 ? prev + 1 : prev));
-      }, 1200);
+        setCurrentThinkingStep((prev) => (prev + 1) % COOL_THINKING_STEPS.length);
+      }, 950);
     } else {
       setCurrentThinkingStep(0);
     }
@@ -481,39 +497,157 @@ export const AiChatFloating: React.FC = () => {
     setTimeout(() => setCopiedMessageId(null), 2000);
   };
 
-  // Add response directly into Vanpedia create form
-  const handleAddToVanpedia = (msg: ChatMessage) => {
+  // Add response into Vanpedia with AI processing
+  const handleProcessAndAddToVanpedia = async (msg: ChatMessage) => {
+    if (processingAction) return;
+
+    setProcessingAction({ id: msg.id, type: 'vanpedia' });
+    setActionToast({
+      text:
+        language === 'en'
+          ? 'AI is analyzing and structuring term for Vanpedia...'
+          : 'AI sedang mengolah istilah ke format standar Vanpedia...',
+      type: 'info',
+    });
+
     let termName = msg.termName || '';
     if (!termName) {
       const boldMatch = msg.content.match(/\*\*([^*]+)\*\*/);
-      if (boldMatch) {
+      if (boldMatch && boldMatch[1].trim().length < 60) {
         termName = boldMatch[1].trim();
       } else {
         const firstLine = msg.content.split('\n')[0].replace(/[*#`_]/g, '').trim();
-        termName = firstLine && firstLine.length < 50 ? firstLine : 'Istilah Baru';
+        termName = firstLine && firstLine.length < 50 ? firstLine : 'Istilah Teknis';
       }
     }
 
-    const cleanParagraphs = msg.content
-      .split(/\n\s*\n/)
-      .map((p) => p.replace(/[*#`_]/g, '').trim())
-      .filter((p) => p.length > 10 && !p.startsWith('#'));
+    try {
+      const structuredResult = await generateVanpediaWithAi({
+        termName,
+        details: msg.content,
+        model: selectedModelId,
+      });
 
-    const shortDefinition = cleanParagraphs[0] || msg.content.slice(0, 250);
+      setActionToast({
+        text: language === 'en' ? 'Opening Vanpedia editor...' : 'Membuka form Vanpedia...',
+        type: 'success',
+      });
 
-    navigate('/vanpedia/create', {
-      state: {
-        prefill: {
-          termName,
-          definition: shortDefinition,
-          content: msg.content,
-          aiModel: msg.model || activeModel.name,
-          isAiGenerated: true,
+      setTimeout(() => {
+        navigate('/vanpedia/create', {
+          state: {
+            prefill: {
+              ...structuredResult,
+              aiModel: msg.model || activeModel.name,
+              isAiGenerated: true,
+            },
+          },
+        });
+        setIsOpen(false);
+        setProcessingAction(null);
+        setActionToast(null);
+      }, 400);
+    } catch (err: any) {
+      console.warn('AI Vanpedia distillation fallback:', err);
+      const cleanParagraphs = msg.content
+        .split(/\n\s*\n/)
+        .map((p) => p.replace(/[*#`_]/g, '').trim())
+        .filter((p) => p.length > 10 && !p.startsWith('#'));
+
+      const shortDefinition = cleanParagraphs[0] || msg.content.slice(0, 250);
+
+      navigate('/vanpedia/create', {
+        state: {
+          prefill: {
+            termName,
+            termId: termName,
+            termEn: termName,
+            definition: shortDefinition,
+            definitionId: shortDefinition,
+            definitionEn: shortDefinition,
+            content: msg.content,
+            aiModel: msg.model || activeModel.name,
+            isAiGenerated: true,
+          },
         },
-      },
+      });
+      setIsOpen(false);
+      setProcessingAction(null);
+      setActionToast(null);
+    }
+  };
+
+  // Add response into Article with AI processing
+  const handleProcessAndAddToArticle = async (msg: ChatMessage) => {
+    if (processingAction) return;
+
+    setProcessingAction({ id: msg.id, type: 'article' });
+    setActionToast({
+      text:
+        language === 'en'
+          ? 'AI is crafting structured technical article...'
+          : 'AI sedang mengolah respon menjadi artikel teknis berstandar...',
+      type: 'info',
     });
 
-    setIsOpen(false);
+    let topic = msg.termName || '';
+    if (!topic) {
+      const boldMatch = msg.content.match(/\*\*([^*]+)\*\*/);
+      if (boldMatch && boldMatch[1].trim().length < 80) {
+        topic = boldMatch[1].trim();
+      } else {
+        const firstLine = msg.content.split('\n')[0].replace(/[*#`_]/g, '').trim();
+        topic = firstLine && firstLine.length < 70 ? firstLine : 'Rekayasa Perangkat Lunak & Sistem Terdistribusi';
+      }
+    }
+
+    try {
+      const structuredArticle = await generateArticleWithAi({
+        topic,
+        keyPoints: msg.content,
+        language: language === 'en' ? 'en' : 'id',
+        model: selectedModelId,
+      });
+
+      setActionToast({
+        text: language === 'en' ? 'Opening Article editor...' : 'Membuka editor artikel...',
+        type: 'success',
+      });
+
+      setTimeout(() => {
+        navigate('/articles/create', {
+          state: {
+            prefill: {
+              ...structuredArticle,
+              aiModel: msg.model || activeModel.name,
+              isAiAssisted: true,
+            },
+          },
+        });
+        setIsOpen(false);
+        setProcessingAction(null);
+        setActionToast(null);
+      }, 400);
+    } catch (err: any) {
+      console.warn('AI Article generation fallback:', err);
+      navigate('/articles/create', {
+        state: {
+          prefill: {
+            titleId: topic,
+            titleEn: topic,
+            summaryId: msg.content.slice(0, 200).replace(/[*#`_]/g, '') + '...',
+            content: msg.content,
+            category: 'Learning (AI)',
+            tags: ['AI', 'Engineering'],
+            aiModel: msg.model || activeModel.name,
+            isAiAssisted: true,
+          },
+        },
+      });
+      setIsOpen(false);
+      setProcessingAction(null);
+      setActionToast(null);
+    }
   };
 
   // Send message
@@ -699,22 +833,23 @@ export const AiChatFloating: React.FC = () => {
             }`}
           >
             {/* Header */}
-            <div className="px-4 py-3 bg-stone-50/80 dark:bg-zinc-900/60 border-b border-stone-100 dark:border-zinc-900 flex items-center justify-between shrink-0">
+            <div className="px-4 py-3 bg-stone-50/90 dark:bg-zinc-900/80 backdrop-blur-md border-b border-stone-200/60 dark:border-zinc-800/80 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center shadow-xs">
-                  <Sparkles className="w-4 h-4 text-amber-400 dark:text-amber-600" />
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-stone-900 to-stone-800 dark:from-zinc-100 dark:to-zinc-200 text-white dark:text-zinc-950 flex items-center justify-center font-bold text-xs shadow-xs tracking-tight">
+                  V
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <h3 className="font-semibold text-xs text-stone-900 dark:text-zinc-100">
+                    <h3 className="font-semibold text-xs text-stone-900 dark:text-zinc-100 tracking-tight">
                       Vanviolet AI
                     </h3>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 bg-stone-200/60 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 rounded-md">
-                      v2.5
+                    <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium ml-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Online
                     </span>
                   </div>
-                  <p className="text-[10px] text-stone-500 dark:text-zinc-400 truncate max-w-[200px]">
-                    {language === 'en' ? 'Live Voice & Multi-Tier AI' : 'Suara Langsung & Multi-Tier AI'}
+                  <p className="text-[10px] text-stone-500 dark:text-zinc-400 truncate max-w-[210px]">
+                    {language === 'en' ? 'Official Assistant of Muchamad Irvan' : 'Asisten Resmi Muchamad Irvan'}
                   </p>
                 </div>
               </div>
@@ -763,37 +898,37 @@ export const AiChatFloating: React.FC = () => {
 
             {/* Messages Container */}
             <div
-              className="flex-1 overflow-y-auto p-4 space-y-4 text-xs sm:text-sm text-stone-800 dark:text-zinc-200"
+              className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-5 text-xs sm:text-sm text-stone-800 dark:text-zinc-200"
               onClick={handleMessageClick}
             >
               {messages.length === 0 ? (
-                <div className="h-full flex flex-col justify-center items-center text-center px-4 py-8 space-y-5">
-                  <div className="w-12 h-12 rounded-2xl bg-stone-100 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 flex items-center justify-center text-stone-900 dark:text-zinc-100 shadow-sm">
-                    <Bot className="w-6 h-6" />
+                <div className="h-full flex flex-col justify-center items-center text-center px-2 py-6 space-y-5">
+                  <div className="w-10 h-10 rounded-full bg-stone-100 dark:bg-zinc-900 flex items-center justify-center text-stone-800 dark:text-zinc-200">
+                    <Sparkles className="w-5 h-5 text-amber-500" />
                   </div>
-                  <div className="space-y-1 max-w-[280px]">
+                  <div className="space-y-1 max-w-[300px]">
                     <h4 className="font-semibold text-stone-900 dark:text-zinc-100 text-sm">
                       {language === 'en' ? 'How can I assist you today?' : 'Ada yang bisa saya bantu hari ini?'}
                     </h4>
                     <p className="text-[11px] text-stone-500 dark:text-zinc-400 leading-relaxed">
                       {language === 'en'
-                        ? 'Type or speak via voice microphone to ask about Van, tech stack, Vanpedia, or code.'
-                        : 'Ketik atau bicara langsung lewat mikrofon untuk bertanya tentang proyek Van, stack teknologi, Vanpedia, atau kode.'}
+                        ? "Ask about Muchamad Irvan's official projects (University LMS, Biometric Attendance, NoteLogic, etc.), technical architecture, or tap the microphone to speak."
+                        : 'Tanyakan seputar proyek resmi Muchamad Irvan (University LMS, Presensi Biometrik, NoteLogic, dll), arsitektur sistem, atau tekan mikrofon untuk bicara.'}
                     </p>
                   </div>
 
-                  {/* Suggested Prompts */}
-                  <div className="w-full grid grid-cols-1 gap-2 pt-2 text-left">
+                  {/* Suggested Prompts - Clean Minimal Chips */}
+                  <div className="w-full flex flex-col gap-1.5 pt-1 text-left">
                     {SUGGESTED_PROMPTS.map((item, idx) => (
                       <button
                         key={idx}
                         onClick={() => handleSendMessage(item.prompt)}
-                        className="p-2.5 rounded-xl border border-stone-200/80 dark:border-zinc-800/80 hover:border-stone-400 dark:hover:border-zinc-600 bg-stone-50/50 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 transition flex items-center justify-between group cursor-pointer text-[11px]"
+                        className="w-full px-3 py-2 rounded-xl text-stone-700 dark:text-zinc-300 hover:text-stone-900 dark:hover:text-white bg-stone-50/80 hover:bg-stone-100 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/80 transition-all flex items-center justify-between group cursor-pointer text-[11px]"
                       >
-                        <span className="font-medium text-stone-700 dark:text-zinc-300 group-hover:text-stone-900 dark:group-hover:text-white">
+                        <span className="font-medium truncate pr-2">
                           {language === 'en' ? item.labelEn : item.labelId}
                         </span>
-                        <ArrowRight className="w-3.5 h-3.5 text-stone-400 group-hover:text-stone-900 dark:group-hover:text-white transition-transform group-hover:translate-x-0.5" />
+                        <ArrowRight className="w-3.5 h-3.5 text-stone-400 group-hover:text-stone-900 dark:group-hover:text-white shrink-0 transition-transform group-hover:translate-x-0.5" />
                       </button>
                     ))}
                   </div>
@@ -803,190 +938,198 @@ export const AiChatFloating: React.FC = () => {
                   const isUser = msg.role === 'user';
                   const isThinkingExpanded = Boolean(expandedThinkingIds[msg.id]);
 
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
-                    >
-                      {!isUser && (
-                        <div className="w-6 h-6 rounded-lg bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
-                          <Bot className="w-3.5 h-3.5" />
-                        </div>
-                      )}
-
-                      <div
-                        className={`relative max-w-[85%] rounded-2xl p-3 shadow-xs ${
-                          isUser
-                            ? 'bg-stone-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                            : 'bg-stone-100/90 dark:bg-zinc-900/90 border border-stone-200/60 dark:border-zinc-800 text-stone-800 dark:text-zinc-200'
-                        }`}
-                      >
-                        {/* Thinking Accordion for AI Assistant */}
-                        {!isUser && msg.thinking && msg.thinking.steps && msg.thinking.steps.length > 0 && (
-                          <div className="mb-2.5 pb-2 border-b border-stone-200/60 dark:border-zinc-800">
-                            <button
-                              onClick={() => toggleThinking(msg.id)}
-                              className="w-full flex items-center justify-between text-[10px] font-medium text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200 transition cursor-pointer"
-                            >
-                              <span className="flex items-center gap-1.5">
-                                <Brain className="w-3 h-3 text-amber-500" />
-                                <span>
-                                  {language === 'en' ? 'Reasoning Process' : 'Proses Berpikir Model'}
-                                </span>
-                              </span>
-                              {isThinkingExpanded ? (
-                                <ChevronUp className="w-3 h-3" />
-                              ) : (
-                                <ChevronDown className="w-3 h-3" />
-                              )}
-                            </button>
-
-                            <AnimatePresence>
-                              {isThinkingExpanded && (
-                                <motion.div
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: 'auto' }}
-                                  exit={{ opacity: 0, height: 0 }}
-                                  className="mt-2 space-y-1 text-[10px] text-stone-600 dark:text-zinc-400 bg-white/60 dark:bg-zinc-950/60 p-2 rounded-lg border border-stone-200/40 dark:border-zinc-800/60 font-mono"
-                                >
-                                  {msg.thinking.steps.map((step, sIdx) => (
-                                    <div key={sIdx} className="flex items-start gap-1.5">
-                                      <span className="text-emerald-500">✓</span>
-                                      <span>{step}</span>
-                                    </div>
-                                  ))}
-                                  {msg.thinking.executionPath && (
-                                    <div className="pt-1 text-[9px] text-stone-400 dark:text-zinc-500 border-t border-stone-200/40 dark:border-zinc-800/40">
-                                      Path: {msg.thinking.executionPath.join(' → ')}
-                                    </div>
-                                  )}
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        )}
-
-                        {/* Content */}
-                        <div
-                          className={`prose prose-sm max-w-none text-xs sm:text-sm leading-relaxed break-words ${
-                            isUser
-                              ? 'prose-invert text-white dark:text-zinc-900 [&_p]:text-white dark:[&_p]:text-zinc-900'
-                              : 'dark:prose-invert text-stone-800 dark:text-zinc-200'
-                          } [&>p]:mb-2 [&>p:last-child]:mb-0 [&>h1]:text-base [&>h1]:font-bold [&>h1]:my-2 [&>h2]:text-sm [&>h2]:font-bold [&>h2]:my-2 [&>h3]:text-xs [&>h3]:font-bold [&>h3]:my-1.5 [&>ul]:list-disc [&>ul]:pl-4 [&>ul]:my-2 [&>ol]:list-decimal [&>ol]:pl-4 [&>ol]:my-2 [&>li]:my-0.5 [&_strong]:font-semibold [&_hr]:my-2 [&_hr]:border-stone-200/60 dark:[&_hr]:border-zinc-800 [&_blockquote]:border-l-2 [&_blockquote]:border-stone-300 dark:[&_blockquote]:border-zinc-700 [&_blockquote]:pl-2.5 [&_blockquote]:italic [&_pre]:bg-stone-900 dark:[&_pre]:bg-black [&_pre]:text-stone-100 [&_pre]:p-2.5 [&_pre]:rounded-xl [&_pre]:overflow-x-auto [&_pre]:text-[11px] [&_pre]:my-2 [&_code]:font-mono [&_code]:text-[11px] [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded ${
-                            isUser
-                              ? '[&_code]:bg-white/20 dark:[&_code]:bg-black/15'
-                              : '[&_code]:bg-stone-200/70 dark:[&_code]:bg-zinc-800 text-stone-900 dark:text-zinc-100'
-                          }`}
-                          dangerouslySetInnerHTML={{
-                            __html: renderMarkdownWithMath(msg.content, { language }),
-                          }}
-                        />
-
-                        {/* Footer toolbar inside message */}
-                        <div
-                          className={`flex items-center justify-between gap-2 mt-2 pt-1.5 text-[9px] border-t ${
-                            isUser
-                              ? 'border-white/10 text-white/60 dark:border-black/10 dark:text-zinc-500'
-                              : 'border-stone-200/40 dark:border-zinc-800 text-stone-400 dark:text-zinc-500'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            {!isUser && msg.model && (
-                              <span className="font-mono font-medium px-1.5 py-0.5 rounded bg-stone-200/60 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400">
-                                {msg.model}
-                              </span>
-                            )}
-                            <span>
-                              {new Date(msg.createdAt).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-1">
-                            {/* TTS Listen Button */}
-                            {!isUser && (
-                              <button
-                                onClick={() => handleToggleSpeak(msg.content)}
-                                title={isSpeaking ? 'Stop voice' : 'Listen with TTS'}
-                                className="p-1 hover:text-stone-900 dark:hover:text-zinc-100 transition cursor-pointer"
-                              >
-                                {isSpeaking ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
-                              </button>
-                            )}
-
-                            {/* Add to Vanpedia Button */}
-                            {!isUser && (
-                              <button
-                                onClick={() => handleAddToVanpedia(msg)}
-                                title={language === 'en' ? 'Add as Vanpedia term' : 'Tambahkan ke Vanpedia'}
-                                className="p-1 hover:text-rose-600 dark:hover:text-rose-400 transition cursor-pointer flex items-center gap-0.5"
-                              >
-                                <PlusCircle className="w-3 h-3" />
-                              </button>
-                            )}
-
-                            {/* Copy button */}
-                            <button
-                              onClick={() => handleCopyMessage(msg.id, msg.content)}
-                              title="Copy"
-                              className="p-1 hover:text-stone-900 dark:hover:text-zinc-100 transition cursor-pointer"
-                            >
-                              {copiedMessageId === msg.id ? (
-                                <Check className="w-3 h-3 text-emerald-500" />
-                              ) : (
-                                <Copy className="w-3 h-3" />
-                              )}
-                            </button>
+                  if (isUser) {
+                    return (
+                      <div key={msg.id} className="flex justify-end">
+                        <div className="max-w-[85%] bg-stone-100/90 dark:bg-zinc-800/90 border border-stone-200/80 dark:border-zinc-700/60 text-stone-900 dark:text-zinc-100 rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm font-normal shadow-xs">
+                          <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                          <div className="text-[9px] text-stone-400 dark:text-zinc-400 mt-1 text-right">
+                            {new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
                           </div>
                         </div>
                       </div>
+                    );
+                  }
 
-                      {isUser && (
-                        <div className="w-6 h-6 rounded-lg bg-stone-200 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">
-                          <User className="w-3.5 h-3.5" />
+                  return (
+                    <div key={msg.id} className="space-y-2 group">
+                      {/* Thinking Accordion (Minimalist) */}
+                      {msg.thinking && msg.thinking.steps && msg.thinking.steps.length > 0 && (
+                        <div className="mb-2">
+                          <button
+                            onClick={() => toggleThinking(msg.id)}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-stone-400 hover:text-stone-700 dark:text-zinc-500 dark:hover:text-zinc-300 transition cursor-pointer"
+                          >
+                            <Brain className="w-3 h-3 text-emerald-500" />
+                            <span>
+                              {language === 'en' ? 'Reasoning Process' : 'Proses Berpikir Model'}
+                            </span>
+                            {isThinkingExpanded ? (
+                              <ChevronUp className="w-3 h-3 opacity-70" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3 opacity-70" />
+                            )}
+                          </button>
+
+                          <AnimatePresence>
+                            {isThinkingExpanded && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="mt-1.5 pl-3 border-l-2 border-stone-200 dark:border-zinc-800 space-y-1 text-[10px] text-stone-500 dark:text-zinc-400 font-mono"
+                              >
+                                {msg.thinking.steps.map((step, sIdx) => (
+                                  <div key={sIdx} className="flex items-start gap-1.5">
+                                    <span className="text-emerald-500 font-bold">✓</span>
+                                    <span>{step}</span>
+                                  </div>
+                                ))}
+                                {msg.thinking.executionPath && (
+                                  <div className="pt-0.5 text-[9px] opacity-60">
+                                    Path: {msg.thinking.executionPath.join(' → ')}
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       )}
+
+                      {/* Content Body - Clean Flowing Typography */}
+                      <div
+                        className="prose prose-sm dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed text-stone-800 dark:text-zinc-200 [&>p]:mb-2.5 [&>p:last-child]:mb-0 [&>h1]:text-sm [&>h1]:font-semibold [&>h1]:mt-3 [&>h1]:mb-1.5 [&>h2]:text-xs [&>h2]:font-semibold [&>h2]:mt-2.5 [&>h2]:mb-1.5 [&>h3]:text-xs [&>h3]:font-semibold [&>h3]:mt-2 [&>h3]:mb-1 [&>ul]:list-disc [&>ul]:pl-4 [&>ul]:my-2 [&>ol]:list-decimal [&>ol]:pl-4 [&>ol]:my-2 [&>li]:my-0.5 [&_strong]:font-semibold [&_strong]:text-stone-900 dark:[&_strong]:text-white [&_hr]:my-3 [&_hr]:border-stone-200 dark:[&_hr]:border-zinc-800 [&_blockquote]:border-l-2 [&_blockquote]:border-stone-300 dark:[&_blockquote]:border-zinc-700 [&_blockquote]:pl-3 [&_blockquote]:italic [&_pre]:bg-stone-900 dark:[&_pre]:bg-black [&_pre]:text-stone-100 [&_pre]:p-3 [&_pre]:rounded-xl [&_pre]:overflow-x-auto [&_pre]:text-[11px] [&_pre]:my-2 [&_code]:font-mono [&_code]:text-[11px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:bg-stone-100 dark:[&_code]:bg-zinc-800 [&_code]:text-stone-800 dark:[&_code]:text-zinc-200"
+                        dangerouslySetInnerHTML={{
+                          __html: renderMarkdownWithMath(msg.content, { language }),
+                        }}
+                      />
+
+                      {/* Header/Footer Pesan Minimalis (Placed at Bottom Per User Request) */}
+                      <div className="flex items-center justify-between text-xs pt-1.5 border-t border-stone-100 dark:border-zinc-800/60 mt-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-[11px] text-stone-800 dark:text-zinc-200 tracking-tight">
+                            Vanviolet AI
+                          </span>
+                          {msg.model && (
+                            <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-md bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400">
+                              {msg.model}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-stone-400 dark:text-zinc-500">
+                            {new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                          {/* TTS Listen Button */}
+                          <button
+                            onClick={() => handleToggleSpeak(msg.content)}
+                            title={isSpeaking ? 'Stop voice' : 'Listen with TTS'}
+                            className="p-1 hover:text-stone-800 dark:hover:text-zinc-200 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                          >
+                            {isSpeaking ? <VolumeX className="w-3.5 h-3.5 text-rose-500" /> : <Volume2 className="w-3.5 h-3.5" />}
+                          </button>
+
+                          {/* Olah & Tambahkan ke Vanpedia Button */}
+                          <button
+                            onClick={() => handleProcessAndAddToVanpedia(msg)}
+                            disabled={Boolean(processingAction)}
+                            title={
+                              language === 'en'
+                                ? 'Refine with AI & Add to Vanpedia'
+                                : 'Olah dengan AI & Tambahkan ke Vanpedia'
+                            }
+                            className="p-1 hover:text-rose-600 dark:hover:text-rose-400 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50"
+                          >
+                            {processingAction?.id === msg.id && processingAction.type === 'vanpedia' ? (
+                              <Loader2 className="w-3.5 h-3.5 text-rose-500 animate-spin" />
+                            ) : (
+                              <BookOpen className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+
+                          {/* Olah & Tambahkan ke Article Button */}
+                          <button
+                            onClick={() => handleProcessAndAddToArticle(msg)}
+                            disabled={Boolean(processingAction)}
+                            title={
+                              language === 'en'
+                                ? 'Craft into Article with AI'
+                                : 'Olah dengan AI & Tambahkan ke Article'
+                            }
+                            className="p-1 hover:text-blue-600 dark:hover:text-blue-400 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50"
+                          >
+                            {processingAction?.id === msg.id && processingAction.type === 'article' ? (
+                              <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+                            ) : (
+                              <FileText className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+
+                          {/* Copy button */}
+                          <button
+                            onClick={() => handleCopyMessage(msg.id, msg.content)}
+                            title={language === 'en' ? 'Copy text' : 'Salin teks'}
+                            className="p-1 hover:text-stone-800 dark:hover:text-zinc-200 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                          >
+                            {copiedMessageId === msg.id ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   );
                 })
               )}
 
+              {/* Action Toast Feedback when processing AI distillation */}
+              <AnimatePresence>
+                {actionToast && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className="p-2.5 rounded-xl bg-stone-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-xs flex items-center gap-2 shadow-md border border-stone-800 dark:border-zinc-200"
+                  >
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400 dark:text-emerald-600 shrink-0" />
+                    <span className="font-medium">{actionToast.text}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Loading & Thinking Indicator */}
               {isLoading && (
-                <div className="flex gap-2.5 justify-start animate-fadeIn">
-                  <div className="w-6 h-6 rounded-lg bg-stone-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center shrink-0 mt-0.5 text-[10px]">
-                    <Bot className="w-3.5 h-3.5 animate-pulse" />
-                  </div>
-                  <div className="bg-stone-100 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl p-3 text-xs space-y-2 max-w-[80%]">
-                    <div className="flex items-center gap-2 text-stone-500 dark:text-zinc-400 font-mono text-[10px]">
-                      <Brain className="w-3.5 h-3.5 text-amber-500 animate-spin" />
-                      <span>
-                        {currentThinkingStep === 0
-                          ? language === 'en'
-                            ? 'Analyzing query & context...'
-                            : 'Menganalisis pertanyaan & konteks...'
-                          : currentThinkingStep === 1
-                          ? language === 'en'
-                            ? 'Routing model & formulating answer...'
-                            : `Menghubungkan ke ${activeModel.name}...`
-                          : language === 'en'
-                          ? 'Rendering structured response...'
-                          : 'Menyusun respon berstandar produksi...'}
+                <div className="space-y-1.5 animate-fadeIn py-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-stone-900 dark:text-zinc-100 tracking-tight">
+                      Vanviolet AI
+                    </span>
+                    <div className="flex items-center gap-1.5 text-stone-500 dark:text-zinc-400 text-[11px] font-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        {COOL_THINKING_STEPS[currentThinkingStep % COOL_THINKING_STEPS.length][language === 'en' ? 'textEn' : 'textId']}
                       </span>
                     </div>
-                    <div className="flex gap-1">
-                      <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" />
-                      <span
-                        className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.2s' }}
-                      />
-                      <span
-                        className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"
-                        style={{ animationDelay: '0.4s' }}
-                      />
-                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 pl-1 py-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" />
+                    <span
+                      className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce"
+                      style={{ animationDelay: '0.2s' }}
+                    />
+                    <span
+                      className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce"
+                      style={{ animationDelay: '0.4s' }}
+                    />
                   </div>
                 </div>
               )}

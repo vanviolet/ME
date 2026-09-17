@@ -61,24 +61,37 @@ export const CreateVanpediaPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  // Auto-prefill form from location.state (e.g. from AI Chatbot "Tambahkan ke VanPedia")
+  // Auto-prefill form from location.state (e.g. from AI Chatbot "Olah & Tambahkan ke Vanpedia")
   useEffect(() => {
     const prefill = (location.state as any)?.prefill;
     if (prefill) {
-      if (prefill.termName) {
-        setAiTermName(prefill.termName);
-        setTitleId(prefill.termName);
-        setTitleEn(prefill.termName);
+      if (prefill.termName || prefill.termId) {
+        const term = prefill.termId || prefill.termName;
+        setAiTermName(term);
+        setTitleId(term);
+        setTitleEn(prefill.termEn || term);
         setSlugInput(
-          prefill.termName
+          (prefill.slug || term)
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-|-$/g, '')
         );
       }
-      if (prefill.definition) {
-        setDefinitionId(prefill.definition);
-        setDefinitionEn(prefill.definition);
+      if (prefill.category) {
+        setCategory(prefill.category);
+      }
+      if (prefill.phonetic) {
+        setPhonetic(prefill.phonetic);
+      }
+      if (prefill.definitionId || prefill.definition) {
+        setDefinitionId(prefill.definitionId || prefill.definition);
+        setDefinitionEn(prefill.definitionEn || prefill.definitionId || prefill.definition);
+      }
+      if (prefill.formula) {
+        setFormula(prefill.formula);
+      }
+      if (prefill.examples) {
+        setExamples(Array.isArray(prefill.examples) ? prefill.examples.join('\n') : prefill.examples);
       }
       if (prefill.content) {
         setContentId(prefill.content);
@@ -90,8 +103,8 @@ export const CreateVanpediaPage: React.FC = () => {
       setIsAiAssisted(true);
       setFeedback(
         language === 'en'
-          ? `Form pre-filled automatically from AI Chatbot (${getCleanModelName(prefill.aiModel || 'AI Assistant')}). You can review and publish.`
-          : `Form VanPedia berhasil terisi otomatis dari respon AI Chatbot (${getCleanModelName(prefill.aiModel || 'AI Assistant')}). Silakan tinjau dan simpan.`
+          ? `Vanpedia term synthesized and formatted with ${getCleanModelName(prefill.aiModel || 'AI Assistant')}! Review and publish.`
+          : `Istilah Vanpedia berhasil diolah dan distrukturkan rapi oleh ${getCleanModelName(prefill.aiModel || 'AI Assistant')}! Silakan tinjau dan simpan.`
       );
     }
   }, [location.state, language]);
