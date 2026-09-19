@@ -23,10 +23,12 @@ import {
   ShieldCheck,
   Award,
   SlidersHorizontal,
-  Loader2
+  Loader2,
+  ExternalLink
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { generateCvPdf } from '../lib/cvPdfGenerator';
 
 export const CvPage: React.FC = () => {
   const { language, setLanguage } = usePortfolio();
@@ -60,108 +62,54 @@ export const CvPage: React.FC = () => {
     window.print();
   };
 
-  // High-Fidelity Multi-Page PDF generator using jsPDF & html2canvas
+  // High-Fidelity Multi-Page PDF generator & direct downloader
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
+    setPdfProgressText(isEn ? 'Downloading official PDF...' : 'Mengunduh berkas PDF resmi...');
+
+    const fileName = isEn
+      ? `Muchamad-Irvan-Software-Engineer-${cvVariant === 'executive' ? 'CV' : 'ATS'}.pdf`
+      : `Muchamad-Irvan-Curriculum-Vitae-${cvVariant === 'executive' ? 'Resmi' : 'ATS'}.pdf`;
 
     try {
-      // Standard A4 dimensions in mm
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = 210;
-      const pdfHeight = 297;
+      // 1. First priority: Download pre-built vector PDF directly from server endpoint
+      const response = await fetch(`/api/cv.pdf?download=1&lang=${language}&variant=${cvVariant}&t=${Date.now()}`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
 
-      if (cvVariant === 'executive') {
-        if (!page1Ref.current || !page2Ref.current) {
-          throw new Error('Halaman CV tidak ditemukan');
-        }
-
-        // 1. Render Page 1
-        setPdfProgressText(isEn ? 'Rendering Page 1 of 2...' : 'Menyiapkan Halaman 1 dari 2...');
-        const canvas1 = await html2canvas(page1Ref.current, {
-          scale: 2.2, // 2.2x scale ensures 300 DPI retina sharpness
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          windowWidth: 850,
-          onclone: (clonedDoc) => {
-            clonedDoc.documentElement.classList.remove('dark');
-            const el = clonedDoc.getElementById('cv-sheet-page-1');
-            if (el) {
-              el.style.transform = 'none';
-              el.style.boxShadow = 'none';
-              el.style.width = '794px';
-              el.style.margin = '0';
-            }
-          }
-        });
-
-        const imgData1 = canvas1.toDataURL('image/jpeg', 0.98);
-        pdf.addImage(imgData1, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-
-        // 2. Render Page 2
-        setPdfProgressText(isEn ? 'Rendering Page 2 of 2...' : 'Menyiapkan Halaman 2 dari 2...');
-        const canvas2 = await html2canvas(page2Ref.current, {
-          scale: 2.2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          windowWidth: 850,
-          onclone: (clonedDoc) => {
-            clonedDoc.documentElement.classList.remove('dark');
-            const el = clonedDoc.getElementById('cv-sheet-page-2');
-            if (el) {
-              el.style.transform = 'none';
-              el.style.boxShadow = 'none';
-              el.style.width = '794px';
-              el.style.margin = '0';
-            }
-          }
-        });
-
-        const imgData2 = canvas2.toDataURL('image/jpeg', 0.98);
-        pdf.addPage();
-        pdf.addImage(imgData2, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-
-      } else {
-        // ATS Single Page Mode
-        if (!singleAtsRef.current) {
-          throw new Error('Halaman ATS tidak ditemukan');
-        }
-
-        setPdfProgressText(isEn ? 'Rendering ATS Clean Document...' : 'Menyiapkan Dokumen ATS...');
-        const canvasAts = await html2canvas(singleAtsRef.current, {
-          scale: 2.2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff',
-          windowWidth: 850,
-          onclone: (clonedDoc) => {
-            clonedDoc.documentElement.classList.remove('dark');
-            const el = clonedDoc.getElementById('cv-sheet-ats');
-            if (el) {
-              el.style.transform = 'none';
-              el.style.boxShadow = 'none';
-              el.style.width = '794px';
-              el.style.margin = '0';
-            }
-          }
-        });
-
-        const imgDataAts = canvasAts.toDataURL('image/jpeg', 0.98);
-        pdf.addImage(imgDataAts, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        setDownloadSuccessToast(true);
+        setTimeout(() => setDownloadSuccessToast(false), 3500);
+        return;
       }
+      throw new Error(`Server returned HTTP ${response.status}`);
+    } catch (serverErr) {
+      console.warn('Direct server download failed, falling back to client-side jsPDF generator:', serverErr);
 
-      setPdfProgressText(isEn ? 'Finalizing PDF...' : 'Menyimpan Berkas PDF...');
-      const fileName = isEn
-        ? `Muchamad-Irvan-Software-Engineer-${cvVariant === 'executive' ? 'CV' : 'ATS'}.pdf`
-        : `Muchamad-Irvan-Curriculum-Vitae-${cvVariant === 'executive' ? 'Resmi' : 'ATS'}.pdf`;
+      // 2. Second priority: Client-side pure jsPDF generator (guaranteed NO tainted canvas, NO print dialog)
+      try {
+        setPdfProgressText(isEn ? 'Building PDF document...' : 'Menyusun berkas PDF...');
+        const doc = generateCvPdf({
+          language,
+          variant: cvVariant,
+          includePhoto: showPhoto && cvVariant === 'executive',
+        });
+        doc.save(fileName);
 
-      pdf.save(fileName);
-      setDownloadSuccessToast(true);
-      setTimeout(() => setDownloadSuccessToast(false), 3500);
-    } catch (error) {
-      console.warn('Gagal memproses PDF via html2canvas, menggunakan fallback browser print:', error);
-      window.print();
+        setDownloadSuccessToast(true);
+        setTimeout(() => setDownloadSuccessToast(false), 3500);
+      } catch (clientErr) {
+        console.error('Client PDF generation failed:', clientErr);
+        // Direct browser redirect to /cv.pdf as fallback
+        window.open(`/cv.pdf?download=1&lang=${language}&variant=${cvVariant}`, '_blank');
+      }
     } finally {
       setIsGeneratingPdf(false);
       setPdfProgressText('');
@@ -315,6 +263,18 @@ export const CvPage: React.FC = () => {
               <Printer size={14} />
               <span className="hidden sm:inline">{isEn ? 'Print' : 'Cetak'}</span>
             </button>
+
+            {/* Direct Link to native /cv.pdf */}
+            <a
+              href={`/cv.pdf?lang=${language}&variant=${cvVariant}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-semibold transition-colors"
+              title={isEn ? 'Open native /cv.pdf directly in new browser tab' : 'Buka dokumen /cv.pdf asli langsung di browser'}
+            >
+              <ExternalLink size={14} />
+              <span className="hidden sm:inline">{isEn ? 'Open /cv.pdf' : 'Buka /cv.pdf'}</span>
+            </a>
 
             <button
               type="button"

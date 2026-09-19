@@ -7,6 +7,7 @@ import {
   executeSmartAiRouting,
   ALL_ALLOWED_FREE_MODELS,
 } from "./src/lib/serverAiRouter";
+import { generateCvPdf } from "./src/lib/cvPdfGenerator";
 
 dotenv.config();
 
@@ -47,6 +48,50 @@ async function startServer() {
   }
 
   // --- API Routes (Mounted BEFORE Vite middleware) ---
+
+  // Official CV PDF Direct Route & Download Endpoint
+  app.get(["/cv.pdf", "/api/cv.pdf", "/api/cv/download"], (req, res) => {
+    try {
+      const lang = (req.query.lang === "en" ? "en" : "id") as "id" | "en";
+      const variant = (req.query.variant === "ats" ? "ats" : "executive") as "executive" | "ats";
+      const isDownload = req.query.download === "1" || req.path.includes("download");
+
+      // Check for photo base64
+      let photoBase64: string | undefined;
+      try {
+        const photoPath = path.join(process.cwd(), "public", "images", "irvan_photo_portrait.jpg");
+        if (fs.existsSync(photoPath)) {
+          photoBase64 = fs.readFileSync(photoPath).toString("base64");
+        }
+      } catch (e) {
+        console.warn("Could not read portrait photo for CV PDF:", e);
+      }
+
+      const doc = generateCvPdf({
+        language: lang,
+        variant,
+        includePhoto: variant === "executive",
+        photoBase64,
+      });
+
+      const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
+      const filename = lang === "en"
+        ? `Muchamad-Irvan-Software-Engineer-${variant === "ats" ? "ATS" : "CV"}.pdf`
+        : `Muchamad-Irvan-Curriculum-Vitae-${variant === "ats" ? "ATS" : "Resmi"}.pdf`;
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Length", pdfBuffer.length);
+      res.setHeader(
+        "Content-Disposition",
+        `${isDownload ? "attachment" : "inline"}; filename="${filename}"`
+      );
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.send(pdfBuffer);
+    } catch (err: any) {
+      console.error("Error generating CV PDF in route:", err);
+      res.status(500).json({ error: "Failed to generate CV PDF", details: err.message });
+    }
+  });
 
   // Articles Endpoints (Public articles are accessible to ALL users, guests, and unauthenticated visitors)
   app.get("/api/articles", (req, res) => {
