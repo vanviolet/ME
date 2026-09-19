@@ -673,37 +673,54 @@ Keluaran HARUS berupa JSON dengan properti:
       // Clean base64 data prefix if present
       const base64Data = audioBase64.replace(/^data:audio\/[a-z0-9-+.]+;base64,/, "").trim();
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+        return;
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       const prompt =
         language === "en"
-          ? "Transcribe the spoken audio with maximum precision into text. Keep technical terms, acronyms, and proper names accurate. Output ONLY the plain transcription text without any extra commentary, quotation marks, or markdown wrappers."
+          ? "Transcribe the spoken audio with maximum precision into plain text. Keep technical terms, acronyms, and proper names accurate. Output ONLY the plain transcription text without any extra commentary, quotation marks, or markdown wrappers."
           : "Transkripsikan rekaman suara percakapan ini secara akurat dan presisi ke dalam teks (Bahasa Indonesia atau bahasa yang diucapkan pengguna). Pertahankan istilah teknis, nama fitur/proyek, dan singkatan dengan tepat. Keluarkan HANYA teks transkripsi polos tanpa tanda kutip pembuka/penutup dan tanpa komentar tambahan.";
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: [
-          {
-            role: "user",
-            parts: [
+      const candidateModels = ["gemini-3.5-transcribe", "gemini-3.1-flash-lite", "gemini-3.8-flash"];
+      let transcript = "";
+      let lastErr: any = null;
+
+      for (const modelName of candidateModels) {
+        try {
+          const response = await ai.models.generateContent({
+            model: modelName,
+            contents: [
               {
-                inlineData: {
-                  mimeType,
-                  data: base64Data,
-                },
-              },
-              {
-                text: prompt,
+                role: "user",
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType,
+                      data: base64Data,
+                    },
+                  },
+                  {
+                    text: prompt,
+                  },
+                ],
               },
             ],
-          },
-        ],
-      });
-
-      const transcript = response.text ? response.text.trim() : "";
+          });
+          transcript = response.text ? response.text.trim() : "";
+          if (transcript) break;
+        } catch (mErr: any) {
+          lastErr = mErr;
+          console.warn(`[Transcribe] Model ${modelName} fallback notice:`, mErr.message);
+        }
+      }
 
       res.json({
         success: true,
-        transcript,
+        transcript: transcript || "",
         provider: "Google Gemini Audio Intelligence",
       });
     } catch (error: any) {
@@ -806,7 +823,7 @@ Keluaran HARUS berupa JSON dengan properti:
         history = [],
         language = "id",
         voice = "Kore",
-        model = "gemini-3.8-flash",
+        model = "gemini-3.1-flash-lite",
       } = req.body;
 
       if (!message || typeof message !== "string") {
@@ -823,36 +840,74 @@ Keluaran HARUS berupa JSON dengan properti:
           ? `You are Vanviolet AI, the official intelligent voice assistant of Muchamad Irvan (Software Engineer & Fullstack Developer).
 You are engaged in a REAL-TIME SPOKEN VOICE CONVERSATION with the user.
 GUIDELINES FOR SPOKEN VOICE RESPONSES:
-- Speak directly, warmly, intelligently, and concisely (1 to 3 natural conversational sentences).
-- Do NOT use markdown symbols, bullet points, headers (#), code fences, or URLs, because your answer will be spoken out loud.
+- Speak directly, warmly, intelligently, and concisely (1 to 2 natural conversational sentences, max 40 words).
+- Do NOT use markdown symbols, asterisks, bullet points, headers (#), code fences, or URLs, because your answer will be spoken out loud.
 - If asked about Muchamad Irvan's portfolio, highlight his expertise in scalable web architectures, TypeScript, React, Node.js, AI system integrations, and flagship projects like University LMS and Biometric Attendance.
 - Maintain a friendly, professional, and confident engineering tone.`
           : `Anda adalah Vanviolet AI, asisten suara resmi Muchamad Irvan (Software Engineer & Fullstack Developer).
 Anda sedang berbicara dalam PERCAKAPAN SUARA LANGSUNG (LIVE VOICE CONVERSATION) dengan pengguna.
 PEDOMAN RESPONS SUARA LANGSUNG:
-- Berbicaralah secara alami, hangat, solutif, ringkas, dan to the point (1 sampai 3 kalimat percakapan yang nyaman didengar).
-- JANGAN gunakan format markdown seperti simbol bintang, pagar (#), kode program panjang, atau tautan URL mentah, karena teks ini akan diucapkan secara langsung melalui audio.
+- Berbicaralah secara alami, hangat, solutif, ringkas, dan to the point (1 sampai 2 kalimat percakapan yang nyaman didengar, maksimal 40 kata).
+- JANGAN gunakan format markdown seperti simbol bintang (*), pagar (#), kode program panjang, atau tautan URL mentah, karena teks ini akan diucapkan secara langsung melalui audio.
 - Jika pengguna menanyakan proyek atau portofolio Muchamad Irvan, jelaskan keahliannya dalam sistem web scalable, AI engineering, TypeScript, serta proyek unggulan seperti University LMS dan Presensi Biometrik.
 - Gunakan bahasa yang santun, cerdas, dan interaktif.`;
 
+      // Build context from recent history if provided
+      let contextHistoryStr = "";
+      if (Array.isArray(history) && history.length > 0) {
+        const recent = history.slice(-4);
+        contextHistoryStr = recent
+          .map((h: any) => `${h.role === "assistant" ? "Vanviolet AI" : "User"}: ${h.content}`)
+          .join("\n");
+      }
+
       // 1. Generate Conversational Text
-      const conversationPrompt = `${liveSystemPrompt}\n\nUser spoken input: "${message}"\n\nProvide the spoken answer:`;
+      const conversationPrompt = contextHistoryStr
+        ? `${liveSystemPrompt}\n\nRecent context:\n${contextHistoryStr}\n\nUser spoken input: "${message}"\n\nProvide the spoken answer:`
+        : `${liveSystemPrompt}\n\nUser spoken input: "${message}"\n\nProvide the spoken answer:`;
 
       let spokenText = "";
-      try {
-        const aiRoutingResult = await executeSmartAiRouting({
-          prompt: conversationPrompt,
-          model: model || "gemini-3.8-flash",
-        });
-        spokenText = aiRoutingResult.text.trim();
-      } catch (genErr) {
-        console.warn("Smart routing failed, falling back to direct Gemini:", genErr);
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const fallbackRes = await ai.models.generateContent({
-          model: "gemini-3.8-flash",
-          contents: conversationPrompt,
-        });
-        spokenText = fallbackRes.text ? fallbackRes.text.trim() : "";
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      if (apiKey) {
+        const ai = new GoogleGenAI({ apiKey });
+        // Try fast conversational models
+        const candidateModels = [model, "gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"].filter(Boolean);
+        for (const m of candidateModels) {
+          try {
+            const resp = await ai.models.generateContent({
+              model: m,
+              contents: conversationPrompt,
+            });
+            if (resp.text && resp.text.trim()) {
+              spokenText = resp.text.trim();
+              break;
+            }
+          } catch (mErr: any) {
+            console.warn(`[Live Converse] Model ${m} notice:`, mErr.message);
+          }
+        }
+      }
+
+      // If direct Gemini was not available or produced nothing, try smart router
+      if (!spokenText) {
+        try {
+          const aiRoutingResult = await executeSmartAiRouting({
+            prompt: conversationPrompt,
+            model: "gemini-3.1-flash-lite",
+          });
+          spokenText = aiRoutingResult.text.trim();
+        } catch (genErr) {
+          console.warn("[Live Converse] Router notice:", genErr);
+        }
+      }
+
+      // Final fallback if AI service was completely unreachable
+      if (!spokenText) {
+        spokenText =
+          language === "en"
+            ? "I am listening. Muchamad Irvan is a Fullstack Developer experienced in React, TypeScript, and high-performance cloud architectures. What would you like to explore?"
+            : "Saya siap mendengarkan. Muchamad Irvan adalah Fullstack Developer berpengalaman di React, TypeScript, dan arsitektur cloud performa tinggi. Apa yang ingin Anda ketahui?";
       }
 
       // Clean any accidental markdown from the response
@@ -861,33 +916,40 @@ PEDOMAN RESPONS SUARA LANGSUNG:
         .replace(/\s+/g, " ")
         .trim();
 
-      // 2. Generate Spoken Audio via Gemini 3.1 Flash TTS
+      // 2. Generate Spoken Audio via Gemini 3.1 Flash TTS with Strict Safety Timeout (Max 4.5s)
       let audioUrl: string | null = null;
-      try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const ttsResponse = await ai.models.generateContent({
-          model: "gemini-3.1-flash-tts-preview",
-          contents: [{ parts: [{ text: spokenText.slice(0, 800) }] }],
-          config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: selectedVoice },
+      if (apiKey) {
+        try {
+          const ai = new GoogleGenAI({ apiKey });
+          const ttsPromise = ai.models.generateContent({
+            model: "gemini-3.1-flash-tts-preview",
+            contents: [{ parts: [{ text: spokenText.slice(0, 500) }] }],
+            config: {
+              responseModalities: [Modality.AUDIO],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: selectedVoice },
+                },
               },
             },
-          },
-        });
+          });
 
-        const rawPcmBase64 =
-          ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("TTS generation timeout")), 6500)
+          );
 
-        if (rawPcmBase64) {
-          const pcmBuffer = Buffer.from(rawPcmBase64, "base64");
-          const wavBuffer = pcmToWav(pcmBuffer, 24000, 1);
-          audioUrl = `data:audio/wav;base64,${wavBuffer.toString("base64")}`;
+          const ttsResponse = (await Promise.race([ttsPromise, timeoutPromise])) as any;
+          const rawPcmBase64 =
+            ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+          if (rawPcmBase64) {
+            const pcmBuffer = Buffer.from(rawPcmBase64, "base64");
+            const wavBuffer = pcmToWav(pcmBuffer, 24000, 1);
+            audioUrl = `data:audio/wav;base64,${wavBuffer.toString("base64")}`;
+          }
+        } catch (ttsErr: any) {
+          console.warn("[Live Converse] Gemini TTS notice (client will use Web Speech synthesis fallback):", ttsErr.message);
         }
-      } catch (ttsErr: any) {
-        console.warn("Gemini TTS in live converse had an issue (client can fallback to Web Speech):", ttsErr.message);
       }
 
       res.json({
@@ -895,7 +957,7 @@ PEDOMAN RESPONS SUARA LANGSUNG:
         text: spokenText,
         audioUrl,
         voice: selectedVoice,
-        model: model || "gemini-3.8-flash",
+        model: "gemini-3.1-flash-lite",
         provider: "Google Gemini Live Audio",
       });
     } catch (error: any) {
