@@ -498,8 +498,8 @@ export const experienceData: Experience[] = [
       id: 'Institusi Perguruan Tinggi',
     },
     role: {
-      en: 'Lead Fullstack Developer & Systems Architect',
-      id: 'Lead Fullstack Developer & Systems Architect',
+      en: 'Fullstack Developer & Systems Architect',
+      id: 'Fullstack Developer & Arsitek Sistem',
     },
     period: '2022 — Present',
     location: {
