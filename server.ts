@@ -705,6 +705,76 @@ Keluaran HARUS berupa JSON dengan properti:
     }
   });
 
+  // AI Generate Flowchart Endpoint
+  app.post("/api/ai/generate-flowchart", async (req, res) => {
+    try {
+      const { prompt, direction = "TD", model = "gemini-3.8-flash" } = req.body;
+
+      if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+        res.status(400).json({ error: "Prompt is required." });
+        return;
+      }
+
+      const systemInstruction = `You are a Principal Software Architect and Systems Diagram Engineer.
+Your job is to generate a comprehensive, highly accurate flowchart representing the requested architecture, business logic, algorithm, or user journey.
+You MUST output valid JSON matching the exact schema.
+
+Rules for the Mermaid code:
+1. Start with "flowchart ${direction === "LR" ? "LR" : "TD"}"
+2. Use standard Mermaid shape syntax:
+   - Start / End: id(["Label"])
+   - Process / Action: id["Label"]
+   - Decision: id{"Condition?"}
+   - Input / Output: id[/"Label"/]
+   - Database / Cache: id[("Label")]
+   - Subroutine / Service: id[["Label"]]
+   - External Cloud: id["☁️ Label"]
+3. Include edge labels for decisions:
+   - id1 -->|Ya| id2
+   - id1 -->|Tidak| id3
+   - id1 -.->|Webhook/Async| id4
+4. Ensure no disconnected or dead-end orphan nodes (except valid End nodes).
+5. Output clean, valid JSON only.`;
+
+      const aiPrompt = `Buat diagram alur / flowchart teknis yang komprehensif, logis, dan mendalam untuk permintaan berikut:
+"${prompt.trim()}"
+
+Arah Alur: ${direction === "LR" ? "Kiri ke Kanan (LR)" : "Atas ke Bawah (TD)"}
+
+Format keluaran HARUS berupa objek JSON valid dengan struktur:
+{
+  "title": "Judul Alur Diagram Ringkas & Profesional",
+  "description": "Deskripsi 1-2 kalimat tentang apa yang dipetakan oleh flowchart ini",
+  "direction": "${direction}",
+  "mermaid": "flowchart ${direction}\\n    A([Mulai]) --> B[Langkah 1]\\n    B --> C{Kondisi?}\\n    C -->|Ya| D[Proses]\\n    C -->|Tidak| E([Selesai])",
+  "summary": "Ringkasan arsitektural singkat mengenai keputusan alur ini"
+}`;
+
+      const aiResult = await executeSmartAiRouting({
+        model,
+        systemInstruction,
+        prompt: aiPrompt,
+        isJson: true,
+      });
+
+      const parsed = aiResult.parsedJson || JSON.parse(aiResult.text);
+
+      res.json({
+        success: true,
+        data: {
+          ...parsed,
+          aiModel: aiResult.usedModel,
+          provider: aiResult.provider,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error generating flowchart:", error);
+      res.status(500).json({
+        error: error.message || "Failed to generate flowchart using Smart AI",
+      });
+    }
+  });
+
   // Speech-to-Text / Audio Transcription Endpoint (Gemini Multimodal Audio)
   app.post("/api/ai/transcribe-audio", async (req, res) => {
     try {

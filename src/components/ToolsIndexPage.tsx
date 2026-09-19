@@ -15,6 +15,7 @@ import {
   Fingerprint,
   Database,
   Video,
+  Network,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -22,6 +23,19 @@ export const ToolsIndexPage: React.FC = () => {
   const { language } = usePortfolio();
 
   const toolsList = [
+    {
+      id: 'flowchart-studio',
+      title: 'Interactive Flowchart & Mermaid Studio',
+      description:
+        language === 'en'
+          ? 'Overpowered drag & drop flowchart canvas with bidirectional Mermaid code sync, AI system architect, auto-layout, interactive logic step simulator, and 4K vector export.'
+          : 'Kanvas flowchart interaktif drag & drop dengan sinkronisasi kode Mermaid 2 arah, arsitek sistem AI, tata letak otomatis rapi, simulator alur logika, dan ekspor resolusi tinggi.',
+      icon: Network,
+      category: 'Architecture & Diagrams',
+      path: '/tools/flowchart',
+      status: 'active',
+      badge: language === 'en' ? 'Flagship Tool' : 'Tool Unggulan',
+    },
     {
       id: 'video-editor',
       title: 'Video Editor Studio',
