@@ -242,27 +242,25 @@ export const CssGradientPage: React.FC = () => {
       </div>
 
       {/* Preset Library Quick Bar */}
-      <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider font-mono mr-1">
-            {language === 'en' ? 'Curated Palettes:' : 'Palet Pilihan:'}
-          </span>
-          {PRESETS.map((p, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleApplyPreset(p)}
-              className="group flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border border-stone-200 dark:border-zinc-700 hover:border-rose-400 transition-colors bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300"
-            >
-              <span
-                className="w-3 h-3 rounded-full shrink-0 border border-black/10 shadow-2xs"
-                style={{
-                  background: `linear-gradient(135deg, ${p.color1}, ${p.color3 || p.color2})`,
-                }}
-              />
-              <span>{p.name}</span>
-            </button>
-          ))}
-        </div>
+      <div className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs flex items-center gap-2 overflow-x-auto scrollbar-none">
+        <span className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider font-mono mr-1 shrink-0">
+          {language === 'en' ? 'Curated Palettes:' : 'Palet Pilihan:'}
+        </span>
+        {PRESETS.map((p, idx) => (
+          <button
+            key={idx}
+            onClick={() => handleApplyPreset(p)}
+            className="whitespace-nowrap shrink-0 group flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border border-stone-200 dark:border-zinc-700 hover:border-rose-400 transition-colors bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300"
+          >
+            <span
+              className="w-3 h-3 rounded-full shrink-0 border border-black/10 shadow-2xs"
+              style={{
+                background: `linear-gradient(135deg, ${p.color1}, ${p.color3 || p.color2})`,
+              }}
+            />
+            <span>{p.name}</span>
+          </button>
+        ))}
       </div>
 
       {/* Main Dual Area */}
@@ -452,13 +450,13 @@ export const CssGradientPage: React.FC = () => {
         {/* Right: Interactive UI Simulator & Code Output (7 cols) */}
         <div className="lg:col-span-7 p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-5">
           {/* Simulator Component Selector */}
-          <div className="flex items-center justify-between border-b border-stone-200 dark:border-zinc-800 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-stone-200 dark:border-zinc-800 pb-3">
             <span className="text-xs font-bold text-stone-700 dark:text-zinc-300 uppercase tracking-wider font-mono flex items-center gap-1.5">
               <Eye size={14} className="text-rose-500" />
               <span>{language === 'en' ? 'UI Component Simulator' : 'Simulator Komponen UI'}</span>
             </span>
 
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
+            <div className="w-full sm:w-auto overflow-x-auto scrollbar-none flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
               {[
                 { id: 'canvas', label: 'Canvas', icon: Maximize2 },
                 { id: 'card', label: 'Card', icon: CreditCard },
@@ -470,7 +468,7 @@ export const CssGradientPage: React.FC = () => {
                   <button
                     key={comp.id}
                     onClick={() => setPreviewComponent(comp.id as any)}
-                    className={`px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all ${
+                    className={`flex-1 sm:flex-none justify-center whitespace-nowrap shrink-0 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                       previewComponent === comp.id
                         ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                         : 'text-stone-600 dark:text-zinc-400'

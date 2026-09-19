@@ -312,7 +312,7 @@ export const LoremIpsumPage: React.FC = () => {
             <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300 block">
               {language === 'en' ? 'Content Structure' : 'Struktur Konten'}
             </label>
-            <div className="grid grid-cols-5 gap-1 bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl text-xs font-medium">
+            <div className="flex overflow-x-auto scrollbar-none gap-1 bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl text-xs font-medium">
               {[
                 { id: 'paragraphs', label: 'Paragraphs' },
                 { id: 'sentences', label: 'Sentences' },
@@ -323,7 +323,7 @@ export const LoremIpsumPage: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setType(item.id as any)}
-                  className={`py-1.5 text-[11px] font-medium rounded-lg transition-all text-center ${
+                  className={`flex-1 sm:flex-none whitespace-nowrap shrink-0 px-2.5 py-1.5 text-[11px] font-medium rounded-lg transition-all text-center ${
                     type === item.id
                       ? 'bg-white dark:bg-zinc-950 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                       : 'text-stone-500 hover:text-stone-900 dark:hover:text-zinc-200'
@@ -395,12 +395,12 @@ export const LoremIpsumPage: React.FC = () => {
 
         {/* Right: Output, Metrics & Article Layout Simulator (7 cols) */}
         <div className="lg:col-span-7 p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 dark:border-zinc-800 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-stone-200 dark:border-zinc-800 pb-3">
             {/* View Tabs */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
+            <div className="w-full sm:w-auto overflow-x-auto scrollbar-none flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
               <button
                 onClick={() => setActiveTab('preview')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                className={`flex-1 sm:flex-none justify-center whitespace-nowrap shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                   activeTab === 'preview'
                     ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400'
@@ -412,7 +412,7 @@ export const LoremIpsumPage: React.FC = () => {
 
               <button
                 onClick={() => setActiveTab('article')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                className={`flex-1 sm:flex-none justify-center whitespace-nowrap shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                   activeTab === 'article'
                     ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400'
@@ -424,7 +424,7 @@ export const LoremIpsumPage: React.FC = () => {
 
               <button
                 onClick={() => setActiveTab('code')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                className={`flex-1 sm:flex-none justify-center whitespace-nowrap shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                   activeTab === 'code'
                     ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400'
@@ -436,10 +436,10 @@ export const LoremIpsumPage: React.FC = () => {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
               <button
                 onClick={handleCopy}
-                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+                className="flex-1 sm:flex-none justify-center px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
               >
                 {copied ? <Check size={13} /> : <Copy size={13} />}
                 <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -447,7 +447,7 @@ export const LoremIpsumPage: React.FC = () => {
 
               <button
                 onClick={handleDownload}
-                className="p-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-stone-900 dark:hover:text-white transition-colors"
+                className="p-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-stone-900 dark:hover:text-white transition-colors shrink-0"
                 title="Download"
               >
                 <Download size={13} />

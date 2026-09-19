@@ -396,16 +396,16 @@ export const RegexTesterPage: React.FC = () => {
       </div>
 
       {/* Pattern Templates Quick Bar */}
-      <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider font-mono mr-1">
+      <div className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 sm:pb-0 w-full sm:w-auto">
+          <span className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider font-mono mr-1 shrink-0">
             {language === 'en' ? 'Preset Library:' : 'Pustaka Pola:'}
           </span>
           {REGEX_TEMPLATES.map((t, idx) => (
             <button
               key={idx}
               onClick={() => handleSelectTemplate(t)}
-              className="px-2.5 py-1 rounded-xl text-xs font-medium border border-stone-200 dark:border-zinc-700 hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300"
+              className="whitespace-nowrap shrink-0 px-2.5 py-1 rounded-xl text-xs font-medium border border-stone-200 dark:border-zinc-700 hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300"
             >
               {language === 'en' ? t.name : t.nameId}
             </button>
@@ -414,7 +414,7 @@ export const RegexTesterPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('challenges')}
-          className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-semibold flex items-center gap-1.5 hover:bg-amber-500/20 transition-colors"
+          className="w-full sm:w-auto justify-center px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-xs font-semibold flex items-center gap-1.5 hover:bg-amber-500/20 transition-colors shrink-0"
         >
           <Trophy size={13} />
           <span>{language === 'en' ? 'Practice Challenges' : 'Kuis Latihan Regex'}</span>
@@ -422,7 +422,7 @@ export const RegexTesterPage: React.FC = () => {
       </div>
 
       {/* Regex Input Bar */}
-      <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-3">
+      <div className="p-3 sm:p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           {/* Delimiter / */}
           <span className="hidden sm:inline text-xl font-mono text-stone-400">/</span>
@@ -441,31 +441,33 @@ export const RegexTesterPage: React.FC = () => {
           {/* Delimiter / and Flags */}
           <span className="hidden sm:inline text-xl font-mono text-stone-400">/</span>
 
-          {/* Flag toggles */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-mono">
-            {(['g', 'i', 'm', 's', 'u'] as const).map(flag => (
-              <button
-                key={flag}
-                onClick={() => setFlags({ ...flags, [flag]: !flags[flag] })}
-                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
-                  flags[flag]
-                    ? 'bg-rose-500 text-white shadow-xs'
-                    : 'text-stone-500 hover:text-stone-900 dark:hover:text-white'
-                }`}
-                title={`Toggle flag: ${flag}`}
-              >
-                {flag}
-              </button>
-            ))}
-          </div>
+          {/* Flag toggles and copy button */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex-1 sm:flex-none flex items-center justify-between sm:justify-start gap-1 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-mono">
+              {(['g', 'i', 'm', 's', 'u'] as const).map(flag => (
+                <button
+                  key={flag}
+                  onClick={() => setFlags({ ...flags, [flag]: !flags[flag] })}
+                  className={`flex-1 sm:flex-none text-center px-2 sm:px-2.5 py-1 rounded-lg font-bold transition-all ${
+                    flags[flag]
+                      ? 'bg-rose-500 text-white shadow-xs'
+                      : 'text-stone-500 hover:text-stone-900 dark:hover:text-white'
+                  }`}
+                  title={`Toggle flag: ${flag}`}
+                >
+                  {flag}
+                </button>
+              ))}
+            </div>
 
-          <button
-            onClick={() => handleCopy(`/${pattern}/${flagString}`)}
-            className="px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 hover:bg-stone-100 dark:hover:bg-zinc-700 text-xs font-semibold text-stone-700 dark:text-zinc-300 flex items-center justify-center gap-1.5 transition-colors"
-          >
-            {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
-            <span>{copied ? 'Copied' : 'Copy'}</span>
-          </button>
+            <button
+              onClick={() => handleCopy(`/${pattern}/${flagString}`)}
+              className="px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 hover:bg-stone-100 dark:hover:bg-zinc-700 text-xs font-semibold text-stone-700 dark:text-zinc-300 flex items-center justify-center gap-1.5 transition-colors shrink-0"
+            >
+              {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Step-by-Step Regex Token Explainer ("Mudah Dipelajari") */}
@@ -525,9 +527,8 @@ export const RegexTesterPage: React.FC = () => {
           <textarea
             value={testText}
             onChange={e => setTestText(e.target.value)}
-            rows={14}
             placeholder="Enter or paste text to test regex matches..."
-            className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 font-mono text-xs leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 text-stone-900 dark:text-zinc-100 resize-none"
+            className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 font-mono text-xs leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 text-stone-900 dark:text-zinc-100 resize-none h-48 sm:h-80"
           />
 
           {/* Quick Clear */}
@@ -550,11 +551,11 @@ export const RegexTesterPage: React.FC = () => {
         {/* Right: Matches, Replace, Learn & Challenges (6 cols) */}
         <div className="lg:col-span-6 p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-4">
           {/* Tabs */}
-          <div className="flex items-center justify-between border-b border-stone-200 dark:border-zinc-800 pb-3">
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-stone-200 dark:border-zinc-800 pb-3">
+            <div className="w-full sm:w-auto overflow-x-auto scrollbar-none flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
               <button
                 onClick={() => setActiveTab('matches')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                className={`whitespace-nowrap shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                   activeTab === 'matches'
                     ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400'
@@ -568,7 +569,7 @@ export const RegexTesterPage: React.FC = () => {
 
               <button
                 onClick={() => setActiveTab('replace')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                className={`whitespace-nowrap shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                   activeTab === 'replace'
                     ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400'
@@ -580,18 +581,18 @@ export const RegexTesterPage: React.FC = () => {
 
               <button
                 onClick={() => setActiveTab('challenges')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                className={`whitespace-nowrap shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                   activeTab === 'challenges'
                     ? 'bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 font-bold shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400'
                 }`}
               >
                 <Trophy size={13} />
-                <span>{language === 'en' ? 'Quiz / Academy' : 'Kuis Latihan'}</span>
+                <span>{language === 'en' ? 'Quiz' : 'Kuis'}</span>
               </button>
             </div>
 
-            <div className="text-[11px] font-mono text-stone-500">
+            <div className="text-[11px] font-mono text-stone-500 self-end sm:self-auto">
               {matchResult.timeMs}ms
             </div>
           </div>

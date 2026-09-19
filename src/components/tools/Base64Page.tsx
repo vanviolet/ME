@@ -226,8 +226,9 @@ export const Base64Page: React.FC = () => {
       </div>
 
       {/* Mode & Presets Quick Bar */}
-      <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
+      <div className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Mode Tabs */}
+        <div className="w-full sm:w-auto overflow-x-auto scrollbar-none flex items-center gap-1 sm:gap-1.5 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
           {[
             { id: 'encode', label: language === 'en' ? 'Encode Text' : 'Enkode Teks' },
             { id: 'decode', label: language === 'en' ? 'Decode Base64' : 'Dekode Base64' },
@@ -236,7 +237,7 @@ export const Base64Page: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setMode(tab.id as any)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`flex-1 sm:flex-none text-center whitespace-nowrap shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 mode === tab.id
                   ? 'bg-rose-600 text-white font-bold shadow-xs'
                   : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white'
@@ -247,48 +248,51 @@ export const Base64Page: React.FC = () => {
           ))}
         </div>
 
-        {/* Presets */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-stone-500 font-mono text-[11px]">
-            {language === 'en' ? 'Presets:' : 'Contoh:'}
-          </span>
-          {BASE64_PRESETS.map((p, idx) => (
-            <button
-              key={idx}
-              onClick={() => {
-                setMode(p.type as any);
-                setInput(p.text);
-              }}
-              className="px-2.5 py-1 rounded-xl text-xs font-medium border border-stone-200 dark:border-zinc-700 hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300"
-            >
-              {language === 'en' ? p.name : p.nameId}
-            </button>
-          ))}
-        </div>
-
-        {/* Options */}
-        {mode !== 'file' && (
-          <div className="flex items-center gap-3 text-xs">
-            <label className="flex items-center gap-2 cursor-pointer text-stone-700 dark:text-zinc-300 select-none">
-              <input
-                type="checkbox"
-                checked={urlSafe}
-                onChange={e => setUrlSafe(e.target.checked)}
-                className="rounded border-stone-300 text-rose-600 focus:ring-rose-500"
-              />
-              <span className="font-mono text-[11px]">URL-Safe (- / _)</span>
-            </label>
-
-            <button
-              onClick={handleSwap}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-medium transition-colors"
-              title="Swap"
-            >
-              <ArrowRightLeft size={13} />
-              <span>Swap</span>
-            </button>
+        {/* Presets & Options */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 text-xs w-full sm:w-auto">
+          {/* Presets */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 sm:pb-0 w-full sm:w-auto">
+            <span className="text-stone-500 font-mono text-[11px] shrink-0">
+              {language === 'en' ? 'Presets:' : 'Contoh:'}
+            </span>
+            {BASE64_PRESETS.map((p, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setMode(p.type as any);
+                  setInput(p.text);
+                }}
+                className="whitespace-nowrap shrink-0 px-2.5 py-1 rounded-xl text-xs font-medium border border-stone-200 dark:border-zinc-700 hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300"
+              >
+                {language === 'en' ? p.name : p.nameId}
+              </button>
+            ))}
           </div>
-        )}
+
+          {/* Options */}
+          {mode !== 'file' && (
+            <div className="flex items-center justify-between sm:justify-start gap-3 text-xs pt-1 sm:pt-0 border-t sm:border-t-0 border-stone-100 dark:border-zinc-800">
+              <label className="flex items-center gap-2 cursor-pointer text-stone-700 dark:text-zinc-300 select-none">
+                <input
+                  type="checkbox"
+                  checked={urlSafe}
+                  onChange={e => setUrlSafe(e.target.checked)}
+                  className="rounded border-stone-300 text-rose-600 focus:ring-rose-500"
+                />
+                <span className="font-mono text-[11px]">URL-Safe (- / _)</span>
+              </label>
+
+              <button
+                onClick={handleSwap}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-medium transition-colors"
+                title="Swap"
+              >
+                <ArrowRightLeft size={13} />
+                <span>Swap</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats & Inflation Metric Card */}
@@ -395,8 +399,7 @@ export const Base64Page: React.FC = () => {
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder={mode === 'encode' ? 'Enter text to encode...' : 'Paste Base64 string to decode...'}
-              rows={14}
-              className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-xs font-mono leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 resize-none"
+              className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-xs font-mono leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 resize-none h-48 sm:h-80"
             />
           </div>
 
@@ -427,8 +430,7 @@ export const Base64Page: React.FC = () => {
             <textarea
               readOnly
               value={output}
-              rows={14}
-              className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-xs font-mono leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden select-all resize-none"
+              className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-xs font-mono leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden select-all resize-none h-48 sm:h-80"
             />
 
             {/* If SVG detected in output, render preview */}

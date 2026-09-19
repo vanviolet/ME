@@ -404,17 +404,17 @@ export const JsonFormatterPage: React.FC = () => {
       </div>
 
       {/* Main Studio Controls Bar */}
-      <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
+      <div className="p-3 sm:p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Presets & Samples */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider font-mono mr-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 md:pb-0 w-full md:w-auto">
+          <span className="text-xs font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider font-mono shrink-0 mr-1">
             {language === 'en' ? 'Presets:' : 'Contoh:'}
           </span>
           {SAMPLE_DATASETS.map((s, idx) => (
             <button
               key={idx}
               onClick={() => setInputJson(JSON.stringify(s.data, null, indentSize))}
-              className="px-2.5 py-1 rounded-xl text-xs font-medium border border-stone-200 dark:border-zinc-700 hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300"
+              className="whitespace-nowrap shrink-0 px-2.5 py-1 rounded-xl text-xs font-medium border border-stone-200 dark:border-zinc-700 hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 transition-colors bg-stone-50 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300"
             >
               {language === 'en' ? s.name : s.nameId}
             </button>
@@ -422,11 +422,11 @@ export const JsonFormatterPage: React.FC = () => {
         </div>
 
         {/* Global Toolbar */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 md:pb-0 w-full md:w-auto shrink-0">
           {/* Sort Keys Toggle */}
           <button
             onClick={() => setSortKeys(!sortKeys)}
-            className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 ${
+            className={`whitespace-nowrap shrink-0 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 ${
               sortKeys
                 ? 'bg-rose-500 text-white border-rose-500'
                 : 'border-stone-200 dark:border-zinc-700 text-stone-700 dark:text-zinc-300 bg-stone-50 dark:bg-zinc-800'
@@ -438,7 +438,7 @@ export const JsonFormatterPage: React.FC = () => {
           </button>
 
           {/* Indent size buttons */}
-          <div className="flex items-center gap-1 bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl border border-stone-200 dark:border-zinc-700 text-xs">
+          <div className="flex items-center gap-1 bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl border border-stone-200 dark:border-zinc-700 text-xs shrink-0">
             <span className="px-1.5 text-[11px] text-stone-500 font-mono">
               {language === 'en' ? 'Indent' : 'Spasi'}
             </span>
@@ -460,7 +460,7 @@ export const JsonFormatterPage: React.FC = () => {
           {/* Clear input */}
           <button
             onClick={() => setInputJson('')}
-            className="p-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+            className="p-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors shrink-0"
             title="Clear"
           >
             <Trash2 size={14} />
@@ -559,8 +559,7 @@ export const JsonFormatterPage: React.FC = () => {
             value={inputJson}
             onChange={e => setInputJson(e.target.value)}
             placeholder='Paste JSON here (e.g. {"key": "value"})'
-            rows={22}
-            className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-xs font-mono leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 resize-none"
+            className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-xs font-mono leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 resize-none h-56 sm:h-[480px]"
           />
 
           {/* Bottom quick actions for input */}
@@ -589,59 +588,63 @@ export const JsonFormatterPage: React.FC = () => {
         {/* Right Column: Interactive Inspector & Outputs (7 cols) */}
         <div className="lg:col-span-7 p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-4">
           {/* Navigation Tabs for Views */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 dark:border-zinc-800 pb-3">
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-stone-200 dark:border-zinc-800 pb-3">
+            <div className="w-full sm:w-auto overflow-x-auto scrollbar-none flex items-center gap-1 p-1 rounded-xl bg-stone-100 dark:bg-zinc-800 text-xs font-medium">
               <button
                 onClick={() => setViewMode('tree')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                className={`whitespace-nowrap shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                   viewMode === 'tree'
                     ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white'
                 }`}
               >
                 <FolderTree size={13} />
-                <span>{language === 'en' ? 'Interactive Tree' : 'Pohon Interaktif'}</span>
+                <span className="sm:hidden">{language === 'en' ? 'Tree' : 'Pohon'}</span>
+                <span className="hidden sm:inline">{language === 'en' ? 'Interactive Tree' : 'Pohon Interaktif'}</span>
               </button>
 
               <button
                 onClick={() => setViewMode('raw')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                className={`whitespace-nowrap shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                   viewMode === 'raw'
                     ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white'
                 }`}
               >
                 <FileCode2 size={13} />
-                <span>{language === 'en' ? 'Formatted Code' : 'Kode Terformat'}</span>
+                <span className="sm:hidden">{language === 'en' ? 'Code' : 'Kode'}</span>
+                <span className="hidden sm:inline">{language === 'en' ? 'Formatted Code' : 'Kode Terformat'}</span>
               </button>
 
               <button
                 onClick={() => setViewMode('table')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                className={`whitespace-nowrap shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                   viewMode === 'table'
                     ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white'
                 }`}
               >
                 <TableIcon size={13} />
-                <span>{language === 'en' ? 'Table View' : 'Tabel Kunci'}</span>
+                <span className="sm:hidden">{language === 'en' ? 'Table' : 'Tabel'}</span>
+                <span className="hidden sm:inline">{language === 'en' ? 'Table View' : 'Tabel Kunci'}</span>
               </button>
 
               <button
                 onClick={() => setViewMode('ts')}
-                className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                className={`whitespace-nowrap shrink-0 px-2.5 sm:px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
                   viewMode === 'ts'
                     ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 font-bold shadow-xs'
                     : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-white'
                 }`}
               >
                 <Code2 size={13} />
-                <span>TypeScript</span>
+                <span className="sm:hidden">TS</span>
+                <span className="hidden sm:inline">TypeScript</span>
               </button>
             </div>
 
             {/* View Actions */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center justify-end gap-1.5 shrink-0">
               <button
                 onClick={() => handleCopy(parseResult.formatted || inputJson)}
                 className="px-2.5 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 hover:bg-stone-100 dark:hover:bg-zinc-700 text-xs font-semibold text-stone-700 dark:text-zinc-300 flex items-center gap-1.5 transition-colors"

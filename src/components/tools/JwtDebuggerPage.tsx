@@ -429,13 +429,14 @@ export const JwtDebuggerPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Encoded Token Area (5 cols) */}
         <div className="lg:col-span-5 p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-stone-700 dark:text-zinc-300 uppercase tracking-wider font-mono flex items-center gap-1.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <label className="text-xs font-bold text-stone-700 dark:text-zinc-300 uppercase tracking-wider font-mono flex items-center gap-1.5 shrink-0">
               <KeyRound size={14} className="text-rose-500" />
               <span>{language === 'en' ? 'Encoded Token' : 'Token Terenkripsi'}</span>
             </label>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 sm:pb-0 w-full sm:w-auto">
+              <span className="text-[11px] text-stone-400 shrink-0 sm:hidden">Samples:</span>
               {SAMPLE_TOKENS.map((s, idx) => (
                 <button
                   key={idx}
@@ -443,7 +444,7 @@ export const JwtDebuggerPage: React.FC = () => {
                     setTokenInput(s.token);
                     setSecretInput(s.secret);
                   }}
-                  className="px-2 py-0.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-[11px] font-medium text-stone-600 dark:text-zinc-400 hover:text-rose-600 transition-colors"
+                  className="whitespace-nowrap shrink-0 px-2 py-0.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-[11px] font-medium text-stone-600 dark:text-zinc-400 hover:text-rose-600 transition-colors"
                 >
                   {language === 'en' ? s.name : s.nameId}
                 </button>
@@ -456,9 +457,8 @@ export const JwtDebuggerPage: React.FC = () => {
             <textarea
               value={tokenInput}
               onChange={e => setTokenInput(e.target.value)}
-              rows={12}
               placeholder="Paste your JWT token here (eyJhbGciOi...)"
-              className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 font-mono text-xs leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 text-stone-900 dark:text-zinc-100 resize-none"
+              className="w-full p-4 rounded-xl bg-stone-50 dark:bg-zinc-950 font-mono text-xs leading-relaxed border border-stone-200 dark:border-zinc-800 focus:outline-hidden focus:ring-2 focus:ring-rose-500/30 text-stone-900 dark:text-zinc-100 resize-none h-36 sm:h-72"
             />
           </div>
 
@@ -547,15 +547,16 @@ export const JwtDebuggerPage: React.FC = () => {
 
           {/* Payload Segment */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0" />
                 <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                  Payload: Data Claims (Interactive Tree)
+                  <span className="sm:hidden">Payload Claims</span>
+                  <span className="hidden sm:inline">Payload: Data Claims</span>
                 </h3>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between sm:justify-end gap-2">
                 <div className="flex items-center p-0.5 rounded-lg bg-stone-100 dark:bg-zinc-800 text-[11px]">
                   <button
                     onClick={() => setViewMode('tree')}

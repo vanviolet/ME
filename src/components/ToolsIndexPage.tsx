@@ -197,19 +197,16 @@ export const ToolsIndexPage: React.FC = () => {
       </div>
 
       {/* Tools Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         {toolsList.map(tool => {
           const Icon = tool.icon;
           const isComingSoon = tool.status === 'coming_soon';
-          const isDesktopOnly = Boolean(tool.desktopOnly);
 
           return (
             <Link
               to={tool.path}
               key={tool.id}
-              className={`group p-6 rounded-2xl bg-white dark:bg-zinc-900/90 border transition-all duration-200 flex flex-col justify-between ${
-                isDesktopOnly ? 'hidden md:flex' : 'flex'
-              } ${
+              className={`group p-5 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900/90 border transition-all duration-200 flex flex-col justify-between ${
                 isComingSoon
                   ? 'border-amber-500/30 dark:border-amber-500/20 hover:border-amber-500/60 dark:hover:border-amber-500/40 hover:shadow-md'
                   : 'border-stone-200 dark:border-zinc-800 hover:border-rose-300 dark:hover:border-rose-900/50 hover:shadow-md'
