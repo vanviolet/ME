@@ -33,6 +33,7 @@ import { RegexTesterPage } from './components/tools/RegexTesterPage';
 import { UuidGeneratorPage } from './components/tools/UuidGeneratorPage';
 import { SqlFormatterPage } from './components/tools/SqlFormatterPage';
 import { VideoEditor } from './components/tools/video-editor/VideoEditor';
+import { CvPage } from './components/CvPage';
 import { JiraApp } from './components/jira/JiraApp';
 import { JiraProvider } from './components/jira/JiraContext';
 import { AiChatFloating } from './components/AiChatFloating';
@@ -136,12 +137,18 @@ const AppLayout: React.FC = () => {
         <Route path="/photo-editor" element={<ImageCropperPage />} />
         <Route path="/tools/video-editor" element={<VideoEditor />} />
         <Route path="/video-editor" element={<VideoEditor />} />
+        <Route path="/cv" element={<CvPage />} />
+        <Route path="/resume" element={<CvPage />} />
         {/* Fallback */}
         <Route path="*" element={<HomePage />} />
       </Routes>
-      {!isFullScreenStudio && <Footer />}
-      {!isFullScreenStudio && <AiChatFloating />}
-      {!isFullScreenStudio && <TextSelectionPopover />}
+      {!isFullScreenStudio && (
+        <div className="print:hidden">
+          <Footer />
+          <AiChatFloating />
+          <TextSelectionPopover />
+        </div>
+      )}
     </div>
   );
 };

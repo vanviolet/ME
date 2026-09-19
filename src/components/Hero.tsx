@@ -1,7 +1,8 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { profileData } from '../data/portfolioData';
-import { ArrowDown, ArrowUpRight, Github, Mail, Instagram, MapPin, Sparkles } from 'lucide-react';
+import { ArrowDown, ArrowUpRight, Github, Mail, Instagram, MapPin, Sparkles, FileText } from 'lucide-react';
 
 export const Hero: React.FC = () => {
   const { language, t } = usePortfolio();
@@ -64,6 +65,19 @@ export const Hero: React.FC = () => {
               <span>{language === 'en' ? 'Explore Work & Systems' : 'Eksplorasi Proyek & Sistem'}</span>
               <ArrowDown size={15} />
             </button>
+
+            <Link
+              id="hero-cta-cv"
+              to="/cv"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-rose-500/40 bg-rose-500/10 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 text-sm font-semibold hover:bg-rose-500/20 dark:hover:bg-rose-500/25 transition-all shadow-xs active:scale-[0.98] group"
+              title={language === 'en' ? 'View & Download CV (PDF)' : 'Lihat & Unduh CV Resmi (PDF)'}
+            >
+              <FileText size={15} className="text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform" />
+              <span>{language === 'en' ? 'Download CV' : 'Unduh CV'}</span>
+              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-rose-200/70 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200">
+                PDF
+              </span>
+            </Link>
 
             <button
               id="hero-cta-talk"

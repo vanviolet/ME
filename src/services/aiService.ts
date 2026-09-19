@@ -250,3 +250,53 @@ export async function askAiAssistant(params: {
   const result = await res.json();
   return result.result;
 }
+
+export interface LiveVoiceResponse {
+  success: boolean;
+  text: string;
+  audioUrl: string | null;
+  voice: string;
+  model: string;
+  provider: string;
+}
+
+export async function liveConverseWithAi(params: {
+  message: string;
+  history?: { role: string; content: string }[];
+  language?: 'id' | 'en';
+  voice?: 'Kore' | 'Zephyr' | 'Puck' | 'Fenrir' | 'Charon';
+  model?: string;
+}): Promise<LiveVoiceResponse> {
+  const res = await fetch('/api/ai/live-converse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    let errorMsg = 'Failed to connect to Live Voice AI';
+    try {
+      const data = await res.json();
+      if (data.error) errorMsg = data.error;
+    } catch {}
+    throw new Error(errorMsg);
+  }
+
+  return await res.json();
+}
+
+export async function generateSpeechWithGemini(params: {
+  text: string;
+  voice?: 'Kore' | 'Zephyr' | 'Puck' | 'Fenrir' | 'Charon';
+}): Promise<string | null> {
+  const res = await fetch('/api/ai/generate-speech', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.audioUrl || null;
+}
+

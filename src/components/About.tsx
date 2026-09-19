@@ -1,7 +1,8 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { usePortfolio } from '../context/PortfolioContext';
 import { profileData } from '../data/portfolioData';
-import { CheckCircle2, Terminal, Layers, Cpu, Code2 } from 'lucide-react';
+import { CheckCircle2, Terminal, Layers, Cpu, Code2, FileText, ArrowUpRight } from 'lucide-react';
 
 export const About: React.FC = () => {
   const { language, t, tArr } = usePortfolio();
@@ -127,6 +128,25 @@ export const About: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            <div className="h-px bg-stone-100 dark:bg-zinc-800" />
+
+            {/* Quick CV Download Link */}
+            <Link
+              id="about-cta-cv"
+              to="/cv"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-stone-50 dark:bg-zinc-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-stone-200 dark:border-zinc-700/80 hover:border-rose-300 dark:hover:border-rose-800 text-stone-800 dark:text-zinc-200 hover:text-rose-600 dark:hover:text-rose-400 transition-all group"
+            >
+              <div className="flex items-center gap-2">
+                <FileText size={14} className="text-rose-500 group-hover:scale-110 transition-transform" />
+                <span className="font-semibold text-xs">
+                  {language === 'en' ? 'View & Download Full CV' : 'Lihat & Unduh CV Lengkap'}
+                </span>
+              </div>
+              <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 font-bold">
+                PDF
+              </span>
+            </Link>
           </div>
         </div>
 

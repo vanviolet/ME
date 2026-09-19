@@ -25,6 +25,7 @@ import {
   Bell,
   Check,
   Plus,
+  FileText,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthButton } from './AuthButton';
@@ -115,6 +116,7 @@ export const Navbar: React.FC = () => {
     location.pathname.startsWith('/tools') ||
     location.pathname.startsWith('/jira') ||
     location.pathname.startsWith('/photo-editor');
+  const isCvPage = location.pathname.startsWith('/cv') || location.pathname.startsWith('/resume');
   // Jira is currently in Coming Soon / Refactoring mode; keep clean standard navigation
   const isJiraPage = false;
 
@@ -141,7 +143,7 @@ export const Navbar: React.FC = () => {
   return (
     <header
       id="navbar"
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 print:hidden ${
         isJiraPage
           ? 'h-14 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md border-b border-stone-200 dark:border-zinc-800 flex items-center shadow-2xs'
           : isScrolled || mobileMenuOpen
@@ -751,6 +753,21 @@ export const Navbar: React.FC = () => {
           {/* Google OAuth Profile & Auth Control */}
           <AuthButton />
 
+          {/* CV / Resume Download CTA */}
+          <Link
+            id="nav-cta-cv"
+            to="/cv"
+            className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-all shadow-2xs ${
+              isCvPage
+                ? 'border-rose-600 bg-rose-600 text-white'
+                : 'border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-800 dark:text-zinc-200 hover:border-rose-400 hover:text-rose-600 dark:hover:text-rose-400'
+            }`}
+            title={language === 'en' ? 'View & Download CV (PDF)' : 'Unduh & Lihat CV (PDF)'}
+          >
+            <FileText size={13} className={isCvPage ? 'text-white' : 'text-rose-500'} />
+            <span>CV</span>
+          </Link>
+
           {/* Let's Talk CTA (Desktop - hidden on Jira) */}
           {!isJiraPage && (
             <Link
@@ -1061,6 +1078,33 @@ export const Navbar: React.FC = () => {
                     {language === 'en' ? 'Photo Editor, Dev & Design Tools' : 'Pusat Alat, Editor & Utilitas'}
                   </div>
                 </div>
+              </Link>
+
+              {/* Mobile CV Action Link */}
+              <Link
+                id="mobile-nav-cv"
+                to="/cv"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`p-3 rounded-xl border transition-all flex items-center justify-between col-span-full ${
+                  isCvPage
+                    ? 'border-rose-500/60 bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold'
+                    : 'border-rose-200/80 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 text-stone-800 dark:text-zinc-200 hover:border-rose-300 dark:hover:border-rose-800'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <FileText size={16} className="text-rose-500 shrink-0" />
+                  <div className="text-left">
+                    <div className="text-xs font-bold text-rose-700 dark:text-rose-300">
+                      {language === 'en' ? 'Curriculum Vitae (CV)' : 'Curriculum Vitae (CV)'}
+                    </div>
+                    <div className="text-[10px] text-stone-500 dark:text-zinc-400">
+                      {language === 'en' ? 'Official Profile & High-Res PDF Export' : 'Profil Resmi & Ekspor PDF Berkualitas Tinggi'}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-rose-600 text-white shadow-2xs">
+                  PDF
+                </span>
               </Link>
 
               {isAdmin && (

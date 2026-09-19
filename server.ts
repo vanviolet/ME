@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import dotenv from "dotenv";
 import {
   executeSmartAiRouting,
@@ -710,6 +710,198 @@ Keluaran HARUS berupa JSON dengan properti:
       console.error("Error in audio transcription:", error);
       res.status(500).json({
         error: error.message || "Failed to transcribe audio",
+      });
+    }
+  });
+
+  // Helper function to encode raw PCM 16-bit mono into WAV container
+  function pcmToWav(pcmData: Buffer, sampleRate = 24000, numChannels = 1): Buffer {
+    const byteRate = sampleRate * numChannels * 2;
+    const blockAlign = numChannels * 2;
+    const dataSize = pcmData.length;
+    const header = Buffer.alloc(44);
+
+    header.write("RIFF", 0);
+    header.writeUInt32LE(36 + dataSize, 4);
+    header.write("WAVE", 8);
+    header.write("fmt ", 12);
+    header.writeUInt32LE(16, 16); // Subchunk1Size
+    header.writeUInt16LE(1, 20); // AudioFormat (1 = PCM)
+    header.writeUInt16LE(numChannels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(byteRate, 28);
+    header.writeUInt16LE(blockAlign, 32);
+    header.writeUInt16LE(16, 34); // BitsPerSample
+    header.write("data", 36);
+    header.writeUInt32LE(dataSize, 40);
+
+    return Buffer.concat([header, pcmData]);
+  }
+
+  // Text-to-Speech Generation Endpoint (Gemini 3.1 Flash TTS Preview)
+  app.post("/api/ai/generate-speech", async (req, res) => {
+    try {
+      const { text, voice = "Kore" } = req.body;
+      if (!text || typeof text !== "string") {
+        res.status(400).json({ error: "text string is required." });
+        return;
+      }
+
+      // Clean markdown, symbols, and formatting for clean speech synthesis
+      const cleanText = text
+        .replace(/[*#`_\[\]()]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 1000);
+
+      const validVoices = ["Kore", "Zephyr", "Puck", "Fenrir", "Charon"];
+      const selectedVoice = validVoices.includes(voice) ? voice : "Kore";
+
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ttsResponse = await ai.models.generateContent({
+        model: "gemini-3.1-flash-tts-preview",
+        contents: [{ parts: [{ text: cleanText }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: selectedVoice },
+            },
+          },
+        },
+      });
+
+      const rawPcmBase64 =
+        ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+      if (rawPcmBase64) {
+        const pcmBuffer = Buffer.from(rawPcmBase64, "base64");
+        const wavBuffer = pcmToWav(pcmBuffer, 24000, 1);
+        const wavBase64 = `data:audio/wav;base64,${wavBuffer.toString("base64")}`;
+        res.json({
+          success: true,
+          audioUrl: wavBase64,
+          format: "audio/wav",
+          voice: selectedVoice,
+        });
+      } else {
+        res.json({
+          success: false,
+          error: "No audio generated from TTS model",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error in Gemini TTS generation:", error);
+      res.status(500).json({
+        error: error.message || "Failed to generate speech",
+      });
+    }
+  });
+
+  // Live Voice Conversational Endpoint (Real-time AI Q&A + Spoken Audio Response)
+  app.post("/api/ai/live-converse", async (req, res) => {
+    try {
+      const {
+        message,
+        history = [],
+        language = "id",
+        voice = "Kore",
+        model = "gemini-3.8-flash",
+      } = req.body;
+
+      if (!message || typeof message !== "string") {
+        res.status(400).json({ error: "message string is required." });
+        return;
+      }
+
+      const validVoices = ["Kore", "Zephyr", "Puck", "Fenrir", "Charon"];
+      const selectedVoice = validVoices.includes(voice) ? voice : "Kore";
+
+      // Build live conversation prompt tailored for natural spoken speech
+      const liveSystemPrompt =
+        language === "en"
+          ? `You are Vanviolet AI, the official intelligent voice assistant of Muchamad Irvan (Software Engineer & Fullstack Developer).
+You are engaged in a REAL-TIME SPOKEN VOICE CONVERSATION with the user.
+GUIDELINES FOR SPOKEN VOICE RESPONSES:
+- Speak directly, warmly, intelligently, and concisely (1 to 3 natural conversational sentences).
+- Do NOT use markdown symbols, bullet points, headers (#), code fences, or URLs, because your answer will be spoken out loud.
+- If asked about Muchamad Irvan's portfolio, highlight his expertise in scalable web architectures, TypeScript, React, Node.js, AI system integrations, and flagship projects like University LMS and Biometric Attendance.
+- Maintain a friendly, professional, and confident engineering tone.`
+          : `Anda adalah Vanviolet AI, asisten suara resmi Muchamad Irvan (Software Engineer & Fullstack Developer).
+Anda sedang berbicara dalam PERCAKAPAN SUARA LANGSUNG (LIVE VOICE CONVERSATION) dengan pengguna.
+PEDOMAN RESPONS SUARA LANGSUNG:
+- Berbicaralah secara alami, hangat, solutif, ringkas, dan to the point (1 sampai 3 kalimat percakapan yang nyaman didengar).
+- JANGAN gunakan format markdown seperti simbol bintang, pagar (#), kode program panjang, atau tautan URL mentah, karena teks ini akan diucapkan secara langsung melalui audio.
+- Jika pengguna menanyakan proyek atau portofolio Muchamad Irvan, jelaskan keahliannya dalam sistem web scalable, AI engineering, TypeScript, serta proyek unggulan seperti University LMS dan Presensi Biometrik.
+- Gunakan bahasa yang santun, cerdas, dan interaktif.`;
+
+      // 1. Generate Conversational Text
+      const conversationPrompt = `${liveSystemPrompt}\n\nUser spoken input: "${message}"\n\nProvide the spoken answer:`;
+
+      let spokenText = "";
+      try {
+        const aiRoutingResult = await executeSmartAiRouting({
+          prompt: conversationPrompt,
+          model: model || "gemini-3.8-flash",
+        });
+        spokenText = aiRoutingResult.text.trim();
+      } catch (genErr) {
+        console.warn("Smart routing failed, falling back to direct Gemini:", genErr);
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const fallbackRes = await ai.models.generateContent({
+          model: "gemini-3.8-flash",
+          contents: conversationPrompt,
+        });
+        spokenText = fallbackRes.text ? fallbackRes.text.trim() : "";
+      }
+
+      // Clean any accidental markdown from the response
+      spokenText = spokenText
+        .replace(/[*#`_\[\]()]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      // 2. Generate Spoken Audio via Gemini 3.1 Flash TTS
+      let audioUrl: string | null = null;
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const ttsResponse = await ai.models.generateContent({
+          model: "gemini-3.1-flash-tts-preview",
+          contents: [{ parts: [{ text: spokenText.slice(0, 800) }] }],
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: selectedVoice },
+              },
+            },
+          },
+        });
+
+        const rawPcmBase64 =
+          ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+
+        if (rawPcmBase64) {
+          const pcmBuffer = Buffer.from(rawPcmBase64, "base64");
+          const wavBuffer = pcmToWav(pcmBuffer, 24000, 1);
+          audioUrl = `data:audio/wav;base64,${wavBuffer.toString("base64")}`;
+        }
+      } catch (ttsErr: any) {
+        console.warn("Gemini TTS in live converse had an issue (client can fallback to Web Speech):", ttsErr.message);
+      }
+
+      res.json({
+        success: true,
+        text: spokenText,
+        audioUrl,
+        voice: selectedVoice,
+        model: model || "gemini-3.8-flash",
+        provider: "Google Gemini Live Audio",
+      });
+    } catch (error: any) {
+      console.error("Error in Live converse endpoint:", error);
+      res.status(500).json({
+        error: error.message || "Failed to process live conversation",
       });
     }
   });

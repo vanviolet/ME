@@ -33,6 +33,7 @@ import { AI_MODELS_LIST } from '../lib/models';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useNavigate } from 'react-router-dom';
 import { generateArticleWithAi, generateVanpediaWithAi } from '../services/aiService';
+import { AiLiveVoiceMode } from './AiLiveVoiceMode';
 
 export interface ChatMessage {
   id: string;
@@ -93,6 +94,7 @@ export const AiChatFloating: React.FC = () => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [showModelMenu, setShowModelMenu] = useState<boolean>(false);
+  const [isLiveOpen, setIsLiveOpen] = useState<boolean>(false);
 
   const [selectedModelId, setSelectedModelId] = useState<string>(() => {
     return localStorage.getItem(MODEL_STORAGE_KEY) || 'gemini-3.8-flash';
@@ -856,6 +858,27 @@ export const AiChatFloating: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="flex items-center gap-1 text-stone-400 dark:text-zinc-500">
+                {/* Live Voice Mode Button */}
+                <button
+                  onClick={() => {
+                    setIsExpanded(true);
+                    setIsLiveOpen(true);
+                  }}
+                  title={
+                    language === 'en'
+                      ? 'Start Real-time Live Voice Conversation'
+                      : 'Mulai Mode Percakapan Suara Live (Dua Arah)'
+                  }
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-emerald-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 hover:border-rose-500/40 hover:bg-rose-500/15 text-[11px] font-semibold transition cursor-pointer group shadow-xs mr-1"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+                  </span>
+                  <Radio className="w-3 h-3 text-rose-500 animate-pulse" />
+                  <span>Live</span>
+                </button>
+
                 <button
                   onClick={handleClearChat}
                   title={language === 'en' ? 'Clear conversation' : 'Hapus percakapan'}
@@ -881,6 +904,44 @@ export const AiChatFloating: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Real-time Interactive Live Voice Overlay */}
+            <AnimatePresence>
+              {isLiveOpen && (
+                <AiLiveVoiceMode
+                  isOpen={isLiveOpen}
+                  onClose={() => setIsLiveOpen(false)}
+                  language={language}
+                  activeModelName={activeModel.name}
+                  onAddToVanpedia={(text) =>
+                    handleProcessAndAddToVanpedia({
+                      id: `live-${Date.now()}`,
+                      role: 'assistant',
+                      content: text,
+                      createdAt: new Date().toISOString(),
+                    })
+                  }
+                  onAddToArticle={(text) =>
+                    handleProcessAndAddToArticle({
+                      id: `live-${Date.now()}`,
+                      role: 'assistant',
+                      content: text,
+                      createdAt: new Date().toISOString(),
+                    })
+                  }
+                  onSyncTurnsToChat={(newTurns) => {
+                    const mapped: ChatMessage[] = newTurns.map((t, idx) => ({
+                      id: `live-synced-${Date.now()}-${idx}`,
+                      role: t.role,
+                      content: t.content,
+                      createdAt: new Date().toISOString(),
+                      model: t.role === 'assistant' ? 'Google Gemini Live Voice' : undefined,
+                    }));
+                    setMessages((prev) => [...prev, ...mapped]);
+                  }}
+                />
+              )}
+            </AnimatePresence>
 
             {/* Error Notification Banner if any */}
             {speechError && (
@@ -916,6 +977,33 @@ export const AiChatFloating: React.FC = () => {
                         : 'Tanyakan seputar proyek resmi Muchamad Irvan (University LMS, Presensi Biometrik, NoteLogic, dll), arsitektur sistem, atau tekan mikrofon untuk bicara.'}
                     </p>
                   </div>
+
+                  {/* Live Voice Mode Interactive Hero Banner */}
+                  <button
+                    onClick={() => {
+                      setIsExpanded(true);
+                      setIsLiveOpen(true);
+                    }}
+                    className="w-full p-3 rounded-2xl bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-emerald-500/10 border border-rose-500/25 hover:border-rose-500/40 hover:bg-rose-500/15 transition-all flex items-center justify-between group cursor-pointer text-left shadow-xs"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500 to-amber-500 text-white flex items-center justify-center shadow-xs">
+                        <Radio className="w-4 h-4 animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-stone-900 dark:text-zinc-100 flex items-center gap-1.5">
+                          <span>{language === 'en' ? 'Live Voice Conversation' : 'Mode Percakapan Suara Live'}</span>
+                          <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-600 dark:text-rose-400 font-mono font-bold">
+                            LIVE
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-stone-500 dark:text-zinc-400">
+                          {language === 'en' ? 'Continuous two-way voice with Gemini' : 'Bicara dua arah secara langsung tanpa mengetik'}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-rose-500 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
 
                   {/* Suggested Prompts - Clean Minimal Chips */}
                   <div className="w-full flex flex-col gap-1.5 pt-1 text-left">
@@ -1267,6 +1355,27 @@ export const AiChatFloating: React.FC = () => {
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500" />
                     </span>
                   )}
+                </button>
+
+                {/* Live Mode Quick Launch Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExpanded(true);
+                    setIsLiveOpen(true);
+                  }}
+                  title={
+                    language === 'en'
+                      ? 'Open Real-time Live Voice Mode'
+                      : 'Buka Mode Percakapan Suara Live'
+                  }
+                  className="p-1.5 px-2 rounded-xl text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition cursor-pointer shrink-0 flex items-center gap-1 text-[11px] font-semibold"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+                  </span>
+                  <span className="text-[10px] font-mono tracking-tight">Live</span>
                 </button>
 
                 {/* Textarea */}

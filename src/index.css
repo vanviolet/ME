@@ -300,6 +300,41 @@ code, kbd, samp, pre {
   animation: textPulse 1.8s ease-in-out infinite;
 }
 
+/* ————————————————————————————————
+   High-Fidelity Printable CV Rules
+   ———————————————————————————————— */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
 
+  body {
+    background-color: #ffffff !important;
+    color: #1c1917 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 
+  .print\:hidden,
+  #navbar,
+  footer,
+  [data-ai-chat],
+  #ai-chat-floating {
+    display: none !important;
+  }
 
+  .cv-a4-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

@@ -56,6 +56,14 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           <ArrowLeft size={15} />
         </Link>
 
+        {/* Studio Title */}
+        <div className="hidden sm:flex items-center gap-2 pr-2 border-r border-zinc-800 shrink-0">
+          <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+          <span className="text-xs font-bold tracking-tight text-zinc-200 font-mono">
+            Photo Studio
+          </span>
+        </div>
+
         {/* Undo / Redo buttons */}
         <div className="flex items-center gap-0.5 bg-zinc-950/80 p-0.5 rounded-lg border border-zinc-800">
           <button
