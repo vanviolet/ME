@@ -62,11 +62,11 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
 }) => {
   if (!isOpen) {
     return (
-      <div className="absolute top-16 right-3 z-30 flex flex-col gap-2">
+      <div className="hidden lg:flex absolute top-16 right-3 z-30 flex-col gap-2">
         <button
           onClick={onToggle}
           title="Buka Inspector Properti"
-          className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-md text-stone-700 dark:text-zinc-300 hover:text-rose-600 hover:border-rose-400 transition-all"
+          className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-md text-stone-700 dark:text-zinc-300 hover:text-rose-600 hover:border-rose-400 transition-all cursor-pointer"
         >
           <ChevronLeft size={18} />
         </button>
@@ -86,22 +86,29 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
   ];
 
   return (
-    <aside className="w-72 h-[calc(100vh-64px)] border-l border-stone-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md flex flex-col z-30 shrink-0 shadow-lg select-none transition-all">
-      {/* Header */}
-      <div className="p-3.5 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sliders size={15} className="text-rose-600 dark:text-rose-400" />
-          <span className="text-xs font-bold text-stone-900 dark:text-white uppercase tracking-wider">
-            {selectedNode ? 'Properti Node' : selectedEdge ? 'Properti Garis' : 'Pengaturan Kanvas'}
-          </span>
+    <>
+      {/* Mobile Backdrop */}
+      <div
+        className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs z-40 lg:hidden"
+        onClick={onToggle}
+      />
+
+      <aside className="fixed inset-y-0 right-0 z-50 w-72 sm:w-80 max-w-[85vw] h-full lg:static lg:w-72 lg:h-[calc(100vh-64px)] border-l border-stone-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md flex flex-col shrink-0 shadow-2xl lg:shadow-lg select-none transition-all">
+        {/* Header */}
+        <div className="p-3.5 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sliders size={15} className="text-rose-600 dark:text-rose-400" />
+            <span className="text-xs font-bold text-stone-900 dark:text-white uppercase tracking-wider">
+              {selectedNode ? 'Properti Node' : selectedEdge ? 'Properti Garis' : 'Pengaturan Kanvas'}
+            </span>
+          </div>
+          <button
+            onClick={onToggle}
+            className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
-        <button
-          onClick={onToggle}
-          className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800"
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
@@ -434,5 +441,6 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
         )}
       </div>
     </aside>
+    </>
   );
 };

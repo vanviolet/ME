@@ -39,6 +39,7 @@ export const MermaidModal: React.FC<MermaidModalProps> = ({
   const [mermaidCode, setMermaidCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
   const [previewSvg, setPreviewSvg] = useState<string>('');
   const [previewLoading, setPreviewLoading] = useState(false);
 
@@ -70,14 +71,20 @@ export const MermaidModal: React.FC<MermaidModalProps> = ({
 
   const renderMermaidSvg = async (codeToRender: string) => {
     setPreviewLoading(true);
+    setRenderError(null);
+    const id = `mermaid-render-${Date.now()}`;
     try {
-      const id = `mermaid-render-${Date.now()}`;
       const { svg } = await mermaid.render(id, codeToRender);
       setPreviewSvg(svg);
     } catch (err: any) {
       console.warn('Mermaid render error:', err);
+      const stray = document.getElementById(id) || document.getElementById(`d${id}`);
+      if (stray) stray.remove();
       setPreviewSvg('');
+      setRenderError(err?.message || 'Sintaks diagram Mermaid memiliki format yang tidak didukung.');
     } finally {
+      const stray = document.getElementById(id) || document.getElementById(`d${id}`);
+      if (stray) stray.remove();
       setPreviewLoading(false);
     }
   };
@@ -117,68 +124,71 @@ export const MermaidModal: React.FC<MermaidModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-3xl bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-stone-900/60 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-3xl bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="p-4 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between bg-stone-50/70 dark:bg-zinc-800/50">
+        <div className="p-3.5 sm:p-4 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between bg-stone-50/70 dark:bg-zinc-800/50">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-linear-to-br from-rose-500 to-purple-600 text-white shadow-xs">
               <FileCode size={18} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-stone-900 dark:text-white">
+              <h3 className="text-sm sm:text-base font-bold text-stone-900 dark:text-white">
                 Mermaid Flowchart Studio
               </h3>
-              <p className="text-xs text-stone-500 dark:text-zinc-400">
+              <p className="text-[11px] sm:text-xs text-stone-500 dark:text-zinc-400">
                 Ekspor, impor, dan pratinjau diagram Mermaid 2-way real-time
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800"
+            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center px-4 pt-3 border-b border-stone-200 dark:border-zinc-800 gap-2">
+        <div className="flex items-center px-4 pt-3 border-b border-stone-200 dark:border-zinc-800 gap-2 overflow-x-auto whitespace-nowrap scrollbar-none">
           <button
             onClick={() => setActiveTab('export')}
-            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeTab === 'export'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-zinc-300'
             }`}
           >
             <Code2 size={14} />
-            <span>Kode Mermaid (Ekspor)</span>
+            <span>Ekspor Kode</span>
+            <span className="hidden sm:inline">Mermaid</span>
           </button>
           <button
             onClick={() => {
               setActiveTab('preview');
               renderMermaidSvg(mermaidCode);
             }}
-            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeTab === 'preview'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-zinc-300'
             }`}
           >
             <Eye size={14} />
-            <span>Pratinjau Render Resmi</span>
+            <span>Pratinjau</span>
+            <span className="hidden sm:inline">Render Resmi</span>
           </button>
           <button
             onClick={() => setActiveTab('import')}
-            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeTab === 'import'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-zinc-300'
             }`}
           >
             <ArrowRightLeft size={14} />
-            <span>Impor Mermaid ke Kanvas</span>
+            <span>Impor</span>
+            <span className="hidden sm:inline">ke Kanvas</span>
           </button>
         </div>
 
@@ -238,9 +248,19 @@ export const MermaidModal: React.FC<MermaidModalProps> = ({
                     dangerouslySetInnerHTML={{ __html: previewSvg }}
                   />
                 ) : (
-                  <div className="text-xs text-stone-400 text-center space-y-1">
-                    <AlertCircle size={20} className="mx-auto text-amber-500" />
-                    <p>Tidak dapat merender pratinjau grafik.</p>
+                  <div className="text-xs text-stone-500 dark:text-zinc-400 text-center space-y-2 max-w-md p-4">
+                    <AlertCircle size={24} className="mx-auto text-amber-500" />
+                    <p className="font-semibold text-stone-800 dark:text-zinc-200">
+                      Tidak dapat merender pratinjau diagram
+                    </p>
+                    {renderError && (
+                      <p className="text-[11px] font-mono p-2 rounded bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 text-left overflow-auto max-h-24">
+                        {renderError}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-stone-400">
+                      Periksa tab 'Kode Mermaid' atau pastikan setiap label simpul menggunakan tanda petik yang sesuai.
+                    </p>
                   </div>
                 )}
               </div>

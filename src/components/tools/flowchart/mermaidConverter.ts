@@ -2,17 +2,27 @@ import { FlowchartNode, FlowchartEdge, CanvasDirection, NodeType } from './types
 
 /**
  * Escapes characters for Mermaid string literal safely.
+ * Replaces double quotes with single quotes to prevent breaking Mermaid string boundaries.
  */
 function sanitizeMermaidText(text: string): string {
   if (!text) return '';
-  return text.replace(/"/g, "'").replace(/\n/g, '<br/>').trim();
+  return text
+    .replace(/["“”]/g, "'")
+    .replace(/[\r\n]+/g, '<br/>')
+    .trim();
 }
 
 /**
  * Sanitizes node ID so it's a valid Mermaid identifier.
+ * Mermaid IDs must not start with a number and cannot contain special characters or spaces.
  */
 function sanitizeId(id: string): string {
-  return id.replace(/[^a-zA-Z0-9_]/g, '_');
+  if (!id) return 'node';
+  let clean = id.replace(/[^a-zA-Z0-9_]/g, '_');
+  if (/^[0-9]/.test(clean)) {
+    clean = `n_${clean}`;
+  }
+  return clean || 'node';
 }
 
 /**
@@ -26,9 +36,10 @@ export function flowchartToMermaid(
 ): string {
   const lines: string[] = [];
 
-  if (title) {
+  if (title && title.trim()) {
+    const cleanTitle = title.replace(/["\r\n]/g, ' ').trim();
     lines.push(`---`);
-    lines.push(`title: ${title}`);
+    lines.push(`title: "${cleanTitle}"`);
     lines.push(`---`);
   }
 
@@ -40,43 +51,43 @@ export function flowchartToMermaid(
     for (const node of nodes) {
       const sId = sanitizeId(node.id);
       const label = sanitizeMermaidText(node.label);
-      const desc = node.description ? `<br/><small>${sanitizeMermaidText(node.description)}</small>` : '';
-      const fullLabel = `"${label}${desc}"`;
+      const desc = node.description ? `<br/>${sanitizeMermaidText(node.description)}` : '';
+      const fullLabel = `${label}${desc}`;
 
       let nodeDef = '';
       switch (node.type) {
         case 'start':
         case 'end':
-          nodeDef = `${sId}([${fullLabel}])`;
+          nodeDef = `${sId}(["${fullLabel}"])`;
           break;
         case 'decision':
-          nodeDef = `${sId}{${fullLabel}}`;
+          nodeDef = `${sId}{"${fullLabel}"}`;
           break;
         case 'input':
         case 'output':
-          nodeDef = `${sId}[/${fullLabel}/]`;
+          nodeDef = `${sId}[/"${fullLabel}"/]`;
           break;
         case 'database':
-          nodeDef = `${sId}[(${fullLabel})]`;
+          nodeDef = `${sId}[("${fullLabel}")]`;
           break;
         case 'subroutine':
-          nodeDef = `${sId}[[${fullLabel}]]`;
+          nodeDef = `${sId}[["${fullLabel}"]]`;
           break;
         case 'document':
-          nodeDef = `${sId}[>${fullLabel}]`;
+          nodeDef = `${sId}>"${fullLabel}"]`;
           break;
         case 'cloud':
-          nodeDef = `${sId}["☁️ ${label}${desc}"]`;
+          nodeDef = `${sId}["☁️ ${fullLabel}"]`;
           break;
         case 'actor':
-          nodeDef = `${sId}["👤 ${label}${desc}"]`;
+          nodeDef = `${sId}["👤 ${fullLabel}"]`;
           break;
         case 'note':
-          nodeDef = `${sId}>"${label}${desc}"]`;
+          nodeDef = `${sId}>"${fullLabel}"]`;
           break;
         case 'process':
         default:
-          nodeDef = `${sId}[${fullLabel}]`;
+          nodeDef = `${sId}["${fullLabel}"]`;
           break;
       }
       lines.push(`    ${nodeDef}`);
@@ -100,7 +111,7 @@ export function flowchartToMermaid(
         if (arrow === '-.->') {
           lines.push(`    ${srcId} -. "${rawLabel}" .-> ${tgtId}`);
         } else {
-          lines.push(`    ${srcId} -->|${rawLabel}| ${tgtId}`);
+          lines.push(`    ${srcId} -->|"${rawLabel}"| ${tgtId}`);
         }
       } else {
         lines.push(`    ${srcId} ${arrow} ${tgtId}`);

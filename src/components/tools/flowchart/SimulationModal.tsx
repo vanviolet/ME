@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import { FlowchartNode, FlowchartEdge } from './types';
 import {
   Play,
@@ -80,6 +81,20 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
       ...prev,
       { nodeId: targetNode.id, label: targetNode.label, edgeId: edge.id },
     ]);
+
+    const nextOutgoing = edges.filter(e => e.source === targetNode.id);
+    if (targetNode.type === 'end' || nextOutgoing.length === 0) {
+      try {
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.7 },
+          colors: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899'],
+        });
+      } catch (e) {
+        // Silently continue
+      }
+    }
   };
 
   // Step next automatically if only 1 outgoing edge
@@ -112,7 +127,7 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
   const isDecisionPoint = outgoingEdges.length > 1;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-2xl overflow-hidden animate-fade-in select-none">
+    <div className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-1.5rem)] sm:w-full max-w-xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-2xl overflow-hidden animate-fade-in select-none">
       {/* Header */}
       <div className="p-3 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between bg-stone-50/70 dark:bg-zinc-800/40">
         <div className="flex items-center gap-2">

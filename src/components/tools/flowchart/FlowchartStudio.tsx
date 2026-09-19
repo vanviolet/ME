@@ -32,6 +32,8 @@ import {
   Image as ImageIcon,
   Save,
   Check,
+  Sliders,
+  Plus,
 } from 'lucide-react';
 
 interface HistorySnapshot {
@@ -63,9 +65,13 @@ export const FlowchartStudio: React.FC = () => {
   const [gridSize, setGridSize] = useState(20);
   const [canvasBg, setCanvasBg] = useState<'dots' | 'grid' | 'blank'>('dots');
 
-  // Sidebars
-  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
-  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+  // Sidebars (default closed on mobile/tablet for maximum canvas room)
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
 
   // Modals
   const [mermaidModalOpen, setMermaidModalOpen] = useState(false);
@@ -205,7 +211,11 @@ export const FlowchartStudio: React.FC = () => {
 
   // Node Updates
   const handleUpdateNode = (updated: FlowchartNode) => {
-    setNodes(prev => prev.map(n => (n.id === updated.id ? updated : n)));
+    setNodes(prev => {
+      const next = prev.map(n => (n.id === updated.id ? updated : n));
+      pushHistory(next, edges);
+      return next;
+    });
   };
 
   const handleUpdateNodes = (updatedList: FlowchartNode[]) => {
@@ -583,32 +593,32 @@ export const FlowchartStudio: React.FC = () => {
         </div>
 
         {/* Right Section: Simulator, AI Architect, Mermaid Export */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Logic Simulator */}
           <button
             onClick={() => setSimulationModalOpen(true)}
-            className="py-1.5 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+            className="py-1.5 px-2.5 sm:px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Play size={14} className="fill-current" />
-            <span className="hidden sm:inline">Simulasi Alur</span>
+            <span className="hidden md:inline">Simulasi</span>
           </button>
 
           {/* AI Generator */}
           <button
             onClick={() => setAiModalOpen(true)}
-            className="py-1.5 px-3 rounded-xl bg-linear-to-r from-rose-600 to-purple-600 hover:opacity-90 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+            className="py-1.5 px-2.5 sm:px-3 rounded-xl bg-linear-to-r from-rose-600 to-purple-600 hover:opacity-90 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
           >
             <Sparkles size={14} />
-            <span>AI Architect</span>
+            <span className="hidden sm:inline">AI Architect</span>
           </button>
 
           {/* Mermaid Modal */}
           <button
             onClick={() => setMermaidModalOpen(true)}
-            className="py-1.5 px-3 rounded-xl bg-stone-900 dark:bg-zinc-800 hover:bg-stone-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+            className="py-1.5 px-2.5 sm:px-3 rounded-xl bg-stone-900 dark:bg-zinc-800 hover:bg-stone-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
           >
             <Code2 size={14} className="text-emerald-400" />
-            <span>Mermaid Studio</span>
+            <span className="hidden sm:inline">Mermaid</span>
           </button>
 
           {/* Export Dropdown */}
@@ -660,7 +670,7 @@ export const FlowchartStudio: React.FC = () => {
           {/* Dark Mode Toggle */}
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-xl text-stone-500 hover:text-stone-900 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+            className="p-2 rounded-xl text-stone-500 hover:text-stone-900 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             {darkMode ? <Sun size={16} /> : <Moon size={16} />}
           </button>
@@ -741,6 +751,86 @@ export const FlowchartStudio: React.FC = () => {
           onChangeCanvasBg={setCanvasBg}
           onTriggerAutoLayout={handleAutoLayout}
         />
+      </div>
+
+      {/* Mobile Floating Bottom Action Bar */}
+      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1 p-1.5 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-2xl border border-stone-200/90 dark:border-zinc-800/90 shadow-2xl max-w-[calc(100%-1rem)]">
+        {/* Toggle Palette Drawer */}
+        <button
+          onClick={() => {
+            setLeftSidebarOpen(!leftSidebarOpen);
+            if (rightSidebarOpen) setRightSidebarOpen(false);
+          }}
+          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            leftSidebarOpen
+              ? 'bg-rose-600 text-white shadow-xs'
+              : 'bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-200 hover:bg-stone-200 dark:hover:bg-zinc-700'
+          }`}
+        >
+          <Plus size={14} />
+          <span>Bentuk</span>
+        </button>
+
+        {/* Undo */}
+        <button
+          onClick={handleUndo}
+          disabled={historyIndex <= 0}
+          className="p-1.5 text-stone-600 dark:text-zinc-300 disabled:opacity-30 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
+          title="Undo"
+        >
+          <Undo2 size={16} />
+        </button>
+
+        {/* Redo */}
+        <button
+          onClick={handleRedo}
+          disabled={historyIndex >= history.length - 1}
+          className="p-1.5 text-stone-600 dark:text-zinc-300 disabled:opacity-30 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
+          title="Redo"
+        >
+          <Redo2 size={16} />
+        </button>
+
+        <div className="w-[1px] h-4 bg-stone-200 dark:bg-zinc-700" />
+
+        {/* Auto Layout */}
+        <button
+          onClick={handleAutoLayout}
+          title="Rapikan Alur Otomatis"
+          className="p-1.5 text-stone-700 dark:text-zinc-200 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
+        >
+          <Sparkles size={16} className="text-amber-500" />
+        </button>
+
+        {/* Zoom Fit */}
+        <button
+          onClick={handleZoomToFit}
+          title="Pusatkan Diagram"
+          className="p-1.5 text-stone-700 dark:text-zinc-200 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
+        >
+          <Maximize2 size={16} />
+        </button>
+
+        <div className="w-[1px] h-4 bg-stone-200 dark:bg-zinc-700" />
+
+        {/* Toggle Inspector Drawer */}
+        <button
+          onClick={() => {
+            setRightSidebarOpen(!rightSidebarOpen);
+            if (leftSidebarOpen) setLeftSidebarOpen(false);
+          }}
+          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer relative ${
+            rightSidebarOpen
+              ? 'bg-rose-600 text-white shadow-xs'
+              : 'bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-200 hover:bg-stone-200 dark:hover:bg-zinc-700'
+          }`}
+        >
+          <Sliders size={14} />
+          <span>Properti</span>
+          {(selectedNodeId || selectedEdgeId) && (
+            <span className="w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-zinc-900 absolute -top-0.5 -right-0.5 animate-pulse" />
+          )}
+        </button>
       </div>
 
       {/* Floating Action Toast Notification */}

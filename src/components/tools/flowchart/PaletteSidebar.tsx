@@ -38,6 +38,20 @@ export const PaletteSidebar: React.FC<PaletteSidebarProps> = ({
   const [activeTab, setActiveTab] = useState<'nodes' | 'templates'>('nodes');
   const [templateSearch, setTemplateSearch] = useState('');
 
+  const handleItemClick = (type: NodeType) => {
+    onAddNode(type);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      onToggle();
+    }
+  };
+
+  const handleTemplateClick = (template: FlowchartTemplate) => {
+    onLoadTemplate(template);
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      onToggle();
+    }
+  };
+
   const nodePaletteItems: {
     type: NodeType;
     label: string;
@@ -126,11 +140,11 @@ export const PaletteSidebar: React.FC<PaletteSidebarProps> = ({
 
   if (!isOpen) {
     return (
-      <div className="absolute top-16 left-3 z-30 flex flex-col gap-2">
+      <div className="hidden lg:flex absolute top-16 left-3 z-30 flex-col gap-2">
         <button
           onClick={onToggle}
           title="Buka Panel Komponen & Template"
-          className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-md text-stone-700 dark:text-zinc-300 hover:text-rose-600 hover:border-rose-400 transition-all"
+          className="p-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 shadow-md text-stone-700 dark:text-zinc-300 hover:text-rose-600 hover:border-rose-400 transition-all cursor-pointer"
         >
           <ChevronRight size={18} />
         </button>
@@ -139,40 +153,47 @@ export const PaletteSidebar: React.FC<PaletteSidebarProps> = ({
   }
 
   return (
-    <aside className="w-72 h-[calc(100vh-64px)] border-r border-stone-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md flex flex-col z-30 shrink-0 shadow-lg select-none transition-all">
-      {/* Top Header */}
-      <div className="p-3 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 p-0.5 bg-stone-100 dark:bg-zinc-800 rounded-lg w-full">
+    <>
+      {/* Mobile Backdrop */}
+      <div
+        className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs z-40 lg:hidden"
+        onClick={onToggle}
+      />
+
+      <aside className="fixed inset-y-0 left-0 z-50 w-72 sm:w-80 max-w-[85vw] h-full lg:static lg:w-72 lg:h-[calc(100vh-64px)] border-r border-stone-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md flex flex-col shrink-0 shadow-2xl lg:shadow-lg select-none transition-all">
+        {/* Top Header */}
+        <div className="p-3 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 p-0.5 bg-stone-100 dark:bg-zinc-800 rounded-lg w-full">
+            <button
+              onClick={() => setActiveTab('nodes')}
+              className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
+                activeTab === 'nodes'
+                  ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-xs'
+                  : 'text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              Bentuk Node
+            </button>
+            <button
+              onClick={() => setActiveTab('templates')}
+              className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
+                activeTab === 'templates'
+                  ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-xs'
+                  : 'text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200'
+              }`}
+            >
+              Template Pro
+            </button>
+          </div>
+
           <button
-            onClick={() => setActiveTab('nodes')}
-            className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
-              activeTab === 'nodes'
-                ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-xs'
-                : 'text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200'
-            }`}
+            onClick={onToggle}
+            title="Tutup Panel"
+            className="ml-2 p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer shrink-0"
           >
-            Bentuk Node
-          </button>
-          <button
-            onClick={() => setActiveTab('templates')}
-            className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition-all ${
-              activeTab === 'templates'
-                ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-white shadow-xs'
-                : 'text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200'
-            }`}
-          >
-            Template Pro
+            <ChevronLeft size={18} />
           </button>
         </div>
-
-        <button
-          onClick={onToggle}
-          title="Tutup Panel"
-          className="ml-2 p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800"
-        >
-          <ChevronLeft size={16} />
-        </button>
-      </div>
 
       {/* AI Generator Banner */}
       <div className="p-3 border-b border-stone-100 dark:border-zinc-800/80 bg-linear-to-r from-rose-500/10 via-purple-500/10 to-blue-500/10">
@@ -196,7 +217,7 @@ export const PaletteSidebar: React.FC<PaletteSidebarProps> = ({
             {nodePaletteItems.map(item => (
               <button
                 key={item.type}
-                onClick={() => onAddNode(item.type)}
+                onClick={() => handleItemClick(item.type)}
                 className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all hover:scale-[1.02] active:scale-98 shadow-2xs hover:shadow-sm cursor-pointer ${item.color}`}
               >
                 <div className="flex items-center gap-2.5">
@@ -234,7 +255,7 @@ export const PaletteSidebar: React.FC<PaletteSidebarProps> = ({
             {filteredTemplates.map(template => (
               <div
                 key={template.id}
-                onClick={() => onLoadTemplate(template)}
+                onClick={() => handleTemplateClick(template)}
                 className="group p-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 hover:border-rose-400 dark:hover:border-rose-600 bg-stone-50/50 dark:bg-zinc-800/40 hover:bg-white dark:hover:bg-zinc-800 transition-all cursor-pointer shadow-2xs"
               >
                 <div className="flex items-center justify-between">
@@ -257,5 +278,6 @@ export const PaletteSidebar: React.FC<PaletteSidebarProps> = ({
         </div>
       )}
     </aside>
+    </>
   );
 };

@@ -105,36 +105,36 @@ export const AiFlowchartModal: React.FC<AiFlowchartModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm animate-fade-in select-none">
-      <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-stone-900/60 backdrop-blur-sm animate-fade-in select-none">
+      <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="p-4 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between bg-linear-to-r from-rose-500/10 via-purple-500/10 to-blue-500/10">
+        <div className="p-3.5 sm:p-4 border-b border-stone-200 dark:border-zinc-800 flex items-center justify-between bg-linear-to-r from-rose-500/10 via-purple-500/10 to-blue-500/10 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-linear-to-br from-rose-500 to-purple-600 text-white shadow-xs">
+            <div className="p-2 rounded-xl bg-linear-to-br from-rose-500 to-purple-600 text-white shadow-xs shrink-0">
               <Wand2 size={18} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-stone-900 dark:text-white flex items-center gap-2">
-                <span>AI Flowchart & System Architect</span>
+              <h3 className="text-sm sm:text-base font-bold text-stone-900 dark:text-white flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span>AI Flowchart Architect</span>
                 <span className="px-2 py-0.5 text-[10px] font-mono bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-full">
-                  Gemini Flash Powered
+                  Gemini Flash
                 </span>
               </h3>
-              <p className="text-xs text-stone-500 dark:text-zinc-400">
-                Deskripsikan sistem atau alur yang Anda inginkan, AI akan merancang visual diagram secara lengkap
+              <p className="text-[11px] sm:text-xs text-stone-500 dark:text-zinc-400">
+                Deskripsikan alur yang diinginkan, AI akan merancang visual diagram secara lengkap
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800"
+            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer shrink-0"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-5 space-y-4">
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto">
           {/* Prompt Input */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
