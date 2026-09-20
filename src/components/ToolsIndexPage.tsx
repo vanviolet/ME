@@ -16,6 +16,7 @@ import {
   Database,
   Video,
   Network,
+  Globe,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -23,6 +24,19 @@ export const ToolsIndexPage: React.FC = () => {
   const { language } = usePortfolio();
 
   const toolsList = [
+    {
+      id: 'api-tester',
+      title: 'API Testing Studio (Postman Web)',
+      description:
+        language === 'en'
+          ? 'Powerful HTTP client & API test suite with automatic CORS bypass via Node.js proxy, environment variables, multi-language cURL/code generator, and response inspector.'
+          : 'Klien HTTP & pengujian API mirip Postman dengan fitur bypass CORS otomatis melalui proxy Node.js, variabel environment, generator cURL/kode multi-bahasa, dan inspektur response.',
+      icon: Globe,
+      category: 'API & Networking',
+      path: '/tools/api-tester',
+      status: 'active',
+      badge: language === 'en' ? 'Bypass CORS' : 'Bebas CORS',
+    },
     {
       id: 'flowchart-studio',
       title: 'Interactive Flowchart & Mermaid Studio',

@@ -8,6 +8,7 @@ import {
   ALL_ALLOWED_FREE_MODELS,
 } from "./src/lib/serverAiRouter";
 import { generateCvPdf } from "./src/lib/cvPdfGenerator";
+import { articlesData } from "./src/data/articlesData";
 
 dotenv.config();
 
@@ -48,6 +49,213 @@ async function startServer() {
   }
 
   // --- API Routes (Mounted BEFORE Vite middleware) ---
+
+  // --- HTTP Proxy Endpoint (CORS Bypass Engine for API Testing Tool) ---
+  app.all(["/api/http-proxy", "/api/proxy-request"], async (req, res) => {
+    // Set permissive CORS headers on the proxy endpoint itself so the client app can always call it
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-Requested-With, Accept, Origin"
+    );
+
+    if (req.method === "OPTIONS") {
+      res.status(200).end();
+      return;
+    }
+
+    const startTime = performance.now();
+
+    try {
+      const payload = req.method === "GET" ? req.query : req.body;
+      const targetMethod = String(payload.method || "GET").toUpperCase();
+      let targetUrl = payload.url as string;
+
+      if (!targetUrl || typeof targetUrl !== "string") {
+        res.status(400).json({
+          success: false,
+          error: "URL target diperlukan (parameter 'url' kosong).",
+        });
+        return;
+      }
+
+      targetUrl = targetUrl.trim();
+      if (!/^https?:\/\//i.test(targetUrl)) {
+        targetUrl = "https://" + targetUrl;
+      }
+
+      // Check URL validity
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(targetUrl);
+      } catch {
+        res.status(400).json({
+          success: false,
+          error: `URL tidak valid: ${targetUrl}`,
+        });
+        return;
+      }
+
+      // Security: Prevent SSRF targeting internal cloud metadata services
+      if (
+        parsedUrl.hostname === "169.254.169.254" ||
+        parsedUrl.hostname === "metadata.google.internal" ||
+        parsedUrl.hostname === "metadata"
+      ) {
+        res.status(403).json({
+          success: false,
+          error: "Akses ke metadata cloud internal diblokir demi keamanan.",
+        });
+        return;
+      }
+
+      // Append query params if supplied separately
+      if (payload.params && typeof payload.params === "object") {
+        for (const [key, value] of Object.entries(payload.params)) {
+          if (key && value !== undefined && value !== null) {
+            parsedUrl.searchParams.append(key, String(value));
+          }
+        }
+      }
+
+      // Timeout configuration (default 30s, max 60s)
+      const timeoutMs = Math.min(Math.max(Number(payload.timeoutMs) || 30000, 1000), 60000);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      // Clean and prepare headers
+      const requestHeaders: Record<string, string> = {};
+      if (payload.headers && typeof payload.headers === "object") {
+        for (const [k, v] of Object.entries(payload.headers)) {
+          if (k && v !== undefined && v !== null && String(v).trim() !== "") {
+            const lowerK = k.toLowerCase();
+            // Discard headers that Node fetch manages automatically
+            if (lowerK !== "host" && lowerK !== "content-length") {
+              requestHeaders[k] = String(v);
+            }
+          }
+        }
+      }
+
+      // User Agent default
+      if (!requestHeaders["user-agent"] && !requestHeaders["User-Agent"]) {
+        requestHeaders["User-Agent"] = "VanPostman-ApiTester/1.0 (Mozilla/5.0; Node.js Proxy)";
+      }
+
+      // Prepare request body
+      let bodyData: any = undefined;
+      if (!["GET", "HEAD", "OPTIONS"].includes(targetMethod)) {
+        if (typeof payload.body === "string") {
+          bodyData = payload.body;
+        } else if (payload.body !== undefined && payload.body !== null) {
+          bodyData = typeof payload.body === "object" ? JSON.stringify(payload.body) : String(payload.body);
+          if (!requestHeaders["content-type"] && !requestHeaders["Content-Type"]) {
+            requestHeaders["Content-Type"] = "application/json";
+          }
+        }
+      }
+
+      // Execute request via Node.js native fetch (Completely bypasses browser CORS!)
+      let response: Response;
+      try {
+        response = await fetch(parsedUrl.toString(), {
+          method: targetMethod,
+          headers: requestHeaders,
+          body: bodyData,
+          signal: controller.signal,
+          redirect: payload.followRedirects === false ? "manual" : "follow",
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      const durationMs = Math.round(performance.now() - startTime);
+
+      // Extract response headers
+      const resHeaders: Record<string, string> = {};
+      const resHeadersList: { key: string; value: string }[] = [];
+      response.headers.forEach((val, key) => {
+        resHeaders[key] = val;
+        resHeadersList.push({ key, value: val });
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+      const isBinary =
+        contentType.includes("image/") ||
+        contentType.includes("audio/") ||
+        contentType.includes("video/") ||
+        contentType.includes("application/pdf") ||
+        contentType.includes("application/octet-stream") ||
+        contentType.includes("application/zip");
+
+      let rawText = "";
+      let responseData: any = null;
+      let isJson = false;
+      let sizeBytes = 0;
+
+      if (isBinary) {
+        const arrayBuf = await response.arrayBuffer();
+        const buf = Buffer.from(arrayBuf);
+        sizeBytes = buf.length;
+        responseData = buf.toString("base64");
+      } else {
+        rawText = await response.text();
+        sizeBytes = Buffer.byteLength(rawText, "utf-8");
+        // Check if response is JSON
+        const trimmed = rawText.trim();
+        if (
+          contentType.includes("json") ||
+          (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+          (trimmed.startsWith("[") && trimmed.endsWith("]"))
+        ) {
+          try {
+            responseData = JSON.parse(rawText);
+            isJson = true;
+          } catch {
+            responseData = rawText;
+          }
+        } else {
+          responseData = rawText;
+        }
+      }
+
+      res.status(200).json({
+        success: true,
+        status: response.status,
+        statusText: response.statusText || (response.ok ? "OK" : "Error"),
+        timeMs: durationMs,
+        sizeBytes,
+        headers: resHeaders,
+        headersList: resHeadersList,
+        contentType,
+        isJson,
+        isBinary,
+        data: responseData,
+        rawText: isBinary ? undefined : rawText,
+        url: response.url || parsedUrl.toString(),
+        corsMode: "proxy",
+      });
+    } catch (err: any) {
+      const durationMs = Math.round(performance.now() - startTime);
+      const isAbort = err.name === "AbortError" || err.message?.includes("aborted");
+
+      res.status(200).json({
+        success: false,
+        status: 0,
+        statusText: isAbort ? "Request Timeout" : "Network Error",
+        timeMs: durationMs,
+        sizeBytes: 0,
+        headers: {},
+        headersList: [],
+        error: isAbort
+          ? `Permintaan melebihi batas waktu (Timeout setelah ${Math.round(durationMs)} ms).`
+          : (err.message || "Gagal menghubungi server target."),
+        code: err.code || (isAbort ? "TIMEOUT" : "FETCH_ERROR"),
+        corsMode: "proxy",
+      });
+    }
+  });
 
   // Official CV PDF Direct Route & Download Endpoint
   app.get(["/cv.pdf", "/api/cv.pdf", "/api/cv/download"], (req, res) => {
@@ -96,7 +304,7 @@ async function startServer() {
   // Articles Endpoints (Public articles are accessible to ALL users, guests, and unauthenticated visitors)
   app.get("/api/articles", (req, res) => {
     try {
-      const articles = readJsonFile<any[]>(ARTICLES_FILE, []);
+      const articles = readJsonFile<any[]>(ARTICLES_FILE, articlesData);
       const authorId = req.headers["x-author-id"] as string | undefined;
       const isAdmin = req.headers["x-is-admin"] === "true";
 
@@ -122,7 +330,7 @@ async function startServer() {
   app.get("/api/articles/:slug", (req, res) => {
     try {
       const { slug } = req.params;
-      const articles = readJsonFile<any[]>(ARTICLES_FILE, []);
+      const articles = readJsonFile<any[]>(ARTICLES_FILE, articlesData);
       const article = articles.find((a) => a.slug === slug);
 
       if (!article) {

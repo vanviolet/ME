@@ -34,6 +34,7 @@ import { UuidGeneratorPage } from './components/tools/UuidGeneratorPage';
 import { SqlFormatterPage } from './components/tools/SqlFormatterPage';
 import { VideoEditor } from './components/tools/video-editor/VideoEditor';
 import { FlowchartPage } from './components/tools/FlowchartPage';
+import { ApiTesterPage } from './components/tools/ApiTesterPage';
 import { CvPage } from './components/CvPage';
 import { JiraApp } from './components/jira/JiraApp';
 import { JiraProvider } from './components/jira/JiraContext';
@@ -92,8 +93,13 @@ const AppLayout: React.FC = () => {
   const isFlowchart =
     location.pathname.startsWith('/tools/flowchart') ||
     location.pathname.startsWith('/flowchart');
+  const isApiTester =
+    location.pathname.startsWith('/tools/api-tester') ||
+    location.pathname.startsWith('/api-tester') ||
+    location.pathname.startsWith('/tools/postman') ||
+    location.pathname.startsWith('/postman');
 
-  const isFullScreenStudio = isJira || isPhotoEditor || isVideoEditor || isFlowchart;
+  const isFullScreenStudio = isJira || isPhotoEditor || isVideoEditor || isFlowchart || isApiTester;
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 selection:bg-rose-500/20 selection:text-rose-600 dark:selection:bg-rose-500/30 dark:selection:text-rose-400 font-sans">
@@ -121,6 +127,10 @@ const AppLayout: React.FC = () => {
         <Route path="/tools" element={<ToolsIndexPage />} />
         <Route path="/tools/flowchart" element={<FlowchartPage />} />
         <Route path="/flowchart" element={<FlowchartPage />} />
+        <Route path="/tools/api-tester" element={<ApiTesterPage />} />
+        <Route path="/api-tester" element={<ApiTesterPage />} />
+        <Route path="/tools/postman" element={<ApiTesterPage />} />
+        <Route path="/postman" element={<ApiTesterPage />} />
         <Route path="/tools/jira" element={<JiraApp />} />
         <Route path="/tools/jira/*" element={<JiraApp />} />
         <Route path="/jira" element={<JiraApp />} />

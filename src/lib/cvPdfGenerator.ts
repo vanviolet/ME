@@ -103,9 +103,12 @@ export function generateCvPdf(options: CvPdfOptions = {}): jsPDF {
     // Embed Photo if available
     if (includePhoto && photoBase64) {
       try {
+        const formattedPhoto = photoBase64.startsWith('data:')
+          ? photoBase64
+          : `data:image/jpeg;base64,${photoBase64}`;
         doc.setFillColor(stone100[0], stone100[1], stone100[2]);
         doc.roundedRect(pageWidth - marginX - 25, 10, 25, 27, 2, 2, 'F');
-        doc.addImage(photoBase64, 'JPEG', pageWidth - marginX - 25, 10, 25, 27);
+        doc.addImage(formattedPhoto, 'JPEG', pageWidth - marginX - 25, 10, 25, 27);
         doc.setDrawColor(stone200[0], stone200[1], stone200[2]);
         doc.setLineWidth(0.3);
         doc.roundedRect(pageWidth - marginX - 25, 10, 25, 27, 2, 2, 'D');
@@ -175,6 +178,8 @@ export function generateCvPdf(options: CvPdfOptions = {}): jsPDF {
     doc.text('Frameworks: React 19, Next.js, Vue.js, Tailwind CSS, Canvas, Web Audio', marginX + 3, y + 14.5);
 
     // Box 2: Server Tier
+    doc.setFillColor(stone100[0], stone100[1], stone100[2]);
+    doc.setDrawColor(stone200[0], stone200[1], stone200[2]);
     doc.roundedRect(marginX + boxWidth + 4, y, boxWidth, boxHeight, 1.5, 1.5, 'FD');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
@@ -189,6 +194,8 @@ export function generateCvPdf(options: CvPdfOptions = {}): jsPDF {
     y += boxHeight + 2.5;
 
     // Box 3: DevOps & Cloud
+    doc.setFillColor(stone100[0], stone100[1], stone100[2]);
+    doc.setDrawColor(stone200[0], stone200[1], stone200[2]);
     doc.roundedRect(marginX, y, boxWidth, boxHeight, 1.5, 1.5, 'FD');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
@@ -201,6 +208,8 @@ export function generateCvPdf(options: CvPdfOptions = {}): jsPDF {
     doc.text('Operations: CI/CD Pipelines, Nginx Reverse Proxy, Linux Server Ops', marginX + 3, y + 14.5);
 
     // Box 4: AI & Systems
+    doc.setFillColor(stone100[0], stone100[1], stone100[2]);
+    doc.setDrawColor(stone200[0], stone200[1], stone200[2]);
     doc.roundedRect(marginX + boxWidth + 4, y, boxWidth, boxHeight, 1.5, 1.5, 'FD');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
@@ -550,6 +559,8 @@ export function generateCvPdf(options: CvPdfOptions = {}): jsPDF {
     doc.text(splitEng, marginX + 3, y2 + 15.5);
 
     // Card 2: Engagement
+    doc.setFillColor(stone100[0], stone100[1], stone100[2]);
+    doc.setDrawColor(stone200[0], stone200[1], stone200[2]);
     doc.roundedRect(marginX + halfW + 4, y2, halfW, cardH, 1.5, 1.5, 'FD');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
@@ -584,6 +595,7 @@ export function generateCvPdf(options: CvPdfOptions = {}): jsPDF {
     );
 
     doc.setFillColor(stone100[0], stone100[1], stone100[2]);
+    doc.setDrawColor(stone200[0], stone200[1], stone200[2]);
     doc.roundedRect(marginX, y2, contentWidth, 18, 1.5, 1.5, 'FD');
 
     doc.setFont('helvetica', 'bold');
