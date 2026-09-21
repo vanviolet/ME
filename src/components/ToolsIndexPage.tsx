@@ -26,6 +26,7 @@ import {
   Shield,
   Share2,
   QrCode,
+  Link2,
   Search,
   X,
   Sparkles,
@@ -36,6 +37,19 @@ export const ToolsIndexPage: React.FC = () => {
   const { language } = usePortfolio();
 
   const toolsList = [
+    {
+      id: 'ai-illustration',
+      title: 'AI Illustration Studio (Multi-Style Diffusion)',
+      description:
+        language === 'en'
+          ? 'Generate stylized art and illustrations with ready-to-use presets: Ink Drawing v4, Flat Vector, 3D Isometric, Cyberpunk, and Gemini prompt enhancement.'
+          : 'Generator seni dan ilustrasi AI dengan preset gaya siap pakai: Ink Drawing v4, Flat Vector, 3D Isometric, Cyberpunk, dan peningkatan prompt AI.',
+      icon: Sparkles,
+      category: 'AI & Creative Studio',
+      path: '/tools/ai-illustration',
+      status: 'active',
+      badge: language === 'en' ? 'New Studio' : 'Studio Baru',
+    },
     {
       id: 'api-tester',
       title: 'API Testing Studio (Postman Web)',
@@ -337,6 +351,19 @@ export const ToolsIndexPage: React.FC = () => {
       badge: language === 'en' ? 'Available' : 'Tersedia',
     },
     {
+      id: 'url-encoder-decoder',
+      title: 'URL Encoder & Decoder Studio',
+      description:
+        language === 'en'
+          ? 'Encode and decode URLs, query strings, and parameter components with RFC 3986 support, query inspector, and instant copy.'
+          : 'Enkoder & dekoder URL, query string, dan parameter komponen dengan standar RFC 3986, inspektur URL, serta salin instan.',
+      icon: Link2,
+      category: 'HTTP & Web Utilities',
+      path: '/tools/url-encoder-decoder',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
       id: 'lorem-ipsum',
       title: 'Lorem Ipsum Generator',
       description:
@@ -431,8 +458,8 @@ export const ToolsIndexPage: React.FC = () => {
             onChange={e => setSearchQuery(e.target.value)}
             placeholder={
               language === 'en'
-                ? 'Search utilities by name or keyword... (e.g. QR, Regex, Chmod, JWT)'
-                : 'Cari tool berdasarkan nama atau kata kunci... (misal: QR, Regex, Chmod, JWT)'
+                ? 'Search utilities by name or keyword... (e.g. URL, QR, Regex, Chmod, JWT)'
+                : 'Cari tool berdasarkan nama atau kata kunci... (misal: URL, QR, Regex, Chmod, JWT)'
             }
             className="w-full pl-10 pr-20 py-3 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 text-sm text-stone-900 dark:text-zinc-100 placeholder-stone-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-xs transition-all"
           />

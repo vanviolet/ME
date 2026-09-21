@@ -983,6 +983,173 @@ Format keluaran HARUS berupa objek JSON valid dengan struktur:
     }
   });
 
+  // AI Enhance Illustration Prompt Endpoint
+  app.post("/api/ai/enhance-illustration-prompt", async (req, res) => {
+    try {
+      const {
+        prompt,
+        stylePreset = "flat-vector",
+        presetName = "Flat Vector",
+        language = "id",
+        model = "gemini-3.8-flash",
+      } = req.body;
+
+      if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+        res.status(400).json({ error: "Prompt is required." });
+        return;
+      }
+
+      const systemInstruction = `You are a world-class prompt engineer and digital art director specializing in text-to-image illustration models (FLUX.1, Midjourney, Stable Diffusion).
+Your task is to take a user's initial creative idea and enhance it into an evocative, highly detailed prompt that specifically adheres to the selected artistic preset: "${presetName}".
+
+Output MUST be valid JSON with fields:
+- enhancedPrompt: string (in English, highly detailed, describing composition, lighting, style motifs, textures, color harmony, and perspective)
+- styleModifiers: string (key stylistic comma-separated keyword tokens for diffusion models)
+- negativePrompt: string (unwanted artifacts, such as blurry, low quality, oversaturated, watermark, bad anatomy, deformed)
+- explanationId: string (short explanation in Indonesian of what was enhanced)
+- explanationEn: string (short explanation in English of what was enhanced)
+- suggestedTags: array of 4-6 strings`;
+
+      const aiPrompt = `User Prompt: "${prompt.trim()}"
+Selected Preset: "${presetName}" (${stylePreset})
+User Language: ${language}
+
+Craft an optimized, professional text-to-image prompt tailored specifically for "${presetName}". Focus on visual mastery, exquisite composition, artistic depth, and rendering nuances.`;
+
+      const jsonSchema = {
+        type: Type.OBJECT,
+        properties: {
+          enhancedPrompt: { type: Type.STRING },
+          styleModifiers: { type: Type.STRING },
+          negativePrompt: { type: Type.STRING },
+          explanationId: { type: Type.STRING },
+          explanationEn: { type: Type.STRING },
+          suggestedTags: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+          },
+        },
+        required: [
+          "enhancedPrompt",
+          "styleModifiers",
+          "negativePrompt",
+          "explanationId",
+          "explanationEn",
+          "suggestedTags",
+        ],
+      };
+
+      const aiResult = await executeSmartAiRouting({
+        model,
+        systemInstruction,
+        prompt: aiPrompt,
+        isJson: true,
+        jsonSchema,
+      });
+
+      const parsed = aiResult.parsedJson || JSON.parse(aiResult.text);
+
+      res.json({
+        success: true,
+        data: {
+          ...parsed,
+          aiModel: aiResult.usedModel,
+          provider: aiResult.provider,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error enhancing illustration prompt:", error);
+      res.status(500).json({
+        error: error.message || "Failed to enhance illustration prompt",
+      });
+    }
+  });
+
+  // AI Generate Image Illustration (Free Tier Open Diffusion Engine)
+  app.post("/api/ai/generate-illustration", async (req, res) => {
+    try {
+      const {
+        prompt,
+        stylePreset = "ink-drawing-v4",
+        styleModifiers = "",
+        width = 1024,
+        height = 1024,
+        seed = Math.floor(Math.random() * 1000000),
+        model = "flux",
+        negativePrompt = "",
+      } = req.body;
+
+      if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+        res.status(400).json({ error: "Prompt is required." });
+        return;
+      }
+
+      // Compose full prompt with style modifiers
+      let fullPrompt = prompt.trim();
+      if (styleModifiers && !fullPrompt.toLowerCase().includes(styleModifiers.toLowerCase())) {
+        fullPrompt = `${fullPrompt}, ${styleModifiers}`;
+      }
+
+      // Pollinations AI Open Diffusion URL
+      const encodedPrompt = encodeURIComponent(fullPrompt);
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&seed=${seed}&model=${model}&nologo=true${
+        negativePrompt ? `&negative=${encodeURIComponent(negativePrompt)}` : ""
+      }`;
+
+      res.json({
+        success: true,
+        data: {
+          imageUrl,
+          prompt: fullPrompt,
+          basePrompt: prompt.trim(),
+          stylePreset,
+          width: Number(width),
+          height: Number(height),
+          seed: Number(seed),
+          model,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch (error: any) {
+      console.error("Error in generate-illustration:", error);
+      res.status(500).json({
+        error: error.message || "Failed to prepare illustration generation",
+      });
+    }
+  });
+
+  // Image Proxy to safely download or display images without client CORS restrictions
+  app.get("/api/ai/image-proxy", async (req, res) => {
+    try {
+      const url = req.query.url as string;
+      if (!url || !url.startsWith("https://image.pollinations.ai/")) {
+        res.status(400).json({ error: "Valid image URL is required." });
+        return;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+      });
+
+      if (!response.ok) {
+        res.status(response.status).json({ error: "Failed to fetch image upstream." });
+        return;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const contentType = response.headers.get("content-type") || "image/jpeg";
+
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.send(buffer);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Speech-to-Text / Audio Transcription Endpoint (Gemini Multimodal Audio)
   app.post("/api/ai/transcribe-audio", async (req, res) => {
     try {
