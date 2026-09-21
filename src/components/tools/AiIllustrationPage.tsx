@@ -28,6 +28,7 @@ import {
   Info,
   CheckCircle2,
   Wand2,
+  Scissors,
 } from 'lucide-react';
 
 export interface StylePreset {
@@ -340,6 +341,9 @@ export const AiIllustrationPage: React.FC = () => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState<boolean>(false);
   const [backgroundTone, setBackgroundTone] = useState<'checker' | 'dark' | 'light'>('checker');
+  const [autoCleanWatermark, setAutoCleanWatermark] = useState<boolean>(true);
+  const [cleanPreviewUrl, setCleanPreviewUrl] = useState<string | null>(null);
+  const [isCleaningDownloading, setIsCleaningDownloading] = useState<boolean>(false);
 
   const selectedPreset = STYLE_PRESETS.find(p => p.id === selectedPresetId) || STYLE_PRESETS[0];
 
@@ -351,6 +355,62 @@ export const AiIllustrationPage: React.FC = () => {
       console.warn('Failed to save illustration history', e);
     }
   }, [history]);
+
+  // Effect to automatically generate clean preview without watermark
+  useEffect(() => {
+    if (!currentResult) {
+      setCleanPreviewUrl(null);
+      return;
+    }
+
+    let isMounted = true;
+    const generateClean = async () => {
+      try {
+        const proxyUrl = `/api/ai/image-proxy?url=${encodeURIComponent(currentResult.imageUrl)}`;
+        const response = await fetch(proxyUrl);
+        if (!response.ok) return;
+        const blob = await response.blob();
+
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(blob);
+        img.src = objectUrl;
+
+        await new Promise((resolve, reject) => {
+          img.onload = () => resolve(true);
+          img.onerror = (e) => reject(e);
+        });
+
+        const canvas = document.createElement('canvas');
+        // Pollinations.ai adds watermark at the bottom strip (~36-40px on 1024px canvas)
+        const cropBottomPx = Math.min(42, Math.max(34, Math.round(img.height * 0.038)));
+        canvas.width = img.width;
+        canvas.height = img.height - cropBottomPx;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.drawImage(
+          img,
+          0, 0, img.width, img.height - cropBottomPx,
+          0, 0, canvas.width, canvas.height
+        );
+
+        URL.revokeObjectURL(objectUrl);
+        const dataUrl = canvas.toDataURL('image/png');
+        if (isMounted) {
+          setCleanPreviewUrl(dataUrl);
+        }
+      } catch (err) {
+        console.warn('Auto clean watermark preview failed, using original', err);
+      }
+    };
+
+    generateClean();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentResult]);
 
   // Filter presets
   const filteredPresets = STYLE_PRESETS.filter(p => {
@@ -491,29 +551,86 @@ export const AiIllustrationPage: React.FC = () => {
     }
   };
 
-  // Download image helper
-  const handleDownload = async (imageUrl: string, filename: string) => {
+  // Download image helper with watermark cleaning option
+  const handleDownload = async (imageUrl: string, filename: string, clean: boolean = autoCleanWatermark) => {
     try {
-      // Use proxy to avoid canvas taint / CORS download issues
+      setIsCleaningDownloading(true);
+
+      // If user wants clean image and we already have cleanPreviewUrl ready
+      if (clean && cleanPreviewUrl) {
+        const a = document.createElement('a');
+        a.href = cleanPreviewUrl;
+        a.download = `${filename}-clean-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setIsCleaningDownloading(false);
+        return;
+      }
+
+      // Download from proxy
       const proxyUrl = `/api/ai/image-proxy?url=${encodeURIComponent(imageUrl)}`;
       const response = await fetch(proxyUrl);
       const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
 
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = `${filename}-${Date.now()}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
+      if (!clean) {
+        // Direct download unmodified blob
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `${filename}-original-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+        setIsCleaningDownloading(false);
+        return;
+      }
+
+      // If clean was requested but cleanPreviewUrl wasn't ready yet:
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(blob);
+      img.src = objectUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = () => resolve(true);
+        img.onerror = (e) => reject(e);
+      });
+
+      const canvas = document.createElement('canvas');
+      const cropBottomPx = Math.min(42, Math.max(34, Math.round(img.height * 0.038)));
+      canvas.width = img.width;
+      canvas.height = img.height - cropBottomPx;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas context error');
+
+      ctx.drawImage(
+        img,
+        0, 0, img.width, img.height - cropBottomPx,
+        0, 0, canvas.width, canvas.height
+      );
+
+      URL.revokeObjectURL(objectUrl);
+      canvas.toBlob((cleanBlob) => {
+        if (!cleanBlob) return;
+        const cleanUrl = URL.createObjectURL(cleanBlob);
+        const a = document.createElement('a');
+        a.href = cleanUrl;
+        a.download = `${filename}-clean-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(cleanUrl);
+        setIsCleaningDownloading(false);
+      }, 'image/png');
+
     } catch (err) {
-      // Fallback: direct window download
+      console.error('Download error:', err);
       const a = document.createElement('a');
       a.href = imageUrl;
       a.target = '_blank';
       a.download = `${filename}.png`;
       a.click();
+      setIsCleaningDownloading(false);
     }
   };
 
@@ -985,7 +1102,7 @@ export const AiIllustrationPage: React.FC = () => {
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-white dark:bg-zinc-900/80 p-5 sm:p-6 rounded-3xl border border-stone-200 dark:border-zinc-800 shadow-xs space-y-4">
             {/* Header Stage */}
-            <div className="flex items-center justify-between border-b border-stone-100 dark:border-zinc-800/80 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 dark:border-zinc-800/80 pb-3">
               <div className="flex items-center gap-2">
                 <ImageIcon size={16} className="text-rose-500" />
                 <h3 className="text-sm font-bold text-stone-900 dark:text-zinc-100">
@@ -993,22 +1110,41 @@ export const AiIllustrationPage: React.FC = () => {
                 </h3>
               </div>
 
-              {/* Background Tone Switcher */}
-              <div className="flex items-center gap-1 bg-stone-100 dark:bg-zinc-800 p-1 rounded-lg">
-                {(['checker', 'dark', 'light'] as const).map(tone => (
-                  <button
-                    key={tone}
-                    type="button"
-                    onClick={() => setBackgroundTone(tone)}
-                    className={`px-2 py-0.5 rounded text-[10px] capitalize transition-colors ${
-                      backgroundTone === tone
-                        ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
-                        : 'text-stone-500 dark:text-zinc-400'
-                    }`}
-                  >
-                    {tone}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
+                {/* Auto Clean Watermark Toggle */}
+                <label className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer transition-colors bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={autoCleanWatermark}
+                    onChange={e => setAutoCleanWatermark(e.target.checked)}
+                    className="rounded text-rose-600 focus:ring-rose-500/20"
+                  />
+                  <Scissors size={12} className="text-rose-500" />
+                  <span className="hidden sm:inline">
+                    {language === 'en' ? 'Clean Watermark' : 'Bersihkan Watermark'}
+                  </span>
+                  <span className="sm:hidden">
+                    {language === 'en' ? 'Clean' : 'Bersih'}
+                  </span>
+                </label>
+
+                {/* Background Tone Switcher */}
+                <div className="flex items-center gap-1 bg-stone-100 dark:bg-zinc-800 p-1 rounded-lg">
+                  {(['checker', 'dark', 'light'] as const).map(tone => (
+                    <button
+                      key={tone}
+                      type="button"
+                      onClick={() => setBackgroundTone(tone)}
+                      className={`px-2 py-0.5 rounded text-[10px] capitalize transition-colors ${
+                        backgroundTone === tone
+                          ? 'bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 font-bold shadow-xs'
+                          : 'text-stone-500 dark:text-zinc-400'
+                      }`}
+                    >
+                      {tone}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -1041,11 +1177,19 @@ export const AiIllustrationPage: React.FC = () => {
               ) : currentResult ? (
                 <div className="relative group w-full h-full flex items-center justify-center p-2">
                   <img
-                    src={currentResult.imageUrl}
+                    src={autoCleanWatermark && cleanPreviewUrl ? cleanPreviewUrl : currentResult.imageUrl}
                     alt={currentResult.prompt}
                     className="max-h-[480px] w-auto max-w-full object-contain rounded-xl shadow-md cursor-pointer transition-transform duration-300 group-hover:scale-[1.01]"
                     onClick={() => setLightboxOpen(true)}
                   />
+
+                  {/* Clean Status Badge */}
+                  {autoCleanWatermark && cleanPreviewUrl && (
+                    <div className="absolute top-4 left-4 px-2.5 py-1 rounded-full bg-emerald-600/90 text-white text-[10px] font-semibold backdrop-blur-xs flex items-center gap-1 shadow-md">
+                      <CheckCircle2 size={12} />
+                      <span>{language === 'en' ? 'Watermark Cleaned' : 'Watermark Dibersihkan'}</span>
+                    </div>
+                  )}
 
                   {/* Hover Overlay Button */}
                   <div className="absolute bottom-4 right-4 flex items-center gap-2 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
@@ -1090,14 +1234,23 @@ export const AiIllustrationPage: React.FC = () => {
                 </div>
 
                 {/* Main Action Buttons */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => handleDownload(currentResult.imageUrl, currentResult.stylePresetId)}
+                    onClick={() => handleDownload(currentResult.imageUrl, currentResult.stylePresetId, autoCleanWatermark)}
+                    disabled={isCleaningDownloading}
                     className="w-full py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-xs transition-all flex items-center justify-center gap-1.5"
                   >
-                    <Download size={14} />
-                    <span>{language === 'en' ? 'Download PNG' : 'Unduh PNG'}</span>
+                    {isCleaningDownloading ? (
+                      <RefreshCw size={14} className="animate-spin" />
+                    ) : (
+                      <Download size={14} />
+                    )}
+                    <span>
+                      {autoCleanWatermark
+                        ? (language === 'en' ? 'Download PNG (Clean)' : 'Unduh PNG (Bersih)')
+                        : (language === 'en' ? 'Download PNG (Original)' : 'Unduh PNG (Asli)')}
+                    </span>
                   </button>
 
                   <button
@@ -1113,25 +1266,37 @@ export const AiIllustrationPage: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Secondary Actions */}
-                <div className="flex items-center justify-between gap-2 pt-1 border-t border-stone-100 dark:border-zinc-800 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => handleCopyText(currentResult.imageUrl, 'url')}
-                    className="flex items-center gap-1 text-stone-500 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
-                  >
-                    {copiedKey === 'url' ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                    <span>{copiedKey === 'url' ? 'Copied URL' : 'Copy Image Link'}</span>
-                  </button>
+                {/* Secondary Actions & Alternate Download */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-stone-100 dark:border-zinc-800 text-xs">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(currentResult.imageUrl, 'url')}
+                      className="flex items-center gap-1 text-stone-500 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
+                    >
+                      {copiedKey === 'url' ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                      <span>{copiedKey === 'url' ? 'Copied URL' : 'Copy Image Link'}</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleCopyText(currentResult.prompt, 'prompt')}
-                    className="flex items-center gap-1 text-stone-500 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
-                  >
-                    {copiedKey === 'prompt' ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                    <span>{copiedKey === 'prompt' ? 'Copied Prompt' : 'Copy Prompt'}</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(currentResult.prompt, 'prompt')}
+                      className="flex items-center gap-1 text-stone-500 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
+                    >
+                      {copiedKey === 'prompt' ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                      <span>{copiedKey === 'prompt' ? 'Copied Prompt' : 'Copy Prompt'}</span>
+                    </button>
+                  </div>
+
+                  {autoCleanWatermark && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(currentResult.imageUrl, currentResult.stylePresetId, false)}
+                      className="text-[11px] text-stone-400 hover:text-stone-600 dark:hover:text-zinc-300 underline underline-offset-2 transition-colors"
+                    >
+                      {language === 'en' ? 'Download raw original' : 'Unduh file original'}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -1227,7 +1392,7 @@ export const AiIllustrationPage: React.FC = () => {
             </button>
 
             <img
-              src={currentResult.imageUrl}
+              src={autoCleanWatermark && cleanPreviewUrl ? cleanPreviewUrl : currentResult.imageUrl}
               alt={currentResult.prompt}
               className="max-h-[80vh] w-auto max-w-full rounded-2xl shadow-2xl object-contain"
             />
@@ -1240,11 +1405,16 @@ export const AiIllustrationPage: React.FC = () => {
               <div className="pt-2 flex justify-center gap-3">
                 <button
                   type="button"
-                  onClick={() => handleDownload(currentResult.imageUrl, currentResult.stylePresetId)}
+                  onClick={() => handleDownload(currentResult.imageUrl, currentResult.stylePresetId, autoCleanWatermark)}
+                  disabled={isCleaningDownloading}
                   className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-lg"
                 >
                   <Download size={14} />
-                  <span>{language === 'en' ? 'Download Full Res PNG' : 'Unduh PNG Resolusi Penuh'}</span>
+                  <span>
+                    {autoCleanWatermark
+                      ? (language === 'en' ? 'Download Clean PNG' : 'Unduh PNG Bersih')
+                      : (language === 'en' ? 'Download Full Res PNG' : 'Unduh PNG Resolusi Penuh')}
+                  </span>
                 </button>
               </div>
             </div>
@@ -1252,16 +1422,34 @@ export const AiIllustrationPage: React.FC = () => {
         </div>
       )}
 
-      {/* Information & Free Limit Explainer Note */}
-      <div className="p-4 rounded-2xl bg-stone-100 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 text-xs text-stone-600 dark:text-zinc-400 flex items-start gap-3">
-        <Info size={18} className="text-rose-500 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <p className="font-semibold text-stone-900 dark:text-zinc-100">
-            {language === 'en' ? 'About Model Limits & Privacy' : 'Mengenai Limit Model & Privasi'}
+      {/* Detailed FAQ & Explanation Box */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 space-y-2">
+          <div className="flex items-center gap-2 font-bold text-sm text-amber-950 dark:text-amber-100">
+            <Scissors size={16} className="text-amber-600 dark:text-amber-400" />
+            <span>
+              {language === 'en'
+                ? 'Why is there a "pollinations.ai" watermark?'
+                : 'Kenapa ada tulisan "pollinations.ai" di gambarnya?'}
+            </span>
+          </div>
+          <p className="leading-relaxed text-amber-800 dark:text-amber-300">
+            {language === 'en'
+              ? 'Images generated via open-source free clusters (Pollinations.ai) automatically receive a small text overlay at the bottom right. Our studio features an automated "Clean Watermark" engine enabled by default, which trims this strip so your downloaded illustrations are clean and professional.'
+              : 'Klaster komputasi difusi gratis publik (Pollinations.ai) secara otomatis menyematkan tanda air/watermark kecil di sudut bawah gambar untuk semua akses publik non-berbayar sejak pembaruan server mereka. Studio ini sudah dilengkapi fitur "Bersihkan Watermark (Auto Clean)" otomatis yang memangkas margin logo tersebut sehingga pratinjau dan hasil unduhan Anda tetap bersih dan rapi.'}
           </p>
+        </div>
+
+        <div className="p-5 rounded-2xl bg-stone-100 dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 text-xs text-stone-600 dark:text-zinc-400 space-y-2">
+          <div className="flex items-center gap-2 font-bold text-sm text-stone-900 dark:text-zinc-100">
+            <Info size={16} className="text-rose-500" />
+            <span>
+              {language === 'en' ? 'Free-Tier Limits & AI Models' : 'Limit Model & Privasi'}
+            </span>
+          </div>
           <p className="leading-relaxed">
             {language === 'en'
-              ? 'This tool runs on public zero-auth diffusion clusters (FLUX.1 and SDXL Turbo) combined with Gemini 3.8 Flash for prompt optimization. It is 100% free with generous rate limits, requires no credit card, and stores no personal data.'
+              ? 'This tool runs on zero-auth diffusion clusters (FLUX.1 Schnell & SDXL Turbo) combined with server-side Gemini 3.8 Flash for prompt optimization. It is 100% free with generous rate limits, requires no credit card, and stores no personal data.'
               : 'Tool ini ditenagai klaster difusi terbuka gratis (FLUX.1 & SDXL Turbo) yang dikombinasikan dengan Gemini 3.8 Flash untuk optimasi prompt. Sepenuhnya gratis tanpa kartu kredit, memiliki limit kuota besar, dan tidak menyimpan data pribadi Anda.'}
           </p>
         </div>
