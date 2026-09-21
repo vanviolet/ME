@@ -41,6 +41,8 @@ import { ColorContrastPage } from './components/tools/ColorContrastPage';
 import { SvgToJsxPage } from './components/tools/SvgToJsxPage';
 import { YamlJsonConverterPage } from './components/tools/YamlJsonConverterPage';
 import { MockDataGeneratorPage } from './components/tools/MockDataGeneratorPage';
+import { ChmodCalculatorPage } from './components/tools/ChmodCalculatorPage';
+import { MetaTagGeneratorPage } from './components/tools/MetaTagGeneratorPage';
 import { VideoEditor } from './components/tools/video-editor/VideoEditor';
 import { FlowchartPage } from './components/tools/FlowchartPage';
 import { ApiTesterPage } from './components/tools/ApiTesterPage';
@@ -174,6 +176,10 @@ const AppLayout: React.FC = () => {
         <Route path="/tools/yaml" element={<YamlJsonConverterPage />} />
         <Route path="/tools/mock-data-generator" element={<MockDataGeneratorPage />} />
         <Route path="/tools/mock-data" element={<MockDataGeneratorPage />} />
+        <Route path="/tools/chmod-calculator" element={<ChmodCalculatorPage />} />
+        <Route path="/tools/chmod" element={<ChmodCalculatorPage />} />
+        <Route path="/tools/meta-tag-generator" element={<MetaTagGeneratorPage />} />
+        <Route path="/tools/meta-tags" element={<MetaTagGeneratorPage />} />
         <Route path="/tools/image-cropper" element={<ImageCropperPage />} />
         <Route path="/tools/crop-image" element={<ImageCropperPage />} />
         <Route path="/tools/photo-editor" element={<ImageCropperPage />} />

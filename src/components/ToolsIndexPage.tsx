@@ -23,6 +23,8 @@ import {
   FileDiff,
   FileCode,
   FileText,
+  Shield,
+  Share2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -236,6 +238,32 @@ export const ToolsIndexPage: React.FC = () => {
       icon: Database,
       category: 'DevOps & Backend',
       path: '/tools/mock-data-generator',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'chmod-calculator',
+      title: 'Chmod & Linux Permissions Calculator',
+      description:
+        language === 'en'
+          ? 'Visual Linux file permissions calculator for octal (755, 644, 600) and symbolic (rwxr-xr-x) with SUID/SGID/Sticky bits and security warnings.'
+          : 'Kalkulator izin berkas Linux interaktif untuk notasi oktal (755, 644, 600), simbolik rwxr-xr-x, bit khusus SUID/SGID/Sticky, dan analisis keamanan.',
+      icon: Shield,
+      category: 'DevOps & Backend',
+      path: '/tools/chmod-calculator',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'meta-tag-generator',
+      title: 'Meta Tag & Open Graph Social Previewer',
+      description:
+        language === 'en'
+          ? 'Generate essential SEO meta tags, OpenGraph cards, and Twitter Cards with real-time visual simulation on Google, X, and Facebook.'
+          : 'Buat tag meta SEO, kartu media sosial OpenGraph, dan Twitter Card lengkap dengan simulasi visual langsung di Google, X/Twitter, dan Facebook.',
+      icon: Share2,
+      category: 'Frontend & UI',
+      path: '/tools/meta-tag-generator',
       status: 'active',
       badge: language === 'en' ? 'New Tool' : 'Tool Baru',
     },
