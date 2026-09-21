@@ -66,8 +66,21 @@ function aistudioMediaPlugin(): Plugin {
 // LINT.ThenChange(//depot/google3/java/com/google/alkali/boq/makersuite/applet_dev_service/templates/initializers/react_theme/vite.config.ts:aistudio_media_plugin)
 
 export default defineConfig(() => {
+  const distDir = path.resolve(__dirname, 'dist');
+  if (!fs.existsSync(distDir)) {
+    fs.mkdirSync(distDir, { recursive: true });
+  }
+
   return {
     plugins: [
+      {
+        name: 'ensure-dist-directory',
+        buildStart() {
+          if (!fs.existsSync(distDir)) {
+            fs.mkdirSync(distDir, { recursive: true });
+          }
+        },
+      },
       sitemapPlugin({
         hostname: 'https://vanviolet.my.id/',
         dynamicRoutes: [

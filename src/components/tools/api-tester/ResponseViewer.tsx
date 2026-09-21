@@ -203,8 +203,8 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({
   return (
     <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl shadow-xs overflow-hidden">
       {/* Response Status Bar */}
-      <div className="px-4 py-3 border-b border-stone-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-3 bg-stone-50/50 dark:bg-zinc-900/50">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="px-3 sm:px-4 py-2 sm:py-3 border-b border-stone-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2 sm:gap-3 bg-stone-50/50 dark:bg-zinc-900/50">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {/* Status Badge */}
           <div
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${statusColor.bg} ${statusColor.text} ${statusColor.border}`}
@@ -256,11 +256,11 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({
       </div>
 
       {/* Response Navigation Tabs */}
-      <div className="flex items-center justify-between px-4 border-b border-stone-200 dark:border-zinc-800 bg-stone-50/30 dark:bg-zinc-900/30">
-        <div className="flex items-center gap-1">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-2 sm:px-4 border-b border-stone-200 dark:border-zinc-800 bg-stone-50/30 dark:bg-zinc-900/30 gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none [-webkit-overflow-scrolling:touch] py-0.5">
           <button
             onClick={() => setActiveTab('pretty')}
-            className={`px-3 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'pretty'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200'
@@ -272,7 +272,7 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({
 
           <button
             onClick={() => setActiveTab('raw')}
-            className={`px-3 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'raw'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200'
@@ -283,7 +283,7 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({
 
           <button
             onClick={() => setActiveTab('preview')}
-            className={`px-3 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'preview'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200'
@@ -295,7 +295,7 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({
 
           <button
             onClick={() => setActiveTab('headers')}
-            className={`px-3 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'headers'
                 ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                 : 'border-transparent text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200'
@@ -308,7 +308,7 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({
           {cookiesList.length > 0 && (
             <button
               onClick={() => setActiveTab('cookies')}
-              className={`px-3 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-2 text-xs font-semibold border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'cookies'
                   ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                   : 'border-transparent text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200'
@@ -322,21 +322,21 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({
 
         {/* Quick Search inside Pretty response */}
         {activeTab === 'pretty' && (
-          <div className="relative py-1">
+          <div className="relative py-1 pb-1.5 sm:pb-1">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Cari dalam response..."
-              className="pl-7 pr-2 py-0.5 text-[11px] bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg outline-none focus:border-rose-500 text-stone-800 dark:text-zinc-200 w-36 sm:w-48"
+              className="pl-7 pr-2 py-1 text-[11px] bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg outline-none focus:border-rose-500 text-stone-800 dark:text-zinc-200 w-full sm:w-48"
             />
           </div>
         )}
       </div>
 
       {/* Response Tab Content */}
-      <div className="flex-1 p-4 overflow-y-auto max-h-[520px]">
+      <div className="flex-1 p-3 sm:p-4 overflow-y-auto min-h-0">
         {/* Network Error Alert */}
         {response.error && (
           <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 flex items-start gap-2">

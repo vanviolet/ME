@@ -14,9 +14,7 @@ import {
   Copy,
   Download,
   FolderPlus,
-  Bookmark,
   History,
-  RotateCcw,
   Sparkles,
   ArrowLeft,
   ChevronDown,
@@ -35,6 +33,18 @@ import {
   Save,
   HelpCircle,
   ExternalLink,
+  Upload,
+  BookOpen,
+  FileCode2,
+  Tag,
+  Server,
+  Wand2,
+  Columns2,
+  Rows2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  FolderGit2,
+  MoreVertical,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -44,7 +54,7 @@ import {
   HistoryItem,
   HttpMethod,
   KeyValueParam,
-  SavedCollection,
+  WorkspaceProject,
 } from './api-tester/types';
 import {
   buildEffectiveHeaders,
@@ -55,11 +65,17 @@ import {
   getMethodBadgeClass,
   parseQueryFromUrl,
   replaceEnvVars,
+  resolveUrlPathParams,
 } from './api-tester/utils';
-import { SAMPLE_COLLECTIONS } from './api-tester/sampleCollections';
+import { SAMPLE_WORKSPACES } from './api-tester/sampleWorkspaces';
 import { EnvironmentModal } from './api-tester/EnvironmentModal';
 import { CurlModal } from './api-tester/CurlModal';
 import { ResponseViewer } from './api-tester/ResponseViewer';
+import { SwaggerModal } from './api-tester/SwaggerModal';
+import { SwaggerImportModal } from './api-tester/SwaggerImportModal';
+import { WorkspaceListModal } from './api-tester/WorkspaceListModal';
+import { WorkspaceSettingsModal } from './api-tester/WorkspaceSettingsModal';
+import { RequestEditorPanel } from './api-tester/RequestEditorPanel';
 
 const DEFAULT_ENVIRONMENTS: Environment[] = [
   {
@@ -82,38 +98,33 @@ const DEFAULT_ENVIRONMENTS: Environment[] = [
   },
 ];
 
-const INITIAL_REQUEST: ApiRequestState = {
-  id: 'req_init',
-  name: 'Contoh Request GET',
-  method: 'GET',
-  url: 'https://jsonplaceholder.typicode.com/posts/1',
-  params: [],
-  headers: [
-    {
-      id: 'h_accept',
-      key: 'Accept',
-      value: 'application/json',
-      enabled: true,
-    },
-  ],
-  auth: {
-    type: 'none',
-  },
-  bodyType: 'none',
-  rawBody: '',
-  formData: [],
-  urlEncodedData: [],
-  settings: {
-    bypassCors: true,
-    timeoutMs: 30000,
-    followRedirects: true,
-  },
-};
-
 export const ApiTesterPage: React.FC = () => {
   const { language } = usePortfolio();
 
-  // Environments state
+  // --- WORKSPACE & PROJECT STATE ---
+  const [workspaces, setWorkspaces] = useState<WorkspaceProject[]>(() => {
+    const saved = localStorage.getItem('van_api_tester_workspaces');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      } catch {}
+    }
+    return SAMPLE_WORKSPACES;
+  });
+
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>(() => {
+    const savedId = localStorage.getItem('van_api_tester_active_workspace_id');
+    return savedId || (workspaces[0]?.id || 'ws_jsonplaceholder');
+  });
+
+  const activeWorkspace = useMemo(() => {
+    return workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0] || null;
+  }, [workspaces, activeWorkspaceId]);
+
+  // --- ENVIRONMENTS STATE ---
   const [environments, setEnvironments] = useState<Environment[]>(() => {
     const saved = localStorage.getItem('van_api_tester_envs');
     if (saved) {
@@ -128,7 +139,12 @@ export const ApiTesterPage: React.FC = () => {
     return localStorage.getItem('van_api_tester_active_env') || 'env_dev';
   });
 
-  // Active Request State
+  // Active Environment Object
+  const activeEnvironment = useMemo(() => {
+    return environments.find(e => e.id === activeEnvId) || null;
+  }, [environments, activeEnvId]);
+
+  // --- ACTIVE REQUEST (ENDPOINT UNDER TEST) ---
   const [request, setRequest] = useState<ApiRequestState>(() => {
     const saved = localStorage.getItem('van_api_tester_active_req');
     if (saved) {
@@ -136,10 +152,49 @@ export const ApiTesterPage: React.FC = () => {
         return JSON.parse(saved);
       } catch {}
     }
-    return INITIAL_REQUEST;
+    // Default to first endpoint of active workspace
+    const firstEp = workspaces[0]?.endpoints?.[0];
+    if (firstEp) {
+      return JSON.parse(JSON.stringify(firstEp));
+    }
+    return {
+      id: 'req_init',
+      name: 'Ambil Data Postingan',
+      summary: 'Mendapatkan data post berdasarkan ID',
+      method: 'GET',
+      url: 'https://jsonplaceholder.typicode.com/posts/{id}',
+      path: '/posts/{id}',
+      tag: 'Posts',
+      params: [],
+      pathParams: [{ id: 'pp_1', key: 'id', value: '1', type: 'integer', required: true, enabled: true }],
+      headers: [{ id: 'h_accept', key: 'Accept', value: 'application/json', enabled: true }],
+      auth: { type: 'none' },
+      bodyType: 'none',
+      rawBody: '',
+      formData: [],
+      urlEncodedData: [],
+      responses: {
+        '200': {
+          statusCode: '200',
+          description: 'Berhasil memuat post',
+          schema: {
+            type: 'object',
+            properties: [
+              { id: 'p1', name: 'id', type: 'integer', example: 1 },
+              { id: 'p2', name: 'title', type: 'string', example: 'Judul' },
+            ],
+          },
+        },
+      },
+      settings: {
+        bypassCors: true,
+        timeoutMs: 30000,
+        followRedirects: true,
+      },
+    };
   });
 
-  // History State
+  // --- HISTORY STATE ---
   const [history, setHistory] = useState<HistoryItem[]>(() => {
     const saved = localStorage.getItem('van_api_tester_history');
     if (saved) {
@@ -150,26 +205,39 @@ export const ApiTesterPage: React.FC = () => {
     return [];
   });
 
-  // Custom Collections State
-  const [customCollections, setCustomCollections] = useState<SavedCollection[]>(() => {
-    const saved = localStorage.getItem('van_api_tester_collections');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {}
+  // --- UI STATE ---
+  const [activeReqTab, setActiveReqTab] = useState<'params' | 'auth' | 'headers' | 'body' | 'responses' | 'settings'>('params');
+  const [sidebarTab, setSidebarTab] = useState<'endpoints' | 'history'>('endpoints');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
     }
-    return [];
+    return true;
+  });
+  const [showEndpointDesc, setShowEndpointDesc] = useState(false);
+  const [mobileActiveTab, setMobileActiveTab] = useState<'editor' | 'response'>('editor');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<'split' | 'stacked'>(() => {
+    const saved = localStorage.getItem('van_api_tester_layout_mode');
+    if (saved === 'split' || saved === 'stacked') return saved;
+    if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+      return 'stacked';
+    }
+    return 'split';
   });
 
-  // UI state
-  const [activeReqTab, setActiveReqTab] = useState<'params' | 'auth' | 'headers' | 'body' | 'settings'>('params');
-  const [sidebarTab, setSidebarTab] = useState<'collections' | 'history'>('collections');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  useEffect(() => {
+    localStorage.setItem('van_api_tester_layout_mode', layoutMode);
+  }, [layoutMode]);
+
+  // Modals state
   const [isEnvModalOpen, setIsEnvModalOpen] = useState(false);
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
-  const [saveReqName, setSaveReqName] = useState('');
-  const [selectedColId, setSelectedColId] = useState('');
+  const [isSwaggerModalOpen, setIsSwaggerModalOpen] = useState(false);
+  const [isSwaggerImportModalOpen, setIsSwaggerImportModalOpen] = useState(false);
+  const [isWorkspaceListModalOpen, setIsWorkspaceListModalOpen] = useState(false);
+  const [isWorkspaceSettingsModalOpen, setIsWorkspaceSettingsModalOpen] = useState(false);
+  const [saveToast, setSaveToast] = useState(false);
 
   // Password visibility in auth
   const [showBasicPass, setShowBasicPass] = useState(false);
@@ -180,15 +248,61 @@ export const ApiTesterPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // JSON Body format validation
-  const [jsonError, setJsonError] = useState<string | null>(null);
+  // Detected Path Parameter keys from URL string (e.g. /posts/{id} -> ['id'])
+  const detectedPathKeys = useMemo(() => {
+    const matches = request.url.match(/\{([a-zA-Z0-9_-]+)\}/g);
+    if (!matches) return [];
+    const keys: string[] = [];
+    matches.forEach(m => {
+      const key = m.replace(/[{}]/g, '').trim();
+      if (key && !keys.includes(key)) {
+        keys.push(key);
+      }
+    });
+    return keys;
+  }, [request.url]);
 
-  // Active Environment Object
-  const activeEnvironment = useMemo(() => {
-    return environments.find(e => e.id === activeEnvId) || null;
-  }, [environments, activeEnvId]);
+  // Auto ensure pathParams array has entries for all detected path keys
+  useEffect(() => {
+    if (detectedPathKeys.length === 0) return;
+    const currentPathParams = request.pathParams || [];
+    let changed = false;
+    const updated = [...currentPathParams];
+
+    detectedPathKeys.forEach(k => {
+      if (!updated.some(p => p.key === k)) {
+        updated.push({
+          id: 'pp_' + k,
+          key: k,
+          value: '',
+          type: 'string',
+          required: true,
+          enabled: true,
+          description: `Parameter path untuk ${k}`,
+        });
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      setRequest(prev => ({
+        ...prev,
+        pathParams: updated,
+      }));
+    }
+  }, [detectedPathKeys]);
 
   // Persist states
+  useEffect(() => {
+    localStorage.setItem('van_api_tester_workspaces', JSON.stringify(workspaces));
+  }, [workspaces]);
+
+  useEffect(() => {
+    if (activeWorkspaceId) {
+      localStorage.setItem('van_api_tester_active_workspace_id', activeWorkspaceId);
+    }
+  }, [activeWorkspaceId]);
+
   useEffect(() => {
     localStorage.setItem('van_api_tester_envs', JSON.stringify(environments));
   }, [environments]);
@@ -209,15 +323,10 @@ export const ApiTesterPage: React.FC = () => {
     localStorage.setItem('van_api_tester_history', JSON.stringify(history.slice(0, 50)));
   }, [history]);
 
-  useEffect(() => {
-    localStorage.setItem('van_api_tester_collections', JSON.stringify(customCollections));
-  }, [customCollections]);
-
   // Sync URL query string when typing URL directly
   const handleUrlChange = (newUrl: string) => {
     const { params } = parseQueryFromUrl(newUrl);
     if (params.length > 0) {
-      // Merge params without duplicating
       setRequest(prev => ({
         ...prev,
         url: newUrl,
@@ -240,17 +349,23 @@ export const ApiTesterPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [request, activeEnvironment]);
 
-  // Execute Request (with Proxy or Direct Browser)
+  // --- EXECUTE HTTP REQUEST ---
   const handleSendRequest = async () => {
     if (!request.url.trim() || isLoading) return;
 
     setIsLoading(true);
     setResponse(null);
+    setMobileActiveTab('response');
 
     const abortCtrl = new AbortController();
     abortControllerRef.current = abortCtrl;
 
-    const finalUrl = buildUrlWithParams(request.url, request.params, activeEnvironment);
+    const finalUrl = buildUrlWithParams(
+      request.url,
+      request.params,
+      activeEnvironment,
+      request.pathParams
+    );
     const finalHeaders = buildEffectiveHeaders(
       request.headers,
       request.auth,
@@ -263,7 +378,7 @@ export const ApiTesterPage: React.FC = () => {
 
     try {
       if (request.settings.bypassCors) {
-        // --- MODE 1: Node.js Backend Server Proxy (100% NO CORS RESTRICTION) ---
+        // Mode 1: Node.js Backend Server Proxy (No CORS restriction)
         const proxyResponse = await fetch('/api/http-proxy', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -299,11 +414,9 @@ export const ApiTesterPage: React.FC = () => {
         };
 
         setResponse(apiRes);
-
-        // Add to history
         addToHistory(request, apiRes.status, apiRes.statusText, apiRes.timeMs);
       } else {
-        // --- MODE 2: Direct Browser Fetch (Tests target's actual browser CORS configuration) ---
+        // Mode 2: Direct Browser Fetch
         const fetchOptions: RequestInit = {
           method: request.method,
           headers: finalHeaders,
@@ -415,237 +528,547 @@ export const ApiTesterPage: React.FC = () => {
     setHistory(prev => [newItem, ...prev.slice(0, 49)]);
   };
 
-  const handleLoadItem = (item: ApiRequestState) => {
+  const handleLoadEndpoint = (item: ApiRequestState) => {
     setRequest(JSON.parse(JSON.stringify(item)));
+    setResponse(null);
+    setMobileActiveTab('editor');
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsSidebarOpen(false);
+    }
+  };
+
+  // --- SAVE ENDPOINT TO ACTIVE WORKSPACE ---
+  const handleSaveEndpointToWorkspace = () => {
+    if (!activeWorkspace) return;
+
+    // Derive relative path for swagger
+    let relPath = request.path;
+    if (!relPath) {
+      try {
+        const u = new URL(request.url);
+        relPath = u.pathname;
+      } catch {
+        relPath = request.url.replace(/^https?:\/\/[^/]+/i, '') || '/';
+      }
+    }
+
+    const endpointToSave: ApiRequestState = {
+      ...JSON.parse(JSON.stringify(request)),
+      path: relPath,
+      summary: request.summary || request.name,
+    };
+
+    const existingIndex = activeWorkspace.endpoints.findIndex(ep => ep.id === request.id);
+    let updatedEndpoints = [...activeWorkspace.endpoints];
+
+    if (existingIndex >= 0) {
+      updatedEndpoints[existingIndex] = endpointToSave;
+    } else {
+      updatedEndpoints.push(endpointToSave);
+    }
+
+    const updatedWs: WorkspaceProject = {
+      ...activeWorkspace,
+      endpoints: updatedEndpoints,
+      updatedAt: Date.now(),
+    };
+
+    setWorkspaces(workspaces.map(w => (w.id === updatedWs.id ? updatedWs : w)));
+    setSaveToast(true);
+    setTimeout(() => setSaveToast(false), 2500);
+  };
+
+  // --- CREATE NEW ENDPOINT IN WORKSPACE ---
+  const handleCreateNewEndpoint = () => {
+    const newId = 'ep_' + Date.now();
+    const host = activeWorkspace?.host || 'api.example.com';
+    const basePath = activeWorkspace?.basePath || '/';
+    const cleanBase = basePath.endsWith('/') ? basePath : basePath + '/';
+
+    const newEp: ApiRequestState = {
+      id: newId,
+      name: 'Endpoint Baru',
+      summary: 'Deskripsi singkat endpoint baru',
+      method: 'GET',
+      url: `https://${host}${cleanBase}items`,
+      path: `${cleanBase}items`,
+      tag: activeWorkspace?.tags?.[0]?.name || 'General',
+      params: [],
+      pathParams: [],
+      headers: [{ id: 'h_' + Date.now(), key: 'Accept', value: 'application/json', enabled: true }],
+      auth: { type: 'none' },
+      bodyType: 'none',
+      rawBody: '',
+      formData: [],
+      urlEncodedData: [],
+      responses: {
+        '200': {
+          statusCode: '200',
+          description: 'Sukses',
+          schema: {
+            type: 'object',
+            properties: [{ id: 'f1', name: 'id', type: 'integer', example: '1' }],
+          },
+        },
+      },
+      settings: {
+        bypassCors: true,
+        timeoutMs: 30000,
+        followRedirects: true,
+      },
+    };
+
+    if (activeWorkspace) {
+      const updatedWs: WorkspaceProject = {
+        ...activeWorkspace,
+        endpoints: [...activeWorkspace.endpoints, newEp],
+        updatedAt: Date.now(),
+      };
+      setWorkspaces(workspaces.map(w => (w.id === updatedWs.id ? updatedWs : w)));
+    }
+
+    setRequest(newEp);
     setResponse(null);
   };
 
-  // Param Helpers
-  const handleAddParam = () => {
-    setRequest(prev => ({
-      ...prev,
-      params: [
-        ...prev.params,
-        {
-          id: 'p_' + Math.random().toString(36).substring(2, 9),
-          key: '',
-          value: '',
-          enabled: true,
-        },
-      ],
-    }));
-  };
-
-  const handleUpdateParam = (id: string, field: 'key' | 'value' | 'enabled', val: any) => {
-    setRequest(prev => ({
-      ...prev,
-      params: prev.params.map(p => (p.id === id ? { ...p, [field]: val } : p)),
-    }));
-  };
-
-  const handleDeleteParam = (id: string) => {
-    setRequest(prev => ({
-      ...prev,
-      params: prev.params.filter(p => p.id !== id),
-    }));
-  };
-
-  // Header Helpers
-  const handleAddHeader = () => {
-    setRequest(prev => ({
-      ...prev,
-      headers: [
-        ...prev.headers,
-        {
-          id: 'h_' + Math.random().toString(36).substring(2, 9),
-          key: '',
-          value: '',
-          enabled: true,
-        },
-      ],
-    }));
-  };
-
-  const handleUpdateHeader = (id: string, field: 'key' | 'value' | 'enabled', val: any) => {
-    setRequest(prev => ({
-      ...prev,
-      headers: prev.headers.map(h => (h.id === id ? { ...h, [field]: val } : h)),
-    }));
-  };
-
-  const handleDeleteHeader = (id: string) => {
-    setRequest(prev => ({
-      ...prev,
-      headers: prev.headers.filter(h => h.id !== id),
-    }));
-  };
-
-  // JSON Body Formatting
-  const handleBeautifyJson = () => {
-    setJsonError(null);
-    if (!request.rawBody.trim()) return;
-    try {
-      const parsed = JSON.parse(request.rawBody);
-      setRequest(prev => ({ ...prev, rawBody: JSON.stringify(parsed, null, 2) }));
-    } catch (e: any) {
-      setJsonError('Format JSON tidak valid: ' + e.message);
-    }
-  };
-
-  const handleMinifyJson = () => {
-    setJsonError(null);
-    if (!request.rawBody.trim()) return;
-    try {
-      const parsed = JSON.parse(request.rawBody);
-      setRequest(prev => ({ ...prev, rawBody: JSON.stringify(parsed) }));
-    } catch (e: any) {
-      setJsonError('Format JSON tidak valid: ' + e.message);
-    }
-  };
-
-  // Save request to collection
-  const handleSaveToCollection = () => {
-    if (!saveReqName.trim()) return;
-
-    let targetCol = customCollections.find(c => c.id === selectedColId);
-    let updatedCollections = [...customCollections];
-
-    const reqToSave: ApiRequestState = {
-      ...JSON.parse(JSON.stringify(request)),
-      id: 'saved_' + Date.now(),
-      name: saveReqName.trim(),
+  // Delete Endpoint from workspace
+  const handleDeleteEndpoint = (epId: string) => {
+    if (!activeWorkspace) return;
+    const filtered = activeWorkspace.endpoints.filter(ep => ep.id !== epId);
+    const updatedWs: WorkspaceProject = {
+      ...activeWorkspace,
+      endpoints: filtered,
+      updatedAt: Date.now(),
     };
-
-    if (!targetCol) {
-      // Create new collection
-      const newCol: SavedCollection = {
-        id: 'col_' + Date.now(),
-        name: 'Koleksi Kustom',
-        description: 'Dibuat pada ' + new Date().toLocaleDateString('id-ID'),
-        items: [reqToSave],
-      };
-      updatedCollections.push(newCol);
-    } else {
-      updatedCollections = updatedCollections.map(c =>
-        c.id === selectedColId ? { ...c, items: [...c.items, reqToSave] } : c
-      );
+    setWorkspaces(workspaces.map(w => (w.id === updatedWs.id ? updatedWs : w)));
+    if (request.id === epId && filtered.length > 0) {
+      setRequest(filtered[0]);
     }
-
-    setCustomCollections(updatedCollections);
-    setIsSaveModalOpen(false);
-    setSaveReqName('');
   };
+
+  // Duplicate Endpoint
+  const handleDuplicateEndpoint = (ep: ApiRequestState) => {
+    if (!activeWorkspace) return;
+    const duplicated: ApiRequestState = {
+      ...JSON.parse(JSON.stringify(ep)),
+      id: 'ep_' + Date.now(),
+      name: ep.name + ' (Salinan)',
+      summary: (ep.summary || '') + ' (Salinan)',
+    };
+    const updatedWs: WorkspaceProject = {
+      ...activeWorkspace,
+      endpoints: [...activeWorkspace.endpoints, duplicated],
+      updatedAt: Date.now(),
+    };
+    setWorkspaces(workspaces.map(w => (w.id === updatedWs.id ? updatedWs : w)));
+    setRequest(duplicated);
+  };
+
+  // --- SWAGGER IMPORT HANDLER ---
+  const handleImportWorkspace = (imported: WorkspaceProject, mode: 'new' | 'merge') => {
+    if (mode === 'new') {
+      setWorkspaces(prev => [imported, ...prev]);
+      setActiveWorkspaceId(imported.id);
+      if (imported.endpoints.length > 0) {
+        setRequest(imported.endpoints[0]);
+      }
+    } else {
+      // Merge into active
+      if (!activeWorkspace) return;
+      const mergedEndpoints = [...activeWorkspace.endpoints];
+      imported.endpoints.forEach(impEp => {
+        if (!mergedEndpoints.some(e => e.path === impEp.path && e.method === impEp.method)) {
+          mergedEndpoints.push(impEp);
+        }
+      });
+      const updatedWs: WorkspaceProject = {
+        ...activeWorkspace,
+        endpoints: mergedEndpoints,
+        tags: Array.from(new Set([...(activeWorkspace.tags || []), ...(imported.tags || [])])),
+        updatedAt: Date.now(),
+      };
+      setWorkspaces(workspaces.map(w => (w.id === updatedWs.id ? updatedWs : w)));
+      if (imported.endpoints.length > 0) {
+        setRequest(imported.endpoints[0]);
+      }
+    }
+  };
+
+  // Group active workspace endpoints by tag
+  const groupedEndpoints = useMemo(() => {
+    if (!activeWorkspace) return {};
+    const groups: Record<string, ApiRequestState[]> = {};
+    activeWorkspace.endpoints.forEach(ep => {
+      const tag = ep.tag && ep.tag.trim() ? ep.tag.trim() : 'General';
+      if (!groups[tag]) {
+        groups[tag] = [];
+      }
+      groups[tag].push(ep);
+    });
+    return groups;
+  }, [activeWorkspace]);
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 flex flex-col">
+    <div className="h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 flex flex-col font-sans overflow-hidden">
       <Seo
-        title="API Testing Studio (Postman Web) - Tanpa Hambatan CORS | Muchamad Irvan"
-        description="Tool pengujian REST API, GraphQL, & Webhooks online mirip Postman dengan fitur bypass CORS otomatis melalui server proxy Node.js, manajemen environment, dan generator cURL."
+        title="API Testing Studio & Swagger 2.0 Studio - Muchamad Irvan"
+        description="Alat pengujian REST API canggih mirip Postman yang menghasilkan Swagger 2.0, spesifikasi response & param type, serta impor swagger.json/yaml tanpa hambatan CORS."
         url="/tools/api-tester"
       />
 
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-30 border-b border-stone-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-4 py-2.5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      {/* TOP NAVIGATION BAR */}
+      <header className="h-14 shrink-0 border-b border-stone-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-2.5 sm:px-4 flex items-center justify-between gap-1.5 sm:gap-3 z-30 relative">
+        {/* Left Section: Back, Brand & Workspace Picker */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
           <Link
             to="/tools"
-            className="p-1.5 text-stone-500 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-white rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+            className="p-1.5 sm:p-2 text-stone-500 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-white rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
             title="Kembali ke Daftar Tools"
           >
             <ArrowLeft size={16} />
           </Link>
 
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold">
-              <Globe size={18} />
+          <div className="h-4 w-px bg-stone-200 dark:bg-zinc-800 shrink-0 hidden sm:block" />
+
+          {/* Brand Icon & Name */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-center font-bold shadow-xs">
+              <Globe size={14} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xs sm:text-sm font-bold text-stone-900 dark:text-white tracking-tight">
-                  API Testing Studio
-                </h1>
-                <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">
-                  <ShieldCheck size={11} />
-                  <span>No CORS Restriction</span>
-                </span>
-              </div>
+            <div className="hidden lg:flex items-center gap-1.5">
+              <h1 className="text-xs sm:text-sm font-bold text-stone-900 dark:text-white tracking-tight">
+                API Studio
+              </h1>
+              <span className="px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-mono text-[9px] font-extrabold tracking-wider border border-rose-500/20 uppercase">
+                Swagger 2.0
+              </span>
             </div>
+          </div>
+
+          <div className="h-4 w-px bg-stone-200 dark:bg-zinc-800 shrink-0 hidden lg:block" />
+
+          {/* Workspace Pill & Manager Button */}
+          <div className="flex items-center gap-1 min-w-0">
+            <button
+              onClick={() => setIsWorkspaceListModalOpen(true)}
+              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-stone-200 dark:border-zinc-700 text-xs font-semibold text-stone-800 dark:text-zinc-200 cursor-pointer transition-colors max-w-[125px] sm:max-w-[190px] truncate group"
+              title="Ganti atau Kelola Semua Workspace Project"
+            >
+              <FolderGit2 size={13} className="text-rose-600 dark:text-rose-400 shrink-0" />
+              <span className="truncate font-bold">{activeWorkspace?.name || 'Workspace'}</span>
+              <span className="text-[10px] text-stone-400 font-mono shrink-0 hidden sm:inline">
+                ({activeWorkspace?.endpoints.length || 0})
+              </span>
+              <ChevronDown size={12} className="text-stone-400 group-hover:text-stone-700 dark:group-hover:text-zinc-200 shrink-0" />
+            </button>
+
+            <button
+              onClick={() => setIsWorkspaceSettingsModalOpen(true)}
+              className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors shrink-0 hidden sm:flex"
+              title="Pengaturan Spesifikasi Workspace (Host, BasePath & Tags)"
+            >
+              <Settings2 size={14} />
+            </button>
           </div>
         </div>
 
-        {/* Header Right Actions */}
-        <div className="flex items-center gap-2">
-          {/* Environment Selector */}
-          <div className="flex items-center gap-1 bg-stone-100 dark:bg-zinc-800 p-1 rounded-xl border border-stone-200 dark:border-zinc-700">
-            <Globe size={13} className="ml-1 text-stone-400" />
-            <select
-              value={activeEnvId || ''}
-              onChange={e => setActiveEnvId(e.target.value || null)}
-              className="bg-transparent text-xs font-semibold text-stone-800 dark:text-zinc-200 outline-none cursor-pointer pr-1"
-            >
-              <option value="">Tanpa Environment</option>
-              {environments.map(env => (
-                <option key={env.id} value={env.id}>
-                  {env.name}
-                </option>
-              ))}
-            </select>
+        {/* Right Section: Environment, View Mode, Code, Import, Docs, Sidebar Toggle */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Environment Switcher Pill (desktop) */}
+          <button
+            onClick={() => setIsEnvModalOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-stone-200 dark:border-zinc-700 text-xs text-stone-700 dark:text-zinc-300 cursor-pointer transition-colors"
+            title="Kelola Environment & Variabel (Localhost, Staging, Production)"
+          >
+            <Server size={13} className={activeEnvironment ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-400'} />
+            <span className="font-semibold truncate max-w-[80px] lg:max-w-[100px]">
+              {activeEnvironment ? activeEnvironment.name : 'No Env'}
+            </span>
+            <Sliders size={12} className="text-stone-400 shrink-0" />
+          </button>
+
+          {/* Layout Mode Segmented Control (Split vs Stacked) */}
+          <div className="hidden lg:flex items-center p-0.5 rounded-xl bg-stone-100 dark:bg-zinc-800/90 border border-stone-200 dark:border-zinc-700">
             <button
-              onClick={() => setIsEnvModalOpen(true)}
-              className="p-1 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md cursor-pointer"
-              title="Kelola Environment & Variabel"
+              onClick={() => setLayoutMode('split')}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
+                layoutMode === 'split'
+                  ? 'bg-white dark:bg-zinc-700 text-rose-600 dark:text-rose-400 shadow-xs'
+                  : 'text-stone-500 hover:text-stone-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+              }`}
+              title="Tampilan Split: Editor & Hasil Uji Berdampingan"
             >
-              <Sliders size={13} />
+              <Columns2 size={12} />
+              <span className="text-[11px]">Split</span>
+            </button>
+            <button
+              onClick={() => setLayoutMode('stacked')}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
+                layoutMode === 'stacked'
+                  ? 'bg-white dark:bg-zinc-700 text-rose-600 dark:text-rose-400 shadow-xs'
+                  : 'text-stone-500 hover:text-stone-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+              }`}
+              title="Tampilan Stacked: Editor & Hasil Uji Menumpuk Penuh"
+            >
+              <Rows2 size={12} />
+              <span className="text-[11px]">Stacked</span>
             </button>
           </div>
 
-          {/* cURL & Code Generator */}
+          <div className="h-4 w-px bg-stone-200 dark:bg-zinc-800 shrink-0 hidden lg:block" />
+
+          {/* cURL / Code Snippet */}
           <button
             onClick={() => setIsCurlModalOpen(true)}
-            className="px-2.5 py-1.5 text-xs bg-stone-100 hover:bg-stone-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-200 rounded-xl font-semibold border border-stone-200 dark:border-zinc-700 cursor-pointer flex items-center gap-1.5 transition-colors"
+            className="hidden md:flex p-1.5 sm:px-2.5 sm:py-1.5 text-xs bg-stone-100 hover:bg-stone-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-200 rounded-xl font-semibold border border-stone-200 dark:border-zinc-700 cursor-pointer items-center gap-1.5 transition-colors"
+            title="cURL & Code Snippets Generator (fetch, axios, python, php, go)"
           >
-            <Terminal size={14} className="text-rose-600 dark:text-rose-400" />
-            <span className="hidden sm:inline">cURL / Kode</span>
+            <Terminal size={13} className="text-stone-500 dark:text-zinc-400" />
+            <span className="hidden xl:inline">cURL / Kode</span>
           </button>
 
-          {/* Toggle Sidebar */}
+          {/* Import Swagger */}
+          <button
+            onClick={() => setIsSwaggerImportModalOpen(true)}
+            className="hidden sm:flex p-1.5 sm:px-2.5 sm:py-1.5 text-xs bg-stone-100 hover:bg-stone-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-200 rounded-xl font-semibold border border-stone-200 dark:border-zinc-700 cursor-pointer items-center gap-1.5 transition-colors"
+            title="Import berkas swagger.json atau .yaml"
+          >
+            <Upload size={13} className="text-stone-500 dark:text-zinc-400" />
+            <span className="hidden xl:inline">Import</span>
+          </button>
+
+          {/* Swagger 2.0 Docs & Export Button */}
+          <button
+            onClick={() => setIsSwaggerModalOpen(true)}
+            className="px-2.5 sm:px-3 py-1.5 text-xs bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold shadow-xs cursor-pointer flex items-center gap-1.5 transition-colors"
+            title="Buka Dokumentasi Swagger UI interaktif & Unduh swagger.json / yaml"
+          >
+            <BookOpen size={13} />
+            <span className="hidden sm:inline">Swagger Docs</span>
+            <span className="sm:hidden text-[11px]">Swagger</span>
+          </button>
+
+          {/* Mobile Overflow Menu Button (visible on < sm screens) */}
+          <div className="relative sm:hidden">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className={`p-1.5 rounded-xl border cursor-pointer transition-colors text-xs flex items-center justify-center ${
+                isMobileMenuOpen
+                  ? 'bg-rose-500/10 text-rose-600 border-rose-500/20'
+                  : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border-stone-200 dark:border-zinc-700'
+              }`}
+              title="Menu Lainnya"
+            >
+              <MoreVertical size={15} />
+            </button>
+
+            {/* Mobile Dropdown */}
+            {isMobileMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                />
+                <div className="absolute right-0 top-9 w-56 bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="space-y-0.5">
+                    <button
+                      onClick={() => {
+                        setIsEnvModalOpen(true);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-stone-700 dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-xl transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Server size={14} className={activeEnvironment ? 'text-emerald-500' : 'text-stone-400'} />
+                        <span>Environment</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-stone-400 truncate max-w-[70px]">
+                        {activeEnvironment ? activeEnvironment.name : 'No Env'}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsCurlModalOpen(true);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-stone-700 dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-xl transition-colors text-left"
+                    >
+                      <Terminal size={14} className="text-stone-400" />
+                      <span>cURL / Generator Kode</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsSwaggerImportModalOpen(true);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-stone-700 dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-xl transition-colors text-left"
+                    >
+                      <Upload size={14} className="text-stone-400" />
+                      <span>Import Swagger (.json/.yaml)</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsWorkspaceSettingsModalOpen(true);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-stone-700 dark:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-xl transition-colors text-left"
+                    >
+                      <Settings2 size={14} className="text-stone-400" />
+                      <span>Pengaturan Workspace</span>
+                    </button>
+
+                    <div className="h-px bg-stone-200 dark:bg-zinc-800 my-1" />
+
+                    <div className="px-3 py-1.5 flex items-center justify-between text-xs">
+                      <span className="text-stone-500 font-medium">Tata Letak:</span>
+                      <div className="flex items-center gap-1 bg-stone-100 dark:bg-zinc-800 p-0.5 rounded-lg">
+                        <button
+                          onClick={() => {
+                            setLayoutMode('split');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            layoutMode === 'split'
+                              ? 'bg-white dark:bg-zinc-700 text-rose-600 dark:text-rose-400 shadow-xs'
+                              : 'text-stone-500'
+                          }`}
+                        >
+                          Split
+                        </button>
+                        <button
+                          onClick={() => {
+                            setLayoutMode('stacked');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            layoutMode === 'stacked'
+                              ? 'bg-white dark:bg-zinc-700 text-rose-600 dark:text-rose-400 shadow-xs'
+                              : 'text-stone-500'
+                          }`}
+                        >
+                          Stacked
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="h-4 w-px bg-stone-200 dark:bg-zinc-800 shrink-0" />
+
+          {/* Toggle Sidebar Button */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-1.5 rounded-xl border cursor-pointer transition-colors text-xs flex items-center gap-1 ${
+            className={`p-1.5 rounded-xl border cursor-pointer transition-colors text-xs flex items-center justify-center ${
               isSidebarOpen
                 ? 'bg-rose-500/10 text-rose-600 border-rose-500/20'
                 : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-400 border-stone-200 dark:border-zinc-700'
             }`}
-            title="Buka/Tutup Panel Koleksi & Riwayat"
+            title={isSidebarOpen ? 'Tutup Sidebar' : 'Buka Sidebar'}
           >
-            <Layers size={15} />
-            <span className="hidden md:inline font-semibold">Sidebar</span>
+            {isSidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
           </button>
         </div>
       </header>
 
-      {/* Main Container */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar: Collections & History */}
+      {/* MAIN LAYOUT */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile Backdrop Overlay */}
         {isSidebarOpen && (
-          <aside className="w-72 sm:w-80 border-r border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 flex flex-col shrink-0 overflow-hidden">
-            {/* Sidebar Navigation */}
-            <div className="flex items-center border-b border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-900/50">
+          <div
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-stone-950/60 backdrop-blur-2xs z-40 md:hidden animate-in fade-in duration-200"
+          />
+        )}
+
+        {/* LEFT SIDEBAR: WORKSPACE & ENDPOINTS */}
+        {isSidebarOpen && (
+          <aside className="fixed inset-y-0 left-0 z-50 w-72 sm:w-80 md:static md:z-0 border-r border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col shrink-0 overflow-hidden shadow-2xl md:shadow-none animate-in slide-in-from-left duration-200">
+            {/* Mobile Close Bar */}
+            <div className="md:hidden flex items-center justify-between px-3 py-2 border-b border-stone-200 dark:border-zinc-800 bg-stone-100/80 dark:bg-zinc-800/80">
+              <span className="text-xs font-bold text-stone-900 dark:text-white">Workspace & Endpoints</span>
               <button
-                onClick={() => setSidebarTab('collections')}
-                className={`flex-1 py-2.5 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
-                  sidebarTab === 'collections'
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-1 text-stone-500 hover:text-stone-900 dark:text-zinc-400 dark:hover:text-white rounded-lg"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            {/* Active Workspace Header Card in Sidebar */}
+            <div className="p-3 border-b border-stone-200 dark:border-zinc-800 bg-stone-50/70 dark:bg-zinc-900/70 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                      {activeWorkspace?.name || 'Workspace'}
+                    </h2>
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-stone-200 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 font-mono">
+                      v{activeWorkspace?.info?.version || '1.0.0'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-mono text-stone-400 truncate mt-0.5">
+                    {activeWorkspace?.host || 'api.example.com'}{activeWorkspace?.basePath || '/'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setIsWorkspaceSettingsModalOpen(true)}
+                    className="p-1 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg cursor-pointer"
+                    title="Pengaturan Workspace & Spesifikasi Swagger"
+                  >
+                    <Settings2 size={14} />
+                  </button>
+                  <button
+                    onClick={() => setIsWorkspaceListModalOpen(true)}
+                    className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 rounded-lg cursor-pointer"
+                    title="Daftar Semua Workspace"
+                  >
+                    <Layers size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-1 pt-1">
+                <button
+                  onClick={handleCreateNewEndpoint}
+                  className="flex-1 py-1.5 px-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold cursor-pointer flex items-center justify-center gap-1 shadow-xs transition-colors"
+                >
+                  <Plus size={13} />
+                  <span>Endpoint Baru</span>
+                </button>
+                <button
+                  onClick={() => setIsSwaggerModalOpen(true)}
+                  className="py-1.5 px-2 bg-stone-100 hover:bg-stone-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-200 rounded-lg text-xs font-semibold cursor-pointer flex items-center justify-center gap-1 transition-colors"
+                  title="Lihat Swagger"
+                >
+                  <FileCode2 size={13} />
+                  <span>Swagger</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sidebar Tabs: Endpoints vs History */}
+            <div className="flex items-center border-b border-stone-200 dark:border-zinc-800 bg-stone-50/40 dark:bg-zinc-900/40">
+              <button
+                onClick={() => setSidebarTab('endpoints')}
+                className={`flex-1 py-2 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+                  sidebarTab === 'endpoints'
                     ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                     : 'border-transparent text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200'
                 }`}
               >
-                <Bookmark size={13} />
-                <span>Koleksi ({SAMPLE_COLLECTIONS.length + customCollections.length})</span>
+                <Globe size={13} />
+                <span>Endpoints ({activeWorkspace?.endpoints.length || 0})</span>
               </button>
-
               <button
                 onClick={() => setSidebarTab('history')}
-                className={`flex-1 py-2.5 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+                className={`flex-1 py-2 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
                   sidebarTab === 'history'
                     ? 'border-rose-600 text-rose-600 dark:text-rose-400'
                     : 'border-transparent text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200'
@@ -658,122 +1081,104 @@ export const ApiTesterPage: React.FC = () => {
 
             {/* Sidebar Body */}
             <div className="flex-1 overflow-y-auto p-3 space-y-4">
-              {sidebarTab === 'collections' ? (
-                <>
-                  {/* Preset Demo Collections */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider">
-                      <span>Sampel API Publik</span>
-                      <span className="text-[10px] lowercase text-emerald-600 dark:text-emerald-400 font-semibold">
-                        Siap Uji
-                      </span>
+              {sidebarTab === 'endpoints' ? (
+                <div className="space-y-4">
+                  {Object.keys(groupedEndpoints).length === 0 ? (
+                    <div className="py-12 text-center text-xs text-stone-400 space-y-2">
+                      <p>Workspace ini belum memiliki endpoint.</p>
+                      <button
+                        onClick={handleCreateNewEndpoint}
+                        className="px-3 py-1.5 bg-rose-600 text-white rounded-lg font-bold text-xs cursor-pointer"
+                      >
+                        + Tambah Endpoint Pertama
+                      </button>
                     </div>
+                  ) : (
+                    (Object.entries(groupedEndpoints) as [string, ApiRequestState[]][]).map(([tagName, endpoints]) => (
+                      <div key={tagName} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-stone-500 dark:text-zinc-400 px-1">
+                          <span className="flex items-center gap-1">
+                            <Tag size={12} />
+                            <span>{tagName}</span>
+                          </span>
+                          <span className="font-mono text-[10px] text-stone-400">
+                            {endpoints.length}
+                          </span>
+                        </div>
 
-                    <div className="space-y-2">
-                      {SAMPLE_COLLECTIONS.map(col => (
-                        <div
-                          key={col.id}
-                          className="border border-stone-200 dark:border-zinc-800 rounded-xl p-2.5 bg-stone-50/50 dark:bg-zinc-950/40 space-y-1.5"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-stone-800 dark:text-zinc-200">
-                              {col.name}
-                            </span>
-                            <span className="text-[10px] px-1.5 py-0.5 bg-stone-200 dark:bg-zinc-800 rounded text-stone-600 dark:text-zinc-400 font-mono">
-                              {col.items.length} req
-                            </span>
-                          </div>
+                        <div className="space-y-1">
+                          {endpoints.map(ep => {
+                            const isSelected = ep.id === request.id;
+                            const pathDisplay = ep.path || ep.url.replace(/^https?:\/\/[^/]+/i, '');
 
-                          <div className="space-y-1 pt-1">
-                            {col.items.map(it => (
+                            return (
                               <div
-                                key={it.id}
-                                onClick={() => handleLoadItem(it)}
-                                className="px-2 py-1.5 rounded-lg text-xs hover:bg-stone-200/50 dark:hover:bg-zinc-800/60 cursor-pointer flex items-center justify-between group transition-colors"
+                                key={ep.id}
+                                onClick={() => handleLoadEndpoint(ep)}
+                                className={`px-2.5 py-2 rounded-xl text-xs cursor-pointer flex items-center justify-between group transition-all duration-150 border ${
+                                  isSelected
+                                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300 shadow-xs'
+                                    : 'border-transparent hover:bg-stone-100 dark:hover:bg-zinc-800/60 text-stone-700 dark:text-zinc-300'
+                                }`}
                               >
-                                <div className="flex items-center gap-1.5 truncate">
+                                <div className="flex items-center gap-2 truncate min-w-0">
                                   <span
-                                    className={`px-1 py-0.2 rounded text-[9px] font-bold border ${getMethodBadgeClass(
-                                      it.method
+                                    className={`px-1.5 py-0.2 rounded text-[10px] font-bold font-mono tracking-wider border shrink-0 ${getMethodBadgeClass(
+                                      ep.method
                                     )}`}
                                   >
-                                    {it.method}
+                                    {ep.method}
                                   </span>
-                                  <span className="truncate text-stone-700 dark:text-zinc-300 font-medium group-hover:text-rose-600 dark:group-hover:text-rose-400">
-                                    {it.name}
-                                  </span>
-                                </div>
-                                <ChevronRight size={12} className="opacity-0 group-hover:opacity-100 text-stone-400" />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Custom Collections */}
-                  {customCollections.length > 0 && (
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider">
-                        <span>Koleksi Tersimpan</span>
-                      </div>
-
-                      <div className="space-y-2">
-                        {customCollections.map(col => (
-                          <div
-                            key={col.id}
-                            className="border border-stone-200 dark:border-zinc-800 rounded-xl p-2.5 bg-stone-50/50 dark:bg-zinc-950/40 space-y-1.5"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-stone-800 dark:text-zinc-200">
-                                {col.name}
-                              </span>
-                              <button
-                                onClick={() => {
-                                  setCustomCollections(customCollections.filter(c => c.id !== col.id));
-                                }}
-                                className="p-1 text-stone-400 hover:text-rose-600 cursor-pointer"
-                                title="Hapus Koleksi"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-
-                            <div className="space-y-1">
-                              {col.items.map(it => (
-                                <div
-                                  key={it.id}
-                                  onClick={() => handleLoadItem(it)}
-                                  className="px-2 py-1.5 rounded-lg text-xs hover:bg-stone-200/50 dark:hover:bg-zinc-800/60 cursor-pointer flex items-center justify-between group transition-colors"
-                                >
-                                  <div className="flex items-center gap-1.5 truncate">
-                                    <span
-                                      className={`px-1 py-0.2 rounded text-[9px] font-bold border ${getMethodBadgeClass(
-                                        it.method
-                                      )}`}
-                                    >
-                                      {it.method}
-                                    </span>
-                                    <span className="truncate text-stone-700 dark:text-zinc-300 font-medium">
-                                      {it.name}
-                                    </span>
+                                  <div className="truncate min-w-0">
+                                    <div className="font-mono text-[11px] font-semibold truncate">
+                                      {pathDisplay}
+                                    </div>
+                                    <div className="text-[10px] text-stone-400 truncate">
+                                      {ep.summary || ep.name}
+                                    </div>
                                   </div>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+
+                                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0 transition-opacity">
+                                  <button
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      handleDuplicateEndpoint(ep);
+                                    }}
+                                    className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-white rounded"
+                                    title="Duplikat Endpoint"
+                                  >
+                                    <Copy size={11} />
+                                  </button>
+                                  {activeWorkspace && activeWorkspace.endpoints.length > 1 && (
+                                    <button
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        if (window.confirm(`Hapus endpoint "${ep.name}"?`)) {
+                                          handleDeleteEndpoint(ep.id);
+                                        }
+                                      }}
+                                      className="p-1 text-stone-400 hover:text-rose-600 rounded"
+                                      title="Hapus Endpoint"
+                                    >
+                                      <Trash2 size={11} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    ))
                   )}
-                </>
+                </div>
               ) : (
                 /* History Tab */
                 <div className="space-y-2">
                   <div className="flex items-center justify-between pb-1">
-                    <span className="text-[11px] font-bold text-stone-500 dark:text-zinc-400 uppercase tracking-wider">
-                      Daftar Eksekusi
+                    <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">
+                      Daftar Eksekusi Terkini
                     </span>
                     {history.length > 0 && (
                       <button
@@ -794,7 +1199,7 @@ export const ApiTesterPage: React.FC = () => {
                     history.map(h => (
                       <div
                         key={h.id}
-                        onClick={() => handleLoadItem(h.request)}
+                        onClick={() => handleLoadEndpoint(h.request)}
                         className="p-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 hover:border-rose-400 dark:hover:border-rose-500/40 bg-stone-50/50 dark:bg-zinc-900/60 cursor-pointer transition-colors space-y-1"
                       >
                         <div className="flex items-center justify-between gap-1">
@@ -825,7 +1230,13 @@ export const ApiTesterPage: React.FC = () => {
 
                         <div className="flex items-center justify-between text-[10px] text-stone-400 dark:text-zinc-500 font-mono">
                           <span>{h.timeMs ? `${h.timeMs}ms` : ''}</span>
-                          <span>{new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                          <span>
+                            {new Date(h.timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                            })}
+                          </span>
                         </div>
                       </div>
                     ))
@@ -836,17 +1247,91 @@ export const ApiTesterPage: React.FC = () => {
           </aside>
         )}
 
-        {/* Main Work Area */}
-        <main className="flex-1 flex flex-col overflow-y-auto p-4 lg:p-6 space-y-4">
-          {/* Request Header Bar (Method, URL, Send, Save) */}
-          <div className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl p-2.5 sm:p-3 shadow-xs space-y-2">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        {/* MAIN WORK AREA */}
+        <main className="flex-1 min-h-0 flex flex-col overflow-hidden bg-stone-100/50 dark:bg-zinc-950">
+          {/* TOP OPERATION BAR & COMMAND CENTER */}
+          <div className="shrink-0 p-3 sm:p-4 pb-2.5 space-y-2.5 bg-white dark:bg-zinc-900 border-b border-stone-200 dark:border-zinc-800 shadow-2xs">
+            {/* Endpoint Name, Summary, Tag, and Actions */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <input
+                  type="text"
+                  value={request.summary || request.name}
+                  onChange={e =>
+                    setRequest({
+                      ...request,
+                      name: e.target.value,
+                      summary: e.target.value,
+                    })
+                  }
+                  placeholder="Nama / Ringkasan Endpoint"
+                  className="w-full text-xs sm:text-sm font-bold bg-transparent outline-none border-b border-transparent hover:border-stone-300 dark:hover:border-zinc-700 focus:border-rose-500 text-stone-900 dark:text-white transition-colors pb-0.5 truncate"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs shrink-0">
+                {/* Tag Selection */}
+                <div className="flex items-center gap-1 bg-stone-100 dark:bg-zinc-800 px-2 py-1 rounded-lg">
+                  <Tag size={11} className="text-stone-400 shrink-0" />
+                  <input
+                    type="text"
+                    value={request.tag || 'General'}
+                    onChange={e => setRequest({ ...request, tag: e.target.value })}
+                    placeholder="Tag"
+                    className="bg-transparent text-xs font-semibold text-stone-700 dark:text-zinc-300 outline-none w-16 sm:w-20"
+                  />
+                </div>
+
+                {/* Toggle Description */}
+                <button
+                  type="button"
+                  onClick={() => setShowEndpointDesc(!showEndpointDesc)}
+                  className="hidden sm:inline-block px-2 py-1 text-xs text-stone-500 hover:text-stone-800 dark:hover:text-zinc-200 cursor-pointer font-medium transition-colors"
+                >
+                  {showEndpointDesc ? 'Tutup Deskripsi' : '+ Deskripsi'}
+                </button>
+
+                {/* Save to Workspace Button */}
+                <button
+                  onClick={handleSaveEndpointToWorkspace}
+                  className="px-2.5 sm:px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white dark:bg-white dark:text-stone-900 dark:hover:bg-stone-100 rounded-xl text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-xs transition-colors"
+                  title="Simpan perubahan spesifikasi endpoint ini ke Workspace aktif"
+                >
+                  <Save size={13} />
+                  <span className="hidden sm:inline">Simpan</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Optional Description textarea */}
+            {showEndpointDesc && (
+              <div className="pt-0.5">
+                <textarea
+                  rows={2}
+                  value={request.description || ''}
+                  onChange={e => setRequest({ ...request, description: e.target.value })}
+                  placeholder="Deskripsi rinci operasi API untuk spesifikasi Swagger..."
+                  className="w-full p-2.5 text-xs bg-stone-50 dark:bg-zinc-800/80 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 text-stone-900 dark:text-white resize-y"
+                />
+              </div>
+            )}
+
+            {/* Toast Notification on Save */}
+            {saveToast && (
+              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center gap-1.5 border border-emerald-500/20 animate-in fade-in duration-200">
+                <CheckCircle2 size={14} />
+                <span>Spesifikasi endpoint berhasil disimpan ke Workspace "{activeWorkspace?.name}"!</span>
+              </div>
+            )}
+
+            {/* METHOD & URL COMMAND BAR */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {/* Method Dropdown */}
               <div className="relative shrink-0">
                 <select
                   value={request.method}
                   onChange={e => setRequest({ ...request, method: e.target.value as HttpMethod })}
-                  className={`w-full sm:w-28 px-3 py-2 text-xs font-bold rounded-xl border outline-none cursor-pointer appearance-none ${getMethodBadgeClass(
+                  className={`w-20 sm:w-28 px-2 sm:px-3 py-2 text-xs font-extrabold rounded-xl border outline-none cursor-pointer appearance-none ${getMethodBadgeClass(
                     request.method
                   )}`}
                 >
@@ -858,68 +1343,64 @@ export const ApiTesterPage: React.FC = () => {
                   <option value="HEAD">HEAD</option>
                   <option value="OPTIONS">OPTIONS</option>
                 </select>
-                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                <ChevronDown size={13} className="absolute right-1.5 sm:right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
               </div>
 
               {/* URL Input */}
-              <div className="flex-1 relative">
+              <div className="flex-1 min-w-0 relative">
                 <input
                   type="text"
                   value={request.url}
                   onChange={e => handleUrlChange(e.target.value)}
-                  placeholder="https://api.example.com/v1/endpoint atau {{baseUrl}}/posts"
-                  className="w-full px-3.5 py-2 text-xs sm:text-sm bg-stone-50 dark:bg-zinc-800/80 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 font-mono text-stone-900 dark:text-zinc-100"
+                  placeholder="https://api.example.com/posts/{id} atau {{baseUrl}}..."
+                  className="w-full px-2.5 sm:px-3.5 py-2 text-xs sm:text-sm bg-stone-50 dark:bg-zinc-800/80 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 font-mono text-stone-900 dark:text-zinc-100 placeholder:text-stone-400 truncate"
                 />
               </div>
 
               {/* Send Button */}
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="shrink-0">
                 <button
                   onClick={handleSendRequest}
                   disabled={isLoading || !request.url.trim()}
-                  className="flex-1 sm:flex-none px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:pointer-events-none rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+                  className="px-3 sm:px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:pointer-events-none rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
                 >
                   {isLoading ? (
                     <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    <Send size={14} />
+                    <Send size={13} />
                   )}
                   <span>Kirim</span>
-                  <span className="hidden lg:inline text-[10px] font-normal opacity-80 font-mono">(Ctrl+Enter)</span>
-                </button>
-
-                <button
-                  onClick={() => setIsSaveModalOpen(true)}
-                  className="p-2 text-stone-600 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 rounded-xl border border-stone-200 dark:border-zinc-700 cursor-pointer"
-                  title="Simpan Request ke Koleksi"
-                >
-                  <Bookmark size={15} />
+                  <span className="hidden xl:inline text-[10px] font-normal opacity-80 font-mono">(Ctrl+Enter)</span>
                 </button>
               </div>
             </div>
 
-            {/* Quick Status Bar & Mode Switcher */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-stone-100 dark:border-zinc-800 text-[11px]">
-              <div className="flex items-center gap-2 text-stone-500 dark:text-zinc-400">
-                {/* Active Environment pill */}
-                <span>
-                  Env:{' '}
-                  <strong className="text-stone-800 dark:text-zinc-200">
-                    {activeEnvironment ? activeEnvironment.name : 'None'}
-                  </strong>
+            {/* Sub-bar: Workspace Info & CORS Status */}
+            <div className="flex items-center justify-between gap-2 pt-0.5 text-[10px] sm:text-[11px]">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-stone-500 dark:text-zinc-400 font-mono truncate">
+                <span className="truncate max-w-[110px] sm:max-w-[200px]">
+                  {activeWorkspace?.name}
                 </span>
                 <span>•</span>
-                <span>
-                  Params: <strong className="text-stone-800 dark:text-zinc-200">{request.params.filter(p => p.enabled).length}</strong>
+                {detectedPathKeys.length > 0 && (
+                  <>
+                    <span className="text-purple-600 dark:text-purple-400 font-bold shrink-0">
+                      Path: {detectedPathKeys.length}
+                    </span>
+                    <span>•</span>
+                  </>
+                )}
+                <span className="shrink-0">
+                  Query: <strong className="text-stone-800 dark:text-zinc-200">{request.params.filter(p => p.enabled).length}</strong>
                 </span>
-                <span>•</span>
-                <span>
-                  Headers: <strong className="text-stone-800 dark:text-zinc-200">{request.headers.filter(h => h.enabled).length}</strong>
+                <span className="hidden sm:inline">•</span>
+                <span className="hidden sm:inline">
+                  Resp: <strong className="text-stone-800 dark:text-zinc-200">{Object.keys(request.responses || {}).length}</strong>
                 </span>
               </div>
 
               {/* Bypass CORS Switch Pill */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() =>
                     setRequest({
@@ -930,7 +1411,7 @@ export const ApiTesterPage: React.FC = () => {
                       },
                     })
                   }
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer border transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] sm:text-xs font-semibold cursor-pointer border transition-colors ${
                     request.settings.bypassCors
                       ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
                       : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
@@ -943,13 +1424,13 @@ export const ApiTesterPage: React.FC = () => {
                 >
                   {request.settings.bypassCors ? (
                     <>
-                      <ShieldCheck size={13} />
-                      <span>Bypass CORS: Aktif (Proxy)</span>
+                      <ShieldCheck size={12} />
+                      <span>Proxy CORS</span>
                     </>
                   ) : (
                     <>
-                      <ShieldAlert size={13} />
-                      <span>Bypass CORS: Mati (Browser Direct)</span>
+                      <ShieldAlert size={12} />
+                      <span>Direct</span>
                     </>
                   )}
                 </button>
@@ -957,665 +1438,251 @@ export const ApiTesterPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Request Configuration Panel */}
-          <div className="bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl shadow-xs overflow-hidden">
-            {/* Request Tabs Header */}
-            <div className="flex items-center px-4 border-b border-stone-200 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-900/50 overflow-x-auto">
-              {[
-                { id: 'params', label: 'Params', badge: request.params.length },
-                { id: 'auth', label: 'Authorization', badge: request.auth.type !== 'none' ? '✓' : undefined },
-                { id: 'headers', label: 'Headers', badge: request.headers.length },
-                { id: 'body', label: 'Body', badge: request.bodyType !== 'none' ? request.bodyType : undefined },
-                { id: 'settings', label: 'Settings' },
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveReqTab(tab.id as any)}
-                  className={`px-4 py-2.5 text-xs font-bold border-b-2 cursor-pointer transition-colors shrink-0 flex items-center gap-1.5 ${
-                    activeReqTab === tab.id
-                      ? 'border-rose-600 text-rose-600 dark:text-rose-400'
-                      : 'border-transparent text-stone-500 dark:text-zinc-400 hover:text-stone-800 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  {tab.badge !== undefined && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-stone-200 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 font-mono font-medium">
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              ))}
+          {/* MOBILE VIEW SWITCHER (< lg screens) */}
+          {layoutMode === 'split' && (
+            <div className="lg:hidden flex items-center p-1 bg-stone-200/60 dark:bg-zinc-800/80 rounded-xl border border-stone-200 dark:border-zinc-700/60 mx-2.5 sm:mx-4 mt-2 shrink-0">
+              <button
+                onClick={() => setMobileActiveTab('editor')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                  mobileActiveTab === 'editor'
+                    ? 'bg-white dark:bg-zinc-700 text-rose-600 dark:text-rose-400 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-800 dark:text-zinc-400'
+                }`}
+              >
+                <FileCode2 size={13} />
+                <span>Request Editor</span>
+                <span className="text-[10px] opacity-70 font-mono">
+                  ({detectedPathKeys.length + request.params.length + request.headers.length})
+                </span>
+              </button>
+              <button
+                onClick={() => setMobileActiveTab('response')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1.5 ${
+                  mobileActiveTab === 'response'
+                    ? 'bg-white dark:bg-zinc-700 text-rose-600 dark:text-rose-400 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-800 dark:text-zinc-400'
+                }`}
+              >
+                <Globe size={13} />
+                <span>Response</span>
+                {isLoading && (
+                  <div className="w-2.5 h-2.5 rounded-full border border-rose-500 border-t-transparent animate-spin" />
+                )}
+                {response && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                      response.status >= 200 && response.status < 300
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    {response.status}
+                  </span>
+                )}
+              </button>
             </div>
+          )}
 
-            {/* Request Tab Body */}
-            <div className="p-4">
-              {/* TAB 1: Query Params */}
-              {activeReqTab === 'params' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-stone-700 dark:text-zinc-300">
-                      Query Parameters (Otomatis Tersinkron dengan URL)
-                    </span>
-                    <button
-                      onClick={handleAddParam}
-                      className="px-2.5 py-1 text-xs bg-stone-100 hover:bg-stone-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-200 rounded-lg flex items-center gap-1 font-semibold cursor-pointer transition-colors"
-                    >
-                      <Plus size={13} />
-                      <span>Tambah Parameter</span>
-                    </button>
-                  </div>
-
-                  <div className="border border-stone-200 dark:border-zinc-800 rounded-xl overflow-hidden">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-stone-100/70 dark:bg-zinc-800/60 border-b border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 font-semibold">
-                          <th className="py-2 px-3 w-10 text-center">Aktif</th>
-                          <th className="py-2 px-3">Key (Kunci)</th>
-                          <th className="py-2 px-3">Value (Nilai)</th>
-                          <th className="py-2 px-2 w-10 text-center">Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100 dark:divide-zinc-800 font-mono">
-                        {request.params.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="py-6 text-center text-xs text-stone-400 font-sans">
-                              Belum ada parameter kueri. Klik "Tambah Parameter" untuk menambahkan.
-                            </td>
-                          </tr>
-                        ) : (
-                          request.params.map(p => (
-                            <tr key={p.id} className="hover:bg-stone-50/50 dark:hover:bg-zinc-800/30">
-                              <td className="py-1.5 px-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={p.enabled}
-                                  onChange={e => handleUpdateParam(p.id, 'enabled', e.target.checked)}
-                                  className="rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
-                                />
-                              </td>
-                              <td className="py-1.5 px-3">
-                                <input
-                                  type="text"
-                                  value={p.key}
-                                  placeholder="contoh: limit"
-                                  onChange={e => handleUpdateParam(p.id, 'key', e.target.value)}
-                                  className="w-full px-2 py-1 text-xs bg-transparent border border-stone-200 dark:border-zinc-700 rounded-lg outline-none focus:border-rose-500 text-stone-900 dark:text-zinc-100"
-                                />
-                              </td>
-                              <td className="py-1.5 px-3">
-                                <input
-                                  type="text"
-                                  value={p.value}
-                                  placeholder="contoh: 10"
-                                  onChange={e => handleUpdateParam(p.id, 'value', e.target.value)}
-                                  className="w-full px-2 py-1 text-xs bg-transparent border border-stone-200 dark:border-zinc-700 rounded-lg outline-none focus:border-rose-500 text-stone-900 dark:text-zinc-100"
-                                />
-                              </td>
-                              <td className="py-1.5 px-2 text-center">
-                                <button
-                                  onClick={() => handleDeleteParam(p.id)}
-                                  className="p-1 text-stone-400 hover:text-rose-600 rounded-md cursor-pointer"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: Authorization */}
-              {activeReqTab === 'auth' && (
-                <div className="space-y-4 max-w-xl">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-stone-700 dark:text-zinc-300">
-                      Tipe Autentikasi
-                    </label>
-                    <select
-                      value={request.auth.type}
-                      onChange={e =>
-                        setRequest({
-                          ...request,
-                          auth: { ...request.auth, type: e.target.value as any },
-                        })
-                      }
-                      className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 font-semibold cursor-pointer text-stone-900 dark:text-white"
-                    >
-                      <option value="none">Tanpa Autentikasi (No Auth)</option>
-                      <option value="bearer">Bearer Token (JWT / API Token)</option>
-                      <option value="basic">Basic Auth (Username & Password)</option>
-                      <option value="apikey">API Key (Header / Query Parameter)</option>
-                    </select>
-                  </div>
-
-                  {/* Bearer Token */}
-                  {request.auth.type === 'bearer' && (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                          Bearer Token
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setShowBearerToken(!showBearerToken)}
-                          className="text-[11px] text-rose-600 dark:text-rose-400 cursor-pointer font-medium"
-                        >
-                          {showBearerToken ? 'Sembunyikan' : 'Tampilkan'}
-                        </button>
-                      </div>
-                      <input
-                        type={showBearerToken ? 'text' : 'password'}
-                        value={request.auth.bearerToken || ''}
-                        onChange={e =>
-                          setRequest({
-                            ...request,
-                            auth: { ...request.auth, bearerToken: e.target.value },
-                          })
-                        }
-                        placeholder="ey..."
-                        className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 font-mono text-stone-900 dark:text-white"
-                      />
-                      <p className="text-[11px] text-stone-500">
-                        Header <code className="font-mono">Authorization: Bearer &lt;token&gt;</code> akan otomatis ditambahkan ke permintaan.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Basic Auth */}
-                  {request.auth.type === 'basic' && (
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                          Username
-                        </label>
-                        <input
-                          type="text"
-                          value={request.auth.basicUsername || ''}
-                          onChange={e =>
-                            setRequest({
-                              ...request,
-                              auth: { ...request.auth, basicUsername: e.target.value },
-                            })
-                          }
-                          placeholder="admin / user"
-                          className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 text-stone-900 dark:text-white font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                            Password
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setShowBasicPass(!showBasicPass)}
-                            className="text-[11px] text-rose-600 dark:text-rose-400 cursor-pointer font-medium"
-                          >
-                            {showBasicPass ? 'Sembunyikan' : 'Tampilkan'}
-                          </button>
-                        </div>
-                        <input
-                          type={showBasicPass ? 'text' : 'password'}
-                          value={request.auth.basicPassword || ''}
-                          onChange={e =>
-                            setRequest({
-                              ...request,
-                              auth: { ...request.auth, basicPassword: e.target.value },
-                            })
-                          }
-                          placeholder="password rahasia"
-                          className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 text-stone-900 dark:text-white font-mono"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* API Key */}
-                  {request.auth.type === 'apikey' && (
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                          Nama Kunci (Key Name)
-                        </label>
-                        <input
-                          type="text"
-                          value={request.auth.apiKeyName || ''}
-                          onChange={e =>
-                            setRequest({
-                              ...request,
-                              auth: { ...request.auth, apiKeyName: e.target.value },
-                            })
-                          }
-                          placeholder="X-API-KEY / api_key"
-                          className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 text-stone-900 dark:text-white font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                          Nilai Kunci (Key Value)
-                        </label>
-                        <input
-                          type="text"
-                          value={request.auth.apiKeyValue || ''}
-                          onChange={e =>
-                            setRequest({
-                              ...request,
-                              auth: { ...request.auth, apiKeyValue: e.target.value },
-                            })
-                          }
-                          placeholder="sk_live_..."
-                          className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 text-stone-900 dark:text-white font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                          Lokasi Penyisipan
-                        </label>
-                        <select
-                          value={request.auth.apiKeyLocation || 'header'}
-                          onChange={e =>
-                            setRequest({
-                              ...request,
-                              auth: { ...request.auth, apiKeyLocation: e.target.value as any },
-                            })
-                          }
-                          className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 font-semibold cursor-pointer text-stone-900 dark:text-white"
-                        >
-                          <option value="header">Headers (Header HTTP)</option>
-                          <option value="query">Query Params (URL parameter)</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* TAB 3: Headers */}
-              {activeReqTab === 'headers' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-stone-700 dark:text-zinc-300">
-                      HTTP Request Headers
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          // Quick add JSON headers
-                          const hasCT = request.headers.some(h => h.key.toLowerCase() === 'content-type');
-                          const hasAccept = request.headers.some(h => h.key.toLowerCase() === 'accept');
-                          const newHeaders = [...request.headers];
-                          if (!hasCT) {
-                            newHeaders.push({
-                              id: 'h_' + Math.random().toString(36).substring(2, 9),
-                              key: 'Content-Type',
-                              value: 'application/json',
-                              enabled: true,
-                            });
-                          }
-                          if (!hasAccept) {
-                            newHeaders.push({
-                              id: 'h_' + Math.random().toString(36).substring(2, 9),
-                              key: 'Accept',
-                              value: 'application/json',
-                              enabled: true,
-                            });
-                          }
-                          setRequest(prev => ({ ...prev, headers: newHeaders }));
-                        }}
-                        className="px-2.5 py-1 text-xs bg-stone-100 hover:bg-stone-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-200 rounded-lg font-medium cursor-pointer transition-colors"
-                      >
-                        + Preset JSON
-                      </button>
-                      <button
-                        onClick={handleAddHeader}
-                        className="px-2.5 py-1 text-xs bg-stone-100 hover:bg-stone-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-200 rounded-lg flex items-center gap-1 font-semibold cursor-pointer transition-colors"
-                      >
-                        <Plus size={13} />
-                        <span>Tambah Header</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="border border-stone-200 dark:border-zinc-800 rounded-xl overflow-hidden">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-stone-100/70 dark:bg-zinc-800/60 border-b border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 font-semibold">
-                          <th className="py-2 px-3 w-10 text-center">Aktif</th>
-                          <th className="py-2 px-3">Header Key</th>
-                          <th className="py-2 px-3">Header Value</th>
-                          <th className="py-2 px-2 w-10 text-center">Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100 dark:divide-zinc-800 font-mono">
-                        {request.headers.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="py-6 text-center text-xs text-stone-400 font-sans">
-                              Belum ada custom header. Klik "Tambah Header" di atas.
-                            </td>
-                          </tr>
-                        ) : (
-                          request.headers.map(h => (
-                            <tr key={h.id} className="hover:bg-stone-50/50 dark:hover:bg-zinc-800/30">
-                              <td className="py-1.5 px-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={h.enabled}
-                                  onChange={e => handleUpdateHeader(h.id, 'enabled', e.target.checked)}
-                                  className="rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
-                                />
-                              </td>
-                              <td className="py-1.5 px-3">
-                                <input
-                                  type="text"
-                                  value={h.key}
-                                  placeholder="contoh: Authorization"
-                                  onChange={e => handleUpdateHeader(h.id, 'key', e.target.value)}
-                                  className="w-full px-2 py-1 text-xs bg-transparent border border-stone-200 dark:border-zinc-700 rounded-lg outline-none focus:border-rose-500 text-stone-900 dark:text-zinc-100"
-                                />
-                              </td>
-                              <td className="py-1.5 px-3">
-                                <input
-                                  type="text"
-                                  value={h.value}
-                                  placeholder="contoh: application/json"
-                                  onChange={e => handleUpdateHeader(h.id, 'value', e.target.value)}
-                                  className="w-full px-2 py-1 text-xs bg-transparent border border-stone-200 dark:border-zinc-700 rounded-lg outline-none focus:border-rose-500 text-stone-900 dark:text-zinc-100"
-                                />
-                              </td>
-                              <td className="py-1.5 px-2 text-center">
-                                <button
-                                  onClick={() => handleDeleteHeader(h.id)}
-                                  className="p-1 text-stone-400 hover:text-rose-600 rounded-md cursor-pointer"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 4: Body */}
-              {activeReqTab === 'body' && (
-                <div className="space-y-3">
-                  {/* Body Type Selector */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    {[
-                      { id: 'none', label: 'none' },
-                      { id: 'json', label: 'raw (JSON)' },
-                      { id: 'x-www-form-urlencoded', label: 'x-www-form-urlencoded' },
-                      { id: 'raw', label: 'raw (Text)' },
-                    ].map(type => (
-                      <button
-                        key={type.id}
-                        onClick={() => setRequest({ ...request, bodyType: type.id as any })}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                          request.bodyType === type.id
-                            ? 'bg-rose-600 text-white shadow-xs'
-                            : 'bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:bg-stone-200 dark:hover:bg-zinc-700'
-                        }`}
-                      >
-                        {type.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {request.bodyType === 'none' && (
-                    <div className="py-8 text-center text-xs text-stone-400 dark:text-zinc-500">
-                      Permintaan ini tidak menyertakan payload body.
-                    </div>
-                  )}
-
-                  {(request.bodyType === 'json' || request.bodyType === 'raw') && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                          Payload Editor ({request.bodyType.toUpperCase()})
-                        </span>
-                        {request.bodyType === 'json' && (
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={handleBeautifyJson}
-                              className="px-2 py-0.5 text-[11px] bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:bg-stone-200 dark:hover:bg-zinc-700 rounded font-medium cursor-pointer"
-                            >
-                              Rapikan (Beautify)
-                            </button>
-                            <button
-                              onClick={handleMinifyJson}
-                              className="px-2 py-0.5 text-[11px] bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:bg-stone-200 dark:hover:bg-zinc-700 rounded font-medium cursor-pointer"
-                            >
-                              Minify
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <textarea
-                        rows={8}
-                        value={request.rawBody}
-                        onChange={e => {
-                          setJsonError(null);
-                          setRequest({ ...request, rawBody: e.target.value });
-                        }}
-                        placeholder={
-                          request.bodyType === 'json'
-                            ? '{\n  "title": "Judul Baru",\n  "content": "Isi konten API"\n}'
-                            : 'Tuliskan teks payload di sini...'
-                        }
-                        className="w-full p-3 font-mono text-xs bg-stone-900 text-stone-100 border border-stone-800 rounded-xl outline-none focus:border-rose-500 leading-relaxed resize-y"
-                      />
-
-                      {jsonError && (
-                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 text-xs">
-                          <AlertCircle size={14} />
-                          <span>{jsonError}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {request.bodyType === 'x-www-form-urlencoded' && (
-                    <div className="space-y-2">
-                      <p className="text-xs text-stone-500">
-                        Format formulir standar (misal: login form). Header <code className="font-mono">Content-Type: application/x-www-form-urlencoded</code> akan diterapkan otomatis.
-                      </p>
-                      <textarea
-                        rows={4}
-                        value={request.rawBody}
-                        onChange={e => setRequest({ ...request, rawBody: e.target.value })}
-                        placeholder="grant_type=client_credentials&client_id=xyz&client_secret=123"
-                        className="w-full p-3 font-mono text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 text-stone-900 dark:text-white"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* TAB 5: Settings */}
-              {activeReqTab === 'settings' && (
-                <div className="space-y-4 max-w-lg">
-                  {/* Bypass CORS setting */}
-                  <div className="flex items-start justify-between gap-4 p-3 bg-stone-50 dark:bg-zinc-800/50 border border-stone-200 dark:border-zinc-800 rounded-xl">
-                    <div>
-                      <h4 className="text-xs font-bold text-stone-900 dark:text-white">
-                        Bypass CORS melalui Server Proxy
-                      </h4>
-                      <p className="text-[11px] text-stone-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
-                        Mengarahkan permintaan HTTP ke backend server Node.js sehingga Anda dapat menguji endpoint apa pun di internet tanpa dicegat oleh batasan Same-Origin / CORS browser.
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={request.settings.bypassCors}
-                      onChange={e =>
-                        setRequest({
-                          ...request,
-                          settings: { ...request.settings, bypassCors: e.target.checked },
-                        })
-                      }
-                      className="mt-1 rounded text-rose-600 focus:ring-rose-500 cursor-pointer h-4 w-4"
+          {/* DUAL PANE OR STACKED WORKSPACE */}
+          {layoutMode === 'split' ? (
+            <>
+              {/* Mobile (< lg) View: show the active tab full-size */}
+              <div className="lg:hidden flex-1 min-h-0 p-2.5 sm:p-4 overflow-hidden">
+                {mobileActiveTab === 'editor' ? (
+                  <div className="h-full flex flex-col min-h-0">
+                    <RequestEditorPanel
+                      request={request}
+                      setRequest={setRequest}
+                      activeReqTab={activeReqTab}
+                      setActiveReqTab={setActiveReqTab}
+                      detectedPathKeys={detectedPathKeys}
+                      response={response}
+                      showBasicPass={showBasicPass}
+                      setShowBasicPass={setShowBasicPass}
+                      showBearerToken={showBearerToken}
+                      setShowBearerToken={setShowBearerToken}
+                      isSplit={true}
                     />
                   </div>
-
-                  {/* Follow Redirects */}
-                  <div className="flex items-start justify-between gap-4 p-3 bg-stone-50 dark:bg-zinc-800/50 border border-stone-200 dark:border-zinc-800 rounded-xl">
-                    <div>
-                      <h4 className="text-xs font-bold text-stone-900 dark:text-white">
-                        Follow HTTP Redirects (301, 302, 307)
-                      </h4>
-                      <p className="text-[11px] text-stone-500 dark:text-zinc-400 mt-0.5">
-                        Ikuti URL pengalihan secara otomatis saat menerima kode status redirect dari server target.
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={request.settings.followRedirects}
-                      onChange={e =>
-                        setRequest({
-                          ...request,
-                          settings: { ...request.settings, followRedirects: e.target.checked },
-                        })
-                      }
-                      className="mt-1 rounded text-rose-600 focus:ring-rose-500 cursor-pointer h-4 w-4"
+                ) : (
+                  <div className="h-full flex flex-col min-h-0">
+                    <ResponseViewer
+                      response={response}
+                      isLoading={isLoading}
+                      onAbort={handleAbortRequest}
                     />
                   </div>
+                )}
+              </div>
 
-                  {/* Timeout */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
-                      Batas Waktu Timeout ({request.settings.timeoutMs / 1000} detik)
-                    </label>
-                    <input
-                      type="range"
-                      min="2000"
-                      max="60000"
-                      step="1000"
-                      value={request.settings.timeoutMs}
-                      onChange={e =>
-                        setRequest({
-                          ...request,
-                          settings: { ...request.settings, timeoutMs: Number(e.target.value) },
-                        })
-                      }
-                      className="w-full accent-rose-600 cursor-pointer"
-                    />
-                  </div>
+              {/* Desktop (>= lg) View: side-by-side 50:50 */}
+              <div className="hidden lg:flex flex-1 min-h-0 p-3 sm:p-4 flex-row gap-3 sm:gap-4 overflow-hidden">
+                {/* Left Pane: Request & Schema Editor */}
+                <div className="w-1/2 h-full flex flex-col min-h-0">
+                  <RequestEditorPanel
+                    request={request}
+                    setRequest={setRequest}
+                    activeReqTab={activeReqTab}
+                    setActiveReqTab={setActiveReqTab}
+                    detectedPathKeys={detectedPathKeys}
+                    response={response}
+                    showBasicPass={showBasicPass}
+                    setShowBasicPass={setShowBasicPass}
+                    showBearerToken={showBearerToken}
+                    setShowBearerToken={setShowBearerToken}
+                    isSplit={true}
+                  />
                 </div>
-              )}
+
+                {/* Right Pane: Live Response & Testing Viewer */}
+                <div className="w-1/2 h-full flex flex-col min-h-0">
+                  <ResponseViewer
+                    response={response}
+                    isLoading={isLoading}
+                    onAbort={handleAbortRequest}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-4 space-y-4">
+              {/* Request & Schema Editor */}
+              <div>
+                <RequestEditorPanel
+                  request={request}
+                  setRequest={setRequest}
+                  activeReqTab={activeReqTab}
+                  setActiveReqTab={setActiveReqTab}
+                  detectedPathKeys={detectedPathKeys}
+                  response={response}
+                  showBasicPass={showBasicPass}
+                  setShowBasicPass={setShowBasicPass}
+                  showBearerToken={showBearerToken}
+                  setShowBearerToken={setShowBearerToken}
+                  isSplit={false}
+                />
+              </div>
+
+              {/* Live Response & Testing Viewer */}
+              <div className="min-h-[420px]">
+                <ResponseViewer
+                  response={response}
+                  isLoading={isLoading}
+                  onAbort={handleAbortRequest}
+                />
+              </div>
             </div>
-          </div>
-
-          {/* Response Viewer Panel */}
-          <div className="flex-1 min-h-[380px]">
-            <ResponseViewer
-              response={response}
-              isLoading={isLoading}
-              onAbort={handleAbortRequest}
-            />
-          </div>
+          )}
         </main>
       </div>
 
-      {/* Environment Management Modal */}
-      <EnvironmentModal
-        isOpen={isEnvModalOpen}
-        onClose={() => setIsEnvModalOpen(false)}
-        environments={environments}
-        activeEnvironmentId={activeEnvId}
-        onSaveEnvironments={(envs, activeId) => {
-          setEnvironments(envs);
-          setActiveEnvId(activeId);
-        }}
-      />
+      {/* SWAGGER DOCUMENTATION & EXPORT MODAL */}
+      {isSwaggerModalOpen && activeWorkspace && (
+        <SwaggerModal
+          isOpen={isSwaggerModalOpen}
+          onClose={() => setIsSwaggerModalOpen(false)}
+          workspace={activeWorkspace}
+          onSelectEndpoint={ep => {
+            handleLoadEndpoint(ep);
+          }}
+        />
+      )}
 
-      {/* cURL & Code Generator Modal */}
-      <CurlModal
-        isOpen={isCurlModalOpen}
-        onClose={() => setIsCurlModalOpen(false)}
-        activeRequest={request}
-        activeEnvironment={activeEnvironment}
-        onImportCurl={parsed => {
-          setRequest(prev => ({
-            ...prev,
-            ...parsed,
-          }));
-        }}
-      />
+      {/* SWAGGER IMPORT MODAL */}
+      {isSwaggerImportModalOpen && (
+        <SwaggerImportModal
+          isOpen={isSwaggerImportModalOpen}
+          onClose={() => setIsSwaggerImportModalOpen(false)}
+          activeWorkspace={activeWorkspace}
+          onImportWorkspace={handleImportWorkspace}
+        />
+      )}
 
-      {/* Save to Collection Modal */}
-      {isSaveModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-4 space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-zinc-800">
-              <span className="text-xs font-bold text-stone-900 dark:text-white">
-                Simpan Request ke Koleksi
-              </span>
-              <button
-                onClick={() => setIsSaveModalOpen(false)}
-                className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 rounded-lg cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
+      {/* WORKSPACE LIST & MANAGER MODAL */}
+      {isWorkspaceListModalOpen && (
+        <WorkspaceListModal
+          isOpen={isWorkspaceListModalOpen}
+          onClose={() => setIsWorkspaceListModalOpen(false)}
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={id => {
+            setActiveWorkspaceId(id);
+            const target = workspaces.find(w => w.id === id);
+            if (target && target.endpoints.length > 0) {
+              setRequest(target.endpoints[0]);
+            }
+          }}
+          onCreateWorkspace={newWs => {
+            setWorkspaces(prev => [newWs, ...prev]);
+            setActiveWorkspaceId(newWs.id);
+          }}
+          onDuplicateWorkspace={id => {
+            const target = workspaces.find(w => w.id === id);
+            if (!target) return;
+            const dupl: WorkspaceProject = {
+              ...JSON.parse(JSON.stringify(target)),
+              id: 'ws_' + Date.now(),
+              name: target.name + ' (Salinan)',
+              info: {
+                ...target.info,
+                title: target.name + ' (Salinan)',
+              },
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            };
+            setWorkspaces(prev => [dupl, ...prev]);
+            setActiveWorkspaceId(dupl.id);
+          }}
+          onDeleteWorkspace={id => {
+            const remaining = workspaces.filter(w => w.id !== id);
+            setWorkspaces(remaining);
+            if (remaining.length > 0) {
+              setActiveWorkspaceId(remaining[0].id);
+            }
+          }}
+        />
+      )}
 
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-stone-700 dark:text-zinc-300">
-                Nama Request
-              </label>
-              <input
-                type="text"
-                autoFocus
-                value={saveReqName}
-                onChange={e => setSaveReqName(e.target.value)}
-                placeholder="contoh: Ambil Data Pengguna"
-                className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 font-medium text-stone-900 dark:text-white"
-              />
-            </div>
+      {/* WORKSPACE SETTINGS MODAL */}
+      {isWorkspaceSettingsModalOpen && activeWorkspace && (
+        <WorkspaceSettingsModal
+          isOpen={isWorkspaceSettingsModalOpen}
+          onClose={() => setIsWorkspaceSettingsModalOpen(false)}
+          workspace={activeWorkspace}
+          onSaveWorkspace={updatedWs => {
+            setWorkspaces(workspaces.map(w => (w.id === updatedWs.id ? updatedWs : w)));
+          }}
+        />
+      )}
 
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-stone-700 dark:text-zinc-300">
-                Pilih Koleksi Tujuan
-              </label>
-              <select
-                value={selectedColId}
-                onChange={e => setSelectedColId(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 text-stone-900 dark:text-white cursor-pointer font-medium"
-              >
-                <option value="">+ Buat Koleksi Baru</option>
-                {customCollections.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* ENVIRONMENT MODAL */}
+      {isEnvModalOpen && (
+        <EnvironmentModal
+          isOpen={isEnvModalOpen}
+          onClose={() => setIsEnvModalOpen(false)}
+          environments={environments}
+          activeEnvironmentId={activeEnvId}
+          onSaveEnvironments={(envs, activeId) => {
+            setEnvironments(envs);
+            setActiveEnvId(activeId);
+          }}
+        />
+      )}
 
-            <div className="pt-2 flex items-center justify-end gap-2 border-t border-stone-100 dark:border-zinc-800">
-              <button
-                onClick={() => setIsSaveModalOpen(false)}
-                className="px-3 py-1.5 text-xs font-semibold text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-xl cursor-pointer"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleSaveToCollection}
-                disabled={!saveReqName.trim()}
-                className="px-4 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:pointer-events-none rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
-              >
-                <Save size={14} />
-                <span>Simpan</span>
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* cURL MODAL */}
+      {isCurlModalOpen && (
+        <CurlModal
+          isOpen={isCurlModalOpen}
+          onClose={() => setIsCurlModalOpen(false)}
+          activeRequest={request}
+          activeEnvironment={activeEnvironment}
+          onImportCurl={parsed => {
+            setRequest(prev => ({
+              ...prev,
+              ...parsed,
+            }));
+          }}
+        />
       )}
     </div>
   );

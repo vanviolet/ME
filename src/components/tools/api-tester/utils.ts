@@ -45,15 +45,38 @@ export function parseQueryFromUrl(fullUrl: string): { baseUrl: string; params: K
 }
 
 /**
- * Builds the complete URL by combining base URL, query params, and environment variables.
+ * Resolves path parameters in URL templates like /posts/{id} with actual values.
+ */
+export function resolveUrlPathParams(url: string, pathParams?: KeyValueParam[], env?: Environment | null): string {
+  if (!url) return '';
+  let resolved = url;
+  if (pathParams && pathParams.length > 0) {
+    pathParams.forEach(p => {
+      if (p.key && p.value !== undefined && p.value !== '') {
+        const val = env ? replaceEnvVars(String(p.value), env) : String(p.value);
+        const regex = new RegExp(`\\{${p.key.trim()}\\}([/?#]|$)`, 'g');
+        resolved = resolved.replace(new RegExp(`\\{${p.key.trim()}\\}`,'g'), encodeURIComponent(val));
+      }
+    });
+  }
+  return resolved;
+}
+
+/**
+ * Builds the complete URL by combining base URL, query params, path params, and environment variables.
  */
 export function buildUrlWithParams(
   rawUrl: string,
   params: KeyValueParam[],
-  env: Environment | null
+  env: Environment | null,
+  pathParams?: KeyValueParam[]
 ): string {
-  const urlWithEnv = replaceEnvVars(rawUrl.trim(), env);
+  let urlWithEnv = replaceEnvVars(rawUrl.trim(), env);
   if (!urlWithEnv) return '';
+
+  if (pathParams && pathParams.length > 0) {
+    urlWithEnv = resolveUrlPathParams(urlWithEnv, pathParams, env);
+  }
 
   const qIndex = urlWithEnv.indexOf('?');
   const base = qIndex !== -1 ? urlWithEnv.substring(0, qIndex) : urlWithEnv;
