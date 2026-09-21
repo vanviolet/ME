@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { Seo } from './Seo';
 import {
@@ -25,6 +25,10 @@ import {
   FileText,
   Shield,
   Share2,
+  QrCode,
+  Search,
+  X,
+  Sparkles,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -268,6 +272,19 @@ export const ToolsIndexPage: React.FC = () => {
       badge: language === 'en' ? 'New Tool' : 'Tool Baru',
     },
     {
+      id: 'qr-generator',
+      title: 'High-Resolution QR Code Studio',
+      description:
+        language === 'en'
+          ? 'Generate print-ready, high-resolution QR codes in PNG, JPEG & SVG for URLs, Wi-Fi networks, vCards, with custom palette styling and center logos.'
+          : 'Buat kode QR resolusi tinggi siap cetak format PNG, JPEG & SVG untuk URL, jaringan Wi-Fi, kontak vCard, dengan palet warna kustom dan sematan logo.',
+      icon: QrCode,
+      category: 'Developer Utility',
+      path: '/tools/qr-generator',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
       id: 'json-formatter',
       title: 'JSON Formatter & Validator',
       description:
@@ -347,8 +364,33 @@ export const ToolsIndexPage: React.FC = () => {
     },
   ];
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  const categories = useMemo(() => {
+    const rawCategories = Array.from(new Set(toolsList.map(t => t.category)));
+    return ['all', ...rawCategories];
+  }, [toolsList]);
+
+  const filteredTools = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    return toolsList.filter(tool => {
+      const matchCategory = selectedCategory === 'all' || tool.category === selectedCategory;
+      if (!matchCategory) return false;
+      if (!query) return true;
+
+      return (
+        tool.title.toLowerCase().includes(query) ||
+        tool.description.toLowerCase().includes(query) ||
+        tool.category.toLowerCase().includes(query) ||
+        tool.id.toLowerCase().includes(query) ||
+        tool.badge.toLowerCase().includes(query)
+      );
+    });
+  }, [toolsList, searchQuery, selectedCategory]);
+
   return (
-    <div className="min-h-screen pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-10">
+    <div className="min-h-screen pt-24 pb-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-8">
       <Seo
         title={language === 'en' ? 'Developer & Designer Tools — Muchamad Irvan' : 'Perkakas Tool Pengembang & Desainer'}
         description={
@@ -375,89 +417,185 @@ export const ToolsIndexPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Tools Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        {toolsList.map(tool => {
-          const Icon = tool.icon;
-          const isComingSoon = tool.status === 'coming_soon';
+      {/* Search Bar & Category Filter Controls */}
+      <div className="max-w-2xl mx-auto w-full space-y-4">
+        {/* Search Input Box */}
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400 dark:text-zinc-500 group-focus-within:text-rose-500 transition-colors">
+            <Search size={18} />
+          </div>
+          <input
+            id="tools-search-input"
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={
+              language === 'en'
+                ? 'Search utilities by name or keyword... (e.g. QR, Regex, Chmod, JWT)'
+                : 'Cari tool berdasarkan nama atau kata kunci... (misal: QR, Regex, Chmod, JWT)'
+            }
+            className="w-full pl-10 pr-20 py-3 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 text-sm text-stone-900 dark:text-zinc-100 placeholder-stone-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-xs transition-all"
+          />
 
-          return (
-            <Link
-              to={tool.path}
-              key={tool.id}
-              className={`group p-5 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900/90 border transition-all duration-200 flex flex-col justify-between ${
-                isComingSoon
-                  ? 'border-amber-500/30 dark:border-amber-500/20 hover:border-amber-500/60 dark:hover:border-amber-500/40 hover:shadow-md'
-                  : 'border-stone-200 dark:border-zinc-800 hover:border-rose-300 dark:hover:border-rose-900/50 hover:shadow-md'
-              }`}
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-colors ${
-                      isComingSoon
-                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 group-hover:bg-amber-600 group-hover:text-white dark:group-hover:bg-amber-600 dark:group-hover:text-white'
-                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 group-hover:bg-rose-600 group-hover:text-white dark:group-hover:bg-rose-600 dark:group-hover:text-white'
-                    }`}
-                  >
-                    <Icon size={20} />
-                  </div>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium border ${
-                      isComingSoon
-                        ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
-                        : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20'
-                    }`}
-                  >
-                    {tool.badge}
-                  </span>
-                </div>
+          <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center gap-1.5">
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-700 dark:text-zinc-500 dark:hover:text-zinc-200 hover:bg-stone-100 dark:hover:bg-zinc-800 transition-colors"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <X size={16} />
+              </button>
+            )}
+            <span className="hidden sm:inline-flex px-2 py-0.5 text-[11px] font-mono text-stone-400 dark:text-zinc-500 bg-stone-100 dark:bg-zinc-800 rounded-md border border-stone-200/50 dark:border-zinc-700/50">
+              {filteredTools.length}/{toolsList.length}
+            </span>
+          </div>
+        </div>
 
-                <div className="space-y-1.5">
-                  <span
-                    className={`text-[10px] font-mono uppercase tracking-wider block font-semibold ${
-                      isComingSoon ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
-                    }`}
-                  >
-                    {tool.category}
-                  </span>
-                  <h3
-                    className={`text-lg font-bold text-stone-900 dark:text-zinc-100 transition-colors ${
-                      isComingSoon
-                        ? 'group-hover:text-amber-600 dark:group-hover:text-amber-400'
-                        : 'group-hover:text-rose-600 dark:group-hover:text-rose-400'
-                    }`}
-                  >
-                    {tool.title}
-                  </h3>
-                  <p className="text-xs text-stone-600 dark:text-zinc-400 leading-relaxed">
-                    {tool.description}
-                  </p>
-                </div>
-              </div>
+        {/* Category Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none no-scrollbar -mx-2 px-2 sm:mx-0 sm:px-0">
+          {categories.map(cat => {
+            const isSelected = selectedCategory === cat;
+            const label =
+              cat === 'all'
+                ? language === 'en'
+                  ? 'All Utilities'
+                  : 'Semua Tool'
+                : cat;
 
-              <div
-                className={`pt-5 mt-4 border-t border-stone-100 dark:border-zinc-800 flex items-center gap-2 text-xs font-semibold text-stone-900 dark:text-zinc-100 group-hover:translate-x-1 transition-all ${
-                  isComingSoon
-                    ? 'group-hover:text-amber-600 dark:group-hover:text-amber-400'
-                    : 'group-hover:text-rose-600 dark:group-hover:text-rose-400'
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                  isSelected
+                    ? 'bg-rose-600 text-white shadow-xs font-semibold'
+                    : 'bg-stone-100 dark:bg-zinc-800/80 text-stone-600 dark:text-zinc-400 hover:bg-stone-200 dark:hover:bg-zinc-700/80 hover:text-stone-900 dark:hover:text-zinc-100'
                 }`}
               >
-                <span>
-                  {isComingSoon
-                    ? language === 'en'
-                      ? 'Preview & Roadmap'
-                      : 'Pratinjau & Roadmap'
-                    : language === 'en'
-                    ? 'Open Tool'
-                    : 'Buka Tool'}
-                </span>
-                <ArrowRight size={14} />
-              </div>
-            </Link>
-          );
-        })}
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Tools Grid or Empty State */}
+      {filteredTools.length === 0 ? (
+        <div className="p-8 sm:p-12 text-center rounded-3xl border border-dashed border-stone-300 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-900/40 space-y-4 max-w-lg mx-auto">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
+            <Search size={22} />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-stone-900 dark:text-zinc-100">
+              {language === 'en' ? 'No matching utilities found' : 'Tidak ada tool yang cocok'}
+            </h3>
+            <p className="text-xs text-stone-500 dark:text-zinc-400 max-w-sm mx-auto">
+              {language === 'en'
+                ? `No tools matched "${searchQuery}". Try searching with different keywords or reset your filters.`
+                : `Tidak ada perkakas yang sesuai dengan "${searchQuery}". Coba kata kunci lain atau reset filter.`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery('');
+              setSelectedCategory('all');
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-xs transition-colors"
+          >
+            <X size={14} />
+            <span>{language === 'en' ? 'Reset Filters' : 'Reset Filter'}</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          {filteredTools.map(tool => {
+            const Icon = tool.icon;
+            const isComingSoon = tool.status === 'coming_soon';
+
+            return (
+              <Link
+                to={tool.path}
+                key={tool.id}
+                className={`group p-5 sm:p-6 rounded-2xl bg-white dark:bg-zinc-900/90 border transition-all duration-200 flex flex-col justify-between ${
+                  isComingSoon
+                    ? 'border-amber-500/30 dark:border-amber-500/20 hover:border-amber-500/60 dark:hover:border-amber-500/40 hover:shadow-md'
+                    : 'border-stone-200 dark:border-zinc-800 hover:border-rose-300 dark:hover:border-rose-900/50 hover:shadow-md'
+                }`}
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-colors ${
+                        isComingSoon
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 group-hover:bg-amber-600 group-hover:text-white dark:group-hover:bg-amber-600 dark:group-hover:text-white'
+                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 group-hover:bg-rose-600 group-hover:text-white dark:group-hover:bg-rose-600 dark:group-hover:text-white'
+                      }`}
+                    >
+                      <Icon size={20} />
+                    </div>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium border ${
+                        isComingSoon
+                          ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                          : 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20'
+                      }`}
+                    >
+                      {tool.badge}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span
+                      className={`text-[10px] font-mono uppercase tracking-wider block font-semibold ${
+                        isComingSoon ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'
+                      }`}
+                    >
+                      {tool.category}
+                    </span>
+                    <h3
+                      className={`text-lg font-bold text-stone-900 dark:text-zinc-100 transition-colors ${
+                        isComingSoon
+                          ? 'group-hover:text-amber-600 dark:group-hover:text-amber-400'
+                          : 'group-hover:text-rose-600 dark:group-hover:text-rose-400'
+                      }`}
+                    >
+                      {tool.title}
+                    </h3>
+                    <p className="text-xs text-stone-600 dark:text-zinc-400 leading-relaxed">
+                      {tool.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className={`pt-5 mt-4 border-t border-stone-100 dark:border-zinc-800 flex items-center gap-2 text-xs font-semibold text-stone-900 dark:text-zinc-100 group-hover:translate-x-1 transition-all ${
+                    isComingSoon
+                      ? 'group-hover:text-amber-600 dark:group-hover:text-amber-400'
+                      : 'group-hover:text-rose-600 dark:group-hover:text-rose-400'
+                  }`}
+                >
+                  <span>
+                    {isComingSoon
+                      ? language === 'en'
+                        ? 'Preview & Roadmap'
+                        : 'Pratinjau & Roadmap'
+                      : language === 'en'
+                      ? 'Open Tool'
+                      : 'Buka Tool'}
+                  </span>
+                  <ArrowRight size={14} />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

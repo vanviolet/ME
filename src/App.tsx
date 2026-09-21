@@ -43,6 +43,7 @@ import { YamlJsonConverterPage } from './components/tools/YamlJsonConverterPage'
 import { MockDataGeneratorPage } from './components/tools/MockDataGeneratorPage';
 import { ChmodCalculatorPage } from './components/tools/ChmodCalculatorPage';
 import { MetaTagGeneratorPage } from './components/tools/MetaTagGeneratorPage';
+import { QrCodeGeneratorPage } from './components/tools/QrCodeGeneratorPage';
 import { VideoEditor } from './components/tools/video-editor/VideoEditor';
 import { FlowchartPage } from './components/tools/FlowchartPage';
 import { ApiTesterPage } from './components/tools/ApiTesterPage';
@@ -180,6 +181,9 @@ const AppLayout: React.FC = () => {
         <Route path="/tools/chmod" element={<ChmodCalculatorPage />} />
         <Route path="/tools/meta-tag-generator" element={<MetaTagGeneratorPage />} />
         <Route path="/tools/meta-tags" element={<MetaTagGeneratorPage />} />
+        <Route path="/tools/qr-generator" element={<QrCodeGeneratorPage />} />
+        <Route path="/tools/qrcode" element={<QrCodeGeneratorPage />} />
+        <Route path="/tools/qr" element={<QrCodeGeneratorPage />} />
         <Route path="/tools/image-cropper" element={<ImageCropperPage />} />
         <Route path="/tools/crop-image" element={<ImageCropperPage />} />
         <Route path="/tools/photo-editor" element={<ImageCropperPage />} />
