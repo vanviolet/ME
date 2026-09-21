@@ -32,6 +32,15 @@ import { JwtDebuggerPage } from './components/tools/JwtDebuggerPage';
 import { RegexTesterPage } from './components/tools/RegexTesterPage';
 import { UuidGeneratorPage } from './components/tools/UuidGeneratorPage';
 import { SqlFormatterPage } from './components/tools/SqlFormatterPage';
+import { JsonToTypesPage } from './components/tools/JsonToTypesPage';
+import { CronGeneratorPage } from './components/tools/CronGeneratorPage';
+import { TimestampConverterPage } from './components/tools/TimestampConverterPage';
+import { CurlToCodePage } from './components/tools/CurlToCodePage';
+import { DiffCheckerPage } from './components/tools/DiffCheckerPage';
+import { ColorContrastPage } from './components/tools/ColorContrastPage';
+import { SvgToJsxPage } from './components/tools/SvgToJsxPage';
+import { YamlJsonConverterPage } from './components/tools/YamlJsonConverterPage';
+import { MockDataGeneratorPage } from './components/tools/MockDataGeneratorPage';
 import { VideoEditor } from './components/tools/video-editor/VideoEditor';
 import { FlowchartPage } from './components/tools/FlowchartPage';
 import { ApiTesterPage } from './components/tools/ApiTesterPage';
@@ -147,6 +156,24 @@ const AppLayout: React.FC = () => {
         <Route path="/tools/uuid" element={<UuidGeneratorPage />} />
         <Route path="/tools/sql-formatter" element={<SqlFormatterPage />} />
         <Route path="/tools/sql" element={<SqlFormatterPage />} />
+        <Route path="/tools/json-to-types" element={<JsonToTypesPage />} />
+        <Route path="/tools/types" element={<JsonToTypesPage />} />
+        <Route path="/tools/cron-generator" element={<CronGeneratorPage />} />
+        <Route path="/tools/cron" element={<CronGeneratorPage />} />
+        <Route path="/tools/timestamp-converter" element={<TimestampConverterPage />} />
+        <Route path="/tools/timestamp" element={<TimestampConverterPage />} />
+        <Route path="/tools/curl-to-code" element={<CurlToCodePage />} />
+        <Route path="/tools/curl" element={<CurlToCodePage />} />
+        <Route path="/tools/diff-checker" element={<DiffCheckerPage />} />
+        <Route path="/tools/diff" element={<DiffCheckerPage />} />
+        <Route path="/tools/color-contrast" element={<ColorContrastPage />} />
+        <Route path="/tools/contrast" element={<ColorContrastPage />} />
+        <Route path="/tools/svg-to-jsx" element={<SvgToJsxPage />} />
+        <Route path="/tools/svg" element={<SvgToJsxPage />} />
+        <Route path="/tools/yaml-json-converter" element={<YamlJsonConverterPage />} />
+        <Route path="/tools/yaml" element={<YamlJsonConverterPage />} />
+        <Route path="/tools/mock-data-generator" element={<MockDataGeneratorPage />} />
+        <Route path="/tools/mock-data" element={<MockDataGeneratorPage />} />
         <Route path="/tools/image-cropper" element={<ImageCropperPage />} />
         <Route path="/tools/crop-image" element={<ImageCropperPage />} />
         <Route path="/tools/photo-editor" element={<ImageCropperPage />} />

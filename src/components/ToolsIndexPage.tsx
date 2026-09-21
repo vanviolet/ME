@@ -17,6 +17,12 @@ import {
   Video,
   Network,
   Globe,
+  Braces,
+  Clock,
+  Terminal,
+  FileDiff,
+  FileCode,
+  FileText,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -113,6 +119,123 @@ export const ToolsIndexPage: React.FC = () => {
       icon: Database,
       category: 'Database & Backend',
       path: '/tools/sql-formatter',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'json-to-types',
+      title: 'JSON to TypeScript & Zod Studio',
+      description:
+        language === 'en'
+          ? 'Transform JSON response payloads into clean TypeScript interfaces, type aliases, and Zod validation schemas with instant export.'
+          : 'Ubah payload JSON respon API secara instan menjadi TypeScript interface, type alias, dan skema validasi runtime Zod.',
+      icon: Braces,
+      category: 'TypeScript & Schema',
+      path: '/tools/json-to-types',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'cron-generator',
+      title: 'Visual Cron Expression Generator',
+      description:
+        language === 'en'
+          ? 'Interactive Crontab schedule builder, human-readable translator, reverse expression parser, and next 6 run execution dates calculator.'
+          : 'Pembuat jadwal Cron interaktif, penerjemah bahasa manusia dua arah, dan kalkulator perkiraan 6 jadwal eksekusi berikutnya.',
+      icon: Clock,
+      category: 'DevOps & Crontab',
+      path: '/tools/cron-generator',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'timestamp-converter',
+      title: 'Unix Timestamp & Timezone Studio',
+      description:
+        language === 'en'
+          ? 'Live ticking Unix epoch clock, two-way date converter (seconds/ms), quick time offsets, and multi-timezone matrix (WIB, WITA, WIT, UTC, JST, EST, PST).'
+          : 'Jam Unix Epoch real-time, konverter dua arah tanggal ke detik/milidetik, dan perbandingan zona waktu lengkap (WIB, WITA, WIT, UTC, JST).',
+      icon: Clock,
+      category: 'Time & Converter',
+      path: '/tools/timestamp-converter',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'curl-to-code',
+      title: 'cURL to Code Converter',
+      description:
+        language === 'en'
+          ? 'Convert raw cURL terminal commands into modern HTTP client code for JavaScript Fetch, Axios, Python (requests), Go, and PHP.'
+          : 'Ubah perintah cURL terminal mentah menjadi kode HTTP client siap pakai untuk JS Fetch, Axios, Python, Go, dan PHP.',
+      icon: Terminal,
+      category: 'HTTP & API',
+      path: '/tools/curl-to-code',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'diff-checker',
+      title: 'Code & Text Diff Checker',
+      description:
+        language === 'en'
+          ? 'Compare differences between two code or text snippets side-by-side or unified with additions, deletions, and line stats.'
+          : 'Bandingkan perbedaan kode atau teks secara berdampingan (side-by-side) maupun satu kolom dengan penghitung perubahan baris.',
+      icon: FileDiff,
+      category: 'Code & Text',
+      path: '/tools/diff-checker',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'color-contrast',
+      title: 'WCAG Color Contrast & Accessibility Studio',
+      description:
+        language === 'en'
+          ? 'Test and optimize color contrast ratios according to WCAG 2.1 AA/AAA standards with real-time UI simulations (grayscale & blur vision).'
+          : 'Uji dan optimalkan rasio kontras warna sesuai standar WCAG 2.1 AA/AAA dengan simulasi UI langsung dan filter aksesibilitas visual.',
+      icon: Palette,
+      category: 'Design & Accessibility',
+      path: '/tools/color-contrast',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'svg-to-jsx',
+      title: 'SVG to React JSX & Data URI Studio',
+      description:
+        language === 'en'
+          ? 'Convert raw SVG into clean React TypeScript components, sanitize JSX attributes, generate optimized CSS Data URIs, with live visual canvas preview.'
+          : 'Ubah file SVG mentah menjadi komponen React TypeScript yang bersih, rapikan atribut JSX, dan buat CSS background Data URI dengan pratinjau live.',
+      icon: FileCode,
+      category: 'Frontend & UI',
+      path: '/tools/svg-to-jsx',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'yaml-json-converter',
+      title: 'YAML ↔ JSON Two-Way Converter',
+      description:
+        language === 'en'
+          ? 'Convert two-way between YAML and JSON files with real-time syntax validation, indentation spacing controls, and Kubernetes/Docker cloud presets.'
+          : 'Konversi dua arah antara YAML dan JSON secara instan dengan validasi sintaks, pengaturan indentasi spasi, dan preset manifest Kubernetes & Docker.',
+      icon: FileText,
+      category: 'DevOps & Backend',
+      path: '/tools/yaml-json-converter',
+      status: 'active',
+      badge: language === 'en' ? 'New Tool' : 'Tool Baru',
+    },
+    {
+      id: 'mock-data-generator',
+      title: 'Mock Data & Database Seeder Studio',
+      description:
+        language === 'en'
+          ? 'Generate realistic mock data and database seeds in JSON, CSV, and SQL INSERT formats with customizable schema columns and Indonesian localization.'
+          : 'Buat data dummy realistis dan seeder database dalam format JSON, CSV, dan SQL INSERT dengan kustomisasi kolom serta lokalisasi Indonesia.',
+      icon: Database,
+      category: 'DevOps & Backend',
+      path: '/tools/mock-data-generator',
       status: 'active',
       badge: language === 'en' ? 'New Tool' : 'Tool Baru',
     },
