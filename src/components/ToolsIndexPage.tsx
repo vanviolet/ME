@@ -30,6 +30,7 @@ import {
   Search,
   X,
   Sparkles,
+  ShieldAlert,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -37,6 +38,19 @@ export const ToolsIndexPage: React.FC = () => {
   const { language } = usePortfolio();
 
   const toolsList = [
+    {
+      id: 'eslint-rules-generator',
+      title: 'ESLint Rules Generator & Interactive Guide',
+      description:
+        language === 'en'
+          ? 'Interactive ESLint rules builder with live error previews on hover, comprehensive explanations, preset configurations, and live syntax sandbox.'
+          : 'Generator konfigurasi ESLint visual interaktif dengan pratinjau contoh error saat di-hover, penjelasan aturan lengkap, preset siap pakai, dan sandbox pengujian kode live.',
+      icon: ShieldAlert,
+      category: 'Developer & Code Quality',
+      path: '/tools/eslint-rules',
+      status: 'active',
+      badge: language === 'en' ? 'Interactive Guide' : 'Panduan Interaktif',
+    },
     {
       id: 'ai-illustration',
       title: 'AI Illustration Studio (Multi-Style Diffusion)',

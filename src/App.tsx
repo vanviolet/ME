@@ -49,6 +49,7 @@ import { AiIllustrationPage } from './components/tools/AiIllustrationPage';
 import { VideoEditor } from './components/tools/video-editor/VideoEditor';
 import { FlowchartPage } from './components/tools/FlowchartPage';
 import { ApiTesterPage } from './components/tools/ApiTesterPage';
+import { EslintRulesGeneratorPage } from './components/tools/EslintRulesGeneratorPage';
 import { CvPage } from './components/CvPage';
 import { JiraApp } from './components/jira/JiraApp';
 import { JiraProvider } from './components/jira/JiraContext';
@@ -149,6 +150,10 @@ const AppLayout: React.FC = () => {
         <Route path="/tools/jira/*" element={<JiraApp />} />
         <Route path="/jira" element={<JiraApp />} />
         <Route path="/jira/*" element={<JiraApp />} />
+        <Route path="/tools/eslint-rules" element={<EslintRulesGeneratorPage />} />
+        <Route path="/tools/eslint" element={<EslintRulesGeneratorPage />} />
+        <Route path="/eslint-rules" element={<EslintRulesGeneratorPage />} />
+        <Route path="/eslint" element={<EslintRulesGeneratorPage />} />
         <Route path="/tools/lorem-ipsum" element={<LoremIpsumPage />} />
         <Route path="/tools/json-formatter" element={<JsonFormatterPage />} />
         <Route path="/tools/base64" element={<Base64Page />} />
