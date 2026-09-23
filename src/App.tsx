@@ -50,7 +50,7 @@ import { VideoEditor } from './components/tools/video-editor/VideoEditor';
 import { FlowchartPage } from './components/tools/FlowchartPage';
 import { ApiTesterPage } from './components/tools/ApiTesterPage';
 import { EslintRulesGeneratorPage } from './components/tools/EslintRulesGeneratorPage';
-import { AiInstructionGeneratorPage } from './components/tools/AiInstructionGeneratorPage';
+import { NotesNotebookPage } from './components/tools/NotesNotebookPage';
 import { CvPage } from './components/CvPage';
 import { JiraApp } from './components/jira/JiraApp';
 import { JiraProvider } from './components/jira/JiraContext';
@@ -159,15 +159,11 @@ const AppLayout: React.FC = () => {
         <Route path="/tools/eslint" element={<EslintRulesGeneratorPage />} />
         <Route path="/eslint-rules" element={<EslintRulesGeneratorPage />} />
         <Route path="/eslint" element={<EslintRulesGeneratorPage />} />
-        <Route path="/tools/ai-instructions" element={<AiInstructionGeneratorPage />} />
-        <Route path="/tools/ai-rules" element={<AiInstructionGeneratorPage />} />
-        <Route path="/tools/skill-generator" element={<AiInstructionGeneratorPage />} />
-        <Route path="/tools/cursor-rules" element={<AiInstructionGeneratorPage />} />
-        <Route path="/tools/claude-md" element={<AiInstructionGeneratorPage />} />
-        <Route path="/tools/copilot-instructions" element={<AiInstructionGeneratorPage />} />
-        <Route path="/ai-instructions" element={<AiInstructionGeneratorPage />} />
-        <Route path="/ai-rules" element={<AiInstructionGeneratorPage />} />
-        <Route path="/cursor-rules" element={<AiInstructionGeneratorPage />} />
+        <Route path="/tools/notes" element={<NotesNotebookPage />} />
+        <Route path="/tools/notebook" element={<NotesNotebookPage />} />
+        <Route path="/tools/trilium" element={<NotesNotebookPage />} />
+        <Route path="/notes" element={<NotesNotebookPage />} />
+        <Route path="/notebook" element={<NotesNotebookPage />} />
         <Route path="/tools/lorem-ipsum" element={<LoremIpsumPage />} />
         <Route path="/tools/json-formatter" element={<JsonFormatterPage />} />
         <Route path="/tools/base64" element={<Base64Page />} />
