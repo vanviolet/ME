@@ -207,6 +207,19 @@ async function callGeminiNative(
   throw lastErr || new Error(`Gemini call failed for ${geminiModel}`);
 }
 
+function formatErrorMessage(err: any): string {
+  if (!err) return 'Layanan AI sedang sibuk, silakan coba sesaat lagi.';
+  if (typeof err === 'string') return err;
+  if (err.message) {
+    try {
+      const parsed = JSON.parse(err.message);
+      if (parsed?.error?.message) return parsed.error.message;
+    } catch {}
+    return err.message;
+  }
+  return 'Layanan AI sedang sibuk, silakan coba sesaat lagi.';
+}
+
 export async function executeSmartAiRouting(options: SmartAiRequestOptions): Promise<SmartAiResponse> {
   const rawModel = options.model || 'gemini-3.8-flash';
   const cleanName = getCleanModelName(rawModel);
@@ -265,9 +278,28 @@ export async function executeSmartAiRouting(options: SmartAiRequestOptions): Pro
       };
     } catch (err: any) {
       lastError = err;
-      console.warn(`[Smart Router] Model ${gModel} temporarily unavailable, switching to next model in cascade...`);
+      console.warn(`[Smart Router] Model ${gModel} temporarily unavailable (503/rate-limit), switching to next model in cascade...`);
     }
   }
 
-  throw new Error(`Smart AI Router gagal mengeksekusi permintaan: ${lastError?.message || 'Layanan AI sedang sibuk, silakan coba sesaat lagi.'}`);
+  // Resilient Fallback: If Gemini native models are temporarily encountering high demand (503), try Public AI Gateway
+  executionPath.push('zero-auth:resilient-fallback');
+  try {
+    const backupResult = await callPublicZeroAuthGateway('openai', systemInstruction, options.prompt, isJson);
+    if (backupResult) {
+      const parsed = isJson ? extractAndParseJson(backupResult) : undefined;
+      return {
+        text: backupResult,
+        parsedJson: parsed,
+        usedModel: 'Backup AI Cloud',
+        provider: 'ZeroAuth Resilient Fallback',
+        executionPath,
+      };
+    }
+  } catch (_backupErr) {
+    // Continue to error if backup is also unreachable
+  }
+
+  const friendlyMsg = formatErrorMessage(lastError);
+  throw new Error(`Smart AI Router gagal mengeksekusi permintaan: ${friendlyMsg}`);
 }

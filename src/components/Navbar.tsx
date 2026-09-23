@@ -26,6 +26,8 @@ import {
   Check,
   Plus,
   FileText,
+  BookOpen,
+  Sparkles,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthButton } from './AuthButton';
@@ -556,6 +558,27 @@ export const Navbar: React.FC = () => {
                 </div>
 
                 <div className="space-y-0.5">
+                  <Link
+                    to="/tools/notes"
+                    onClick={() => setToolsDropdownOpen(false)}
+                    className="flex items-center gap-3 p-2 rounded-xl bg-linear-to-r from-emerald-50/90 via-teal-50/70 to-indigo-50/80 dark:from-emerald-950/30 dark:via-teal-950/20 dark:to-indigo-950/30 hover:opacity-95 border border-emerald-200/70 dark:border-emerald-800/70 transition-all group mb-1 shadow-2xs"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                      <BookOpen size={14} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-stone-900 dark:text-zinc-100 flex items-center gap-1.5">
+                        <span>OmniNote & AI Notebook</span>
+                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[8px] font-bold uppercase font-mono">
+                          {language === 'en' ? 'Evernote + AI' : 'Evernote + AI'}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-stone-500 dark:text-zinc-400">
+                        {language === 'en' ? 'Notes + NotebookLM Study Studio' : 'Catatan Kaya + Studio Belajar AI'}
+                      </div>
+                    </div>
+                  </Link>
+
                   <Link
                     to="/tools/video-editor"
                     onClick={() => setToolsDropdownOpen(false)}

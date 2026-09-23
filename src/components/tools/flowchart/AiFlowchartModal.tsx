@@ -72,12 +72,14 @@ export const AiFlowchartModal: React.FC<AiFlowchartModalProps> = ({
       let finalNodes: FlowchartNode[] = [];
       let finalEdges: FlowchartEdge[] = [];
 
+      const mermaidString = generated.mermaid || generated.mermaidCode;
+
       if (generated.nodes && generated.nodes.length > 0) {
         finalNodes = generated.nodes;
         finalEdges = generated.edges || [];
-      } else if (generated.mermaid) {
+      } else if (mermaidString) {
         // Parse from Mermaid code returned by AI
-        const parsed = mermaidToFlowchart(generated.mermaid);
+        const parsed = mermaidToFlowchart(mermaidString);
         finalNodes = parsed.nodes;
         finalEdges = parsed.edges;
       }

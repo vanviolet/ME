@@ -31,6 +31,8 @@ import {
   X,
   Sparkles,
   ShieldAlert,
+  BookOpen,
+  Cpu,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -38,6 +40,19 @@ export const ToolsIndexPage: React.FC = () => {
   const { language } = usePortfolio();
 
   const toolsList = [
+    {
+      id: 'omninote-notebook',
+      title: language === 'en' ? 'OmniNote & Study Notebook (Evernote + NotebookLM)' : 'OmniNote: Catatan Evernote & Notebook Belajar AI',
+      description:
+        language === 'en'
+          ? 'Evernote-grade notes management with multi-notebooks, tags, voice memos, rich markdown, paired with Gemini NotebookLM-grade AI Study Studio: automatic flashcards, study guides, practice quizzes, grounded chat, and podcast audio overview.'
+          : 'Aplikasi catatan lengkap ala Evernote (multi-notebook, voice memo, markdown kaya) dipadu Studio Belajar AI ala Gemini NotebookLM: pembuatan flashcard otomatis, panduan belajar, kuis pemahaman, chat berbasis catatan, dan siniar audio.',
+      icon: BookOpen,
+      category: 'Productivity & AI Study',
+      path: '/tools/notes',
+      status: 'active',
+      badge: language === 'en' ? 'Evernote + NotebookLM' : 'Evernote + NotebookLM',
+    },
     {
       id: 'eslint-rules-generator',
       title: 'ESLint Rules Generator & Interactive Guide',
