@@ -41,17 +41,17 @@ export const ToolsIndexPage: React.FC = () => {
 
   const toolsList = [
     {
-      id: 'omninote-notebook',
-      title: language === 'en' ? 'OmniNote & Study Notebook (Evernote + NotebookLM)' : 'OmniNote: Catatan Evernote & Notebook Belajar AI',
+      id: 'trilium-notes',
+      title: language === 'en' ? 'Trilium Notes: Hierarchical Personal Knowledge Base' : 'Trilium Notes: Basis Pengetahuan Hierarkis & Editor Visual',
       description:
         language === 'en'
-          ? 'Evernote-grade notes management with multi-notebooks, tags, voice memos, rich markdown, paired with Gemini NotebookLM-grade AI Study Studio: automatic flashcards, study guides, practice quizzes, grounded chat, and podcast audio overview.'
-          : 'Aplikasi catatan lengkap ala Evernote (multi-notebook, voice memo, markdown kaya) dipadu Studio Belajar AI ala Gemini NotebookLM: pembuatan flashcard otomatis, panduan belajar, kuis pemahaman, chat berbasis catatan, dan siniar audio.',
+          ? 'Desktop-grade hierarchical note-taking inspired by Trilium Notes: unlimited nested tree structure, pure WYSIWYG rich text editor with tables, task lists, code notes, note tabs, and Trilium label attributes.'
+          : 'Sistem pencatatan hierarkis ala Trilium Notes: struktur pohon tanpa batas kedalaman, editor visual murni (WYSIWYG) dengan tabel, checklist to-do, cuplikan kode, tab multi-catatan, dan sistem label atribut.',
       icon: BookOpen,
-      category: 'Productivity & AI Study',
+      category: 'Productivity & Knowledge Base',
       path: '/tools/notes',
       status: 'active',
-      badge: language === 'en' ? 'Evernote + NotebookLM' : 'Evernote + NotebookLM',
+      badge: language === 'en' ? 'Trilium Edition' : 'Edisi Trilium',
     },
     {
       id: 'eslint-rules-generator',

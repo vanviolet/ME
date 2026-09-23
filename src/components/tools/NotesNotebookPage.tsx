@@ -2,2080 +2,1435 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { Seo } from '../Seo';
 import {
-  BookOpen,
   Folder,
-  Tag,
-  Star,
-  Trash2,
-  Plus,
-  Search,
-  Sparkles,
+  FolderOpen,
   FileText,
-  Edit3,
-  Eye,
+  Code,
   CheckSquare,
   Square,
+  Bookmark,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  Trash2,
+  Search,
+  Copy,
+  Check,
+  Download,
+  Upload,
+  Printer,
+  Calendar,
+  Clock,
+  Tag,
+  Hash,
+  Link2,
+  ExternalLink,
+  Layers,
+  FileCode,
+  Sliders,
+  MoreVertical,
+  X,
+  Eye,
+  Info,
+  Edit3,
   List,
   ListOrdered,
-  Heading1,
-  Heading2,
-  Heading3,
   Bold,
   Italic,
   Strikethrough,
-  Code,
+  Heading1,
+  Heading2,
+  Heading3,
   Quote,
-  Highlighter,
-  Mic,
-  MicOff,
-  Volume2,
-  VolumeX,
-  Play,
-  Pause,
-  RotateCcw,
-  Download,
-  Share2,
-  Printer,
-  Copy,
-  Check,
-  Brain,
-  HelpCircle,
-  Radio,
-  Layers,
-  ChevronRight,
-  ChevronDown,
-  ArrowRight,
-  RefreshCw,
-  ExternalLink,
-  MessageSquare,
-  Send,
-  Sliders,
-  X,
-  FileDown,
-  UploadCloud,
-  Bookmark,
-  Sparkle,
-  Lightbulb,
-  Award,
-  AlertCircle,
   Table as TableIcon,
   Minus,
-  Image as ImageIcon,
-  Link2,
+  Highlighter,
+  Undo,
+  Redo,
+  CornerDownRight,
   Maximize2,
   Minimize2,
-  Shuffle,
-  Volume1,
-  Info,
+  FileUp,
+  FileDown,
+  RotateCcw,
+  Palette,
+  Columns,
+  Pin,
+  Lock,
+  Unlock,
+  Sparkles,
 } from 'lucide-react';
 
-// Types
-export interface NoteItem {
-  id: string;
-  notebookId: string;
-  title: string;
-  content: string; // Markdown / Rich text
-  tags: string[];
-  isPinned: boolean;
-  isFavorite: boolean;
-  color: string; // Tailwind color class or hex
-  createdAt: number;
-  updatedAt: number;
-  isArchived?: boolean;
-  isTrash?: boolean;
-  sources?: { title: string; url?: string; snippet?: string }[];
-  audioRecordUrl?: string;
-  audioRecordDuration?: number;
-}
+// TipTap Rich Editor Imports
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { Highlight } from '@tiptap/extension-highlight';
+import { TaskList } from '@tiptap/extension-task-list';
+import { TaskItem } from '@tiptap/extension-task-item';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { Placeholder } from '@tiptap/extension-placeholder';
+import { Link as LinkExtension } from '@tiptap/extension-link';
 
-export interface NotebookFolder {
+// Trilium Note Model
+export type TriliumNoteType = 'text' | 'code' | 'tasklist' | 'folder' | 'bookmark';
+
+export interface TriliumAttribute {
   id: string;
   name: string;
-  icon: string;
-  color: string;
-  description?: string;
+  value: string;
+  type: 'label' | 'relation';
 }
 
-// Pre-loaded realistic sample data
-const DEFAULT_NOTEBOOKS: NotebookFolder[] = [
+export interface TriliumNote {
+  id: string;
+  parentId: string | null; // null means top-level root child
+  title: string;
+  type: TriliumNoteType;
+  content: string; // Rich HTML content or code string
+  codeLanguage?: string; // For code notes: 'javascript' | 'typescript' | 'python' | 'html' | 'css' | 'sql' | 'json'
+  bookmarkUrl?: string; // For bookmark notes
+  attributes: TriliumAttribute[];
+  isPinned?: boolean;
+  isProtected?: boolean;
+  isExpanded?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Initial Trilium Tree Sample Data
+const DEFAULT_TRILIUM_NOTES: TriliumNote[] = [
   {
-    id: 'nb-ai-cs',
-    name: 'Kecerdasan Buatan & CS',
-    icon: 'Brain',
-    color: 'from-violet-500 to-indigo-600',
-    description: 'Catatan kuliah, riset machine learning, dan arsitektur perangkat lunak.',
-  },
-  {
-    id: 'nb-science',
-    name: 'Sains & Biologi Molekuler',
-    icon: 'BookOpen',
-    color: 'from-emerald-500 to-teal-600',
-    description: 'Konsep seluler, genetika, dan fisiologi manusia.',
-  },
-  {
-    id: 'nb-work',
-    name: 'Proyek & Arsitektur Sistem',
-    icon: 'Folder',
-    color: 'from-blue-500 to-cyan-600',
-    description: 'Rancangan API, evaluasi performa, dan notula rapat teknis.',
-  },
-  {
-    id: 'nb-general',
-    name: 'Catatan Harian & Ide',
-    icon: 'Star',
-    color: 'from-amber-500 to-orange-600',
-    description: 'Ide bebas, ringkasan buku bacaan, dan jurnal refleksi.',
-  },
-];
-
-const DEFAULT_NOTES: NoteItem[] = [
-  {
-    id: 'note-ml-foundations',
-    notebookId: 'nb-ai-cs',
-    title: 'Fondasi Deep Learning & Transformer Architecture',
-    content: `# Fondasi Deep Learning & Transformer Architecture
-
-## 1. Konsep Dasar Self-Attention Mechanism
-Mekanisme **Self-Attention** memungkinkan model memperhitungkan hubungan setiap kata dengan kata lain dalam kalimat, terlepas dari posisinya.
-
-$$Attention(Q, K, V) = softmax\\left(\\frac{QK^T}{\\sqrt{d_k}}\\right)V$$
-
-- **Query ($Q$)**: Representasi vektor kata saat mencari konteks.
-- **Key ($K$)**: Representasi kata lain yang dicocokkan.
-- **Value ($V$)**: Kandungan semantik yang akan diagregasi.
-- **Skala $\\sqrt{d_k}$**: Mencegah gradien menjadi terlalu kecil saat dot product bernilai sangat besar.
-
-> *"Attention is All You Need"* (Vaswani et al., 2017) merevolusi pemrosesan bahasa alami dengan membuang ketergantungan pada RNN rekursif yang lambat.
-
-## 2. Multi-Head Attention
-Dengan membagi dimensi representasi ke dalam $h$ kepala independen:
-1. Model dapat memfokuskan perhatian pada aspek sintaksis berbeda (misal: subjek-predikat, rujukan kata ganti).
-2. Setiap kepala mempelajari relasi semantik unik secara paralel.
-
-## 3. Komponen Kunci Lainnya
-- **Positional Encoding**: Karena tidak ada urutan inheren dalam perhatian, vektor sinusoidal ditambahkan ke token embedding.
-- **Layer Normalization & Residual Connections**: Menjamin kestabilan pelatihan jaringan dalam hingga ratusan layer.
-- **Feed-Forward Networks (FFN)**: Transformasi non-linear dua lapis dengan aktivasi GeLU / SwiGLU.
-
-### Checklist Review:
-- [x] Pahami perbedaan Cross-Attention vs Self-Attention
-- [x] Turunkan rumus matematika Scaled Dot-Product
-- [ ] Implementasikan toy transformer dari nol dengan PyTorch`,
-    tags: ['AI', 'Transformer', 'Machine Learning', 'Deep Learning'],
-    isPinned: true,
-    isFavorite: true,
-    color: 'border-violet-500/40 bg-violet-50/30 dark:bg-violet-950/20',
-    createdAt: Date.now() - 1000 * 60 * 60 * 48,
-    updatedAt: Date.now() - 1000 * 60 * 15,
-    sources: [
-      { title: 'Paper: Attention Is All You Need (Vaswani et al.)', url: 'https://arxiv.org/abs/1706.03762' },
-      { title: 'The Illustrated Transformer oleh Jay Alammar', url: 'https://jalammar.github.io/illustrated-transformer/' },
+    id: 'root-welcome',
+    parentId: null,
+    title: 'Selamat Datang di Trilium Notes',
+    type: 'text',
+    content: `<h2>Selamat Datang di Trilium Notes Personal Knowledge Base</h2>
+<p>Trilium Notes adalah sistem pencatatan hierarkis (<em>hierarchical note-taking</em>) yang dirancang untuk membangun basis pengetahuan pribadi berskala besar tanpa batas kedalaman folder.</p>
+<h3>Fitur Utama yang Siap Digunakan:</h3>
+<ul data-type="taskList">
+  <li data-type="taskItem" data-checked="true">Hierarki pohon catatan tanpa batas kedalaman (<em>infinite nested tree</em>)</li>
+  <li data-type="taskItem" data-checked="true">Editor visual WYSIWYG lengkap: teks tebal, miring, stabilo, heading, tabel, dan to-do list</li>
+  <li data-type="taskItem" data-checked="true">Tipe Catatan Fleksibel: Rich Text, Code Note (Monospace), Checklist Tugas, dan Bookmark</li>
+  <li data-type="taskItem" data-checked="true">Sistem Label & Atribut ala Trilium (misal: <code>#status=active</code>, <code>#priority=high</code>)</li>
+  <li data-type="taskItem" data-checked="false">Tab navigasi multi-catatan di bagian atas</li>
+</ul>
+<blockquote><p>💡 <strong>Tip Cepat:</strong> Anda dapat membuat sub-catatan di bawah catatan apa pun dengan menekan tombol <strong>+</strong> di samping nama catatan pada pohon sebelah kiri.</p></blockquote>`,
+    attributes: [
+      { id: 'attr-1', name: 'status', value: 'active', type: 'label' },
+      { id: 'attr-2', name: 'workspace', value: 'knowledge-base', type: 'label' },
     ],
+    isPinned: true,
+    isExpanded: true,
+    createdAt: Date.now() - 1000 * 60 * 60 * 24 * 3,
+    updatedAt: Date.now() - 1000 * 60 * 45,
   },
   {
-    id: 'note-biology-photosynthesis',
-    notebookId: 'nb-science',
-    title: 'Fotosintesis: Reaksi Terang & Siklus Calvin-Benson',
-    content: `# Fotosintesis: Reaksi Terang & Siklus Calvin-Benson
+    id: 'folder-engineering',
+    parentId: null,
+    title: 'Rekayasa Perangkat Lunak & Backend',
+    type: 'folder',
+    content: `<h2>Koleksi Catatan Arsitektur & Rekayasa</h2><p>Folder ini mengelompokkan catatan teknis seputar arsitektur database, desain sistem, dan cuplikan kode backend.</p>`,
+    attributes: [
+      { id: 'attr-3', name: 'category', value: 'engineering', type: 'label' },
+    ],
+    isExpanded: true,
+    createdAt: Date.now() - 1000 * 60 * 60 * 48,
+    updatedAt: Date.now() - 1000 * 60 * 60 * 5,
+  },
+  {
+    id: 'note-api-design',
+    parentId: 'folder-engineering',
+    title: 'Desain RESTful API & Error Envelope',
+    type: 'text',
+    content: `<h2>Panduan Standar Desain API</h2>
+<p>Setiap endpoint HTTP harus menggunakan format respons JSON seragam untuk memudahkan integrasi front-end:</p>
+<table style="border-collapse: collapse; width: 100%; margin: 1rem 0; border: 1px solid #cbd5e1;">
+  <thead>
+    <tr style="background-color: #f1f5f9;">
+      <th style="border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left;">Field</th>
+      <th style="border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left;">Tipe</th>
+      <th style="border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left;">Keterangan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border: 1px solid #cbd5e1; padding: 6px 10px;"><code>success</code></td>
+      <td style="border: 1px solid #cbd5e1; padding: 6px 10px;">boolean</td>
+      <td style="border: 1px solid #cbd5e1; padding: 6px 10px;">Status keberhasilan eksekusi</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #cbd5e1; padding: 6px 10px;"><code>data</code></td>
+      <td style="border: 1px solid #cbd5e1; padding: 6px 10px;">object / array</td>
+      <td style="border: 1px solid #cbd5e1; padding: 6px 10px;">Payload hasil query</td>
+    </tr>
+    <tr>
+      <td style="border: 1px solid #cbd5e1; padding: 6px 10px;"><code>error</code></td>
+      <td style="border: 1px solid #cbd5e1; padding: 6px 10px;">string / null</td>
+      <td style="border: 1px solid #cbd5e1; padding: 6px 10px;">Pesan kesalahan jika gagal</td>
+    </tr>
+  </tbody>
+</table>
+<p>Gunakan status code HTTP yang sesuai: <code>200 OK</code>, <code>201 Created</code>, <code>400 Bad Request</code>, <code>401 Unauthorized</code>, dan <code>404 Not Found</code>.</p>`,
+    attributes: [
+      { id: 'attr-4', name: 'tag', value: 'api', type: 'label' },
+      { id: 'attr-5', name: 'reviewed', value: 'yes', type: 'label' },
+    ],
+    createdAt: Date.now() - 1000 * 60 * 60 * 20,
+    updatedAt: Date.now() - 1000 * 60 * 15,
+  },
+  {
+    id: 'note-code-snippet',
+    parentId: 'folder-engineering',
+    title: 'Cuplikan Kode: Rate Limiter Middleware',
+    type: 'code',
+    codeLanguage: 'typescript',
+    content: `import type { Request, Response, NextFunction } from 'express';
 
-## Ringkasan Eksekutif
-Fotosintesis adalah proses konversi energi foton cahaya matahari menjadi energi kimiawi dalam bentuk glukosa ($C_6H_{12}O_6$). Reaksi terjadi di organel **Kloroplas**.
+const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
-## Fase 1: Reaksi Terang (Membran Tilakoid)
-1. **Fotolisis Air**: $2H_2O \\rightarrow 4H^+ + 4e^- + O_2$
-2. **Eksitasi Elektron**: Foton diserap oleh klorofil pada **Fotosistem II (P680)**.
-3. **Rantai Transpor Elektron (ETC)**: Aliran elektron memompa proton ($H^+$) ke dalam lumen tilakoid, menghasilkan gradien proton elektrokimia.
-4. **Sintesis ATP & NADPH**: 
-   - ATP Sintase memanfaatkan aliran kemiosmosis untuk menghasilkan **ATP**.
-   - **Fotosistem I (P700)** mentransfer elektron ke $NADP^+$ menghasilkan **NADPH**.
+export function createRateLimiter(limit: number = 60, windowMs: number = 60000) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const entry = requestCounts.get(ip);
 
-## Fase 2: Siklus Calvin / Reaksi Gelap (Stroma)
-Tidak membutuhkan cahaya langsung, namun mutlak memerlukan ATP dan NADPH dari reaksi terang:
-- **Fase Karboksilasi**: Enzim **RuBisCO** mengikat $CO_2$ ke Ribulosa-1,5-bisfosfat (RuBP) membentuk 3-PGA.
-- **Fase Reduksi**: 3-PGA direduksi menjadi G3P (Gliseraldehida 3-fosfat) menggunakan ATP dan NADPH.
-- **Fase Regenerasi**: 5 molekul G3P didaur ulang menjadi RuBP dengan mengonsumsi ATP tambahan.
+    if (!entry || now > entry.resetTime) {
+      requestCounts.set(ip, { count: 1, resetTime: now + windowMs });
+      return next();
+    }
 
-> **Hafalan Kunci**: 6 putaran siklus Calvin menghasilkan 1 molekul heksosa glukosa bersih.`,
-    tags: ['Biologi', 'Fotosintesis', 'Biokimia', 'Metabolisme'],
-    isPinned: false,
-    isFavorite: true,
-    color: 'border-emerald-500/40 bg-emerald-50/30 dark:bg-emerald-950/20',
+    if (entry.count >= limit) {
+      return res.status(429).json({
+        success: false,
+        error: 'Too many requests, please slow down.'
+      });
+    }
+
+    entry.count++;
+    return next();
+  };
+}`,
+    attributes: [
+      { id: 'attr-6', name: 'lang', value: 'typescript', type: 'label' },
+      { id: 'attr-7', name: 'type', value: 'middleware', type: 'label' },
+    ],
+    createdAt: Date.now() - 1000 * 60 * 60 * 12,
+    updatedAt: Date.now() - 1000 * 60 * 60 * 2,
+  },
+  {
+    id: 'folder-projects',
+    parentId: null,
+    title: 'Rencana Proyek & Tugas',
+    type: 'tasklist',
+    content: `<h2>Daftar Prioritas Pengembangan Q3</h2>
+<ul data-type="taskList">
+  <li data-type="taskItem" data-checked="true">Riset arsitektur database terdistribusi</li>
+  <li data-type="taskItem" data-checked="true">Migrasi editor catatan ke TipTap WYSIWYG murni</li>
+  <li data-type="taskItem" data-checked="false">Integrasi ekspor cadangan JSON & impor catatan</li>
+  <li data-type="taskItem" data-checked="false">Penyempurnaan tema gelap Trilium yang nyaman di mata</li>
+</ul>`,
+    attributes: [
+      { id: 'attr-8', name: 'priority', value: 'high', type: 'label' },
+    ],
+    isExpanded: false,
     createdAt: Date.now() - 1000 * 60 * 60 * 72,
-    updatedAt: Date.now() - 1000 * 60 * 60 * 3,
-  },
-  {
-    id: 'note-distributed-systems',
-    notebookId: 'nb-work',
-    title: 'Teorema CAP & Desain Konsistensi Sistem Terdistribusi',
-    content: `# Teorema CAP & Desain Konsistensi Sistem Terdistribusi
-
-## Tiga Sumbu Teorema CAP
-Dalam sistem penyimpanan terdistribusi yang mengalami partisi jaringan (**Partition Tolerance - P**), kita hanya dapat menjamin salah satu dari dua sifat:
-
-1. **Consistency (C)**: Setiap operasi pembacaan menerima penulisan data paling mutakhir atau menghasilkan kesalahan (linearizability).
-2. **Availability (A)**: Setiap request non-failing node mendapatkan respon sukses tanpa jaminan data paling mutakhir.
-3. **Partition Tolerance (P)**: Sistem tetap dapat beroperasi meskipun terjadi pemutusan komunikasi jaringan antar node.
-
-### Pilihan Arsitektur Nyata:
-- **Sistem CP (Contoh: etcd, CockroachDB, HBase)**: Memilih kebenaran data mutlak. Jika node partisi tidak dapat quorum, request ditolak/timeout.
-- **Sistem AP (Contoh: Apache Cassandra, DynamoDB, CouchDB)**: Mengutamakan uptime 99.999%. Mengadopsi **Eventual Consistency** dengan teknik vector clocks dan CRDTs.
-
-## Strategi Mitigasi Masalah Jaringan:
-- **Raft / Paxos Consensus**: Pemilihan pemimpin (leader election) dengan syarat mayoritas quorum $(N/2 + 1)$.
-- **Idempotency Keys**: Mencegah duplikasi eksekusi pembayaran atau mutasi data saat request di-retry oleh client.`,
-    tags: ['Distributed Systems', 'Arsitektur', 'Database', 'Backend'],
-    isPinned: false,
-    isFavorite: false,
-    color: 'border-blue-500/40 bg-blue-50/30 dark:bg-blue-950/20',
-    createdAt: Date.now() - 1000 * 60 * 60 * 120,
-    updatedAt: Date.now() - 1000 * 60 * 60 * 12,
+    updatedAt: Date.now() - 1000 * 60 * 60 * 8,
   },
 ];
 
 export const NotesNotebookPage: React.FC = () => {
   const { language } = usePortfolio();
 
-  // State: Notebooks & Notes
-  const [notebooks, setNotebooks] = useState<NotebookFolder[]>(() => {
+  // State: Notes Tree
+  const [notes, setNotes] = useState<TriliumNote[]>(() => {
     try {
-      const saved = localStorage.getItem('omninote_notebooks_v1');
-      return saved ? JSON.parse(saved) : DEFAULT_NOTEBOOKS;
+      const saved = localStorage.getItem('trilium_notes_store_v1');
+      return saved ? JSON.parse(saved) : DEFAULT_TRILIUM_NOTES;
     } catch {
-      return DEFAULT_NOTEBOOKS;
+      return DEFAULT_TRILIUM_NOTES;
     }
   });
 
-  const [notes, setNotes] = useState<NoteItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('omninote_notes_v1');
-      return saved ? JSON.parse(saved) : DEFAULT_NOTES;
-    } catch {
-      return DEFAULT_NOTES;
-    }
-  });
-
-  // Navigation & Filtering state
-  const [selectedNotebookId, setSelectedNotebookId] = useState<string | 'all' | 'favorites' | 'trash'>('all');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeNoteId, setActiveNoteId] = useState<string>(DEFAULT_NOTES[0].id);
-
-  // Editor mode: 'edit' | 'preview' | 'split'
-  const [editorMode, setEditorMode] = useState<'edit' | 'preview' | 'split'>('split');
-  // Main view: 'notes' | 'study_studio'
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'notes' | 'study_studio'>('notes');
-
-  // NotebookLM-style Study Studio Sub-tab
-  const [studyTab, setStudyTab] = useState<'guide' | 'flashcards' | 'quiz' | 'chat' | 'audio_overview' | 'cornell'>('guide');
-
-  // AI Generation State
-  const [isAiProcessing, setIsAiProcessing] = useState(false);
-  const [aiStudyData, setAiStudyData] = useState<any>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
-
-  // Chat with Notebook state
-  const [chatMessages, setChatMessages] = useState<
-    { role: 'user' | 'assistant'; text: string; citations?: string[]; followUps?: string[] }[]
-  >([
-    {
-      role: 'assistant',
-      text:
-        language === 'en'
-          ? 'Hello! I am your Notebook Learning Assistant. Ask me anything about your current notes, or click any tool on the right to synthesize flashcards, study guides, and quizzes!'
-          : 'Halo! Saya Asisten Pembelajaran Notebook Anda. Tanyakan apa saja mengenai catatan Anda, atau gunakan perkakas di sebelah kanan untuk membuat kartu belajar, kuis, dan panduan belajar!',
-    },
+  // Active Note & Open Tabs
+  const [activeNoteId, setActiveNoteId] = useState<string>(DEFAULT_TRILIUM_NOTES[0].id);
+  const [openTabIds, setOpenTabIds] = useState<string[]>([
+    DEFAULT_TRILIUM_NOTES[0].id,
+    DEFAULT_TRILIUM_NOTES[2].id,
   ]);
-  const [chatInput, setChatInput] = useState('');
 
-  // Flashcard interaction state
-  const [activeFlashcardIndex, setActiveFlashcardIndex] = useState(0);
-  const [isCardFlipped, setIsCardFlipped] = useState(false);
-  const [showCardHint, setShowCardHint] = useState(false);
-  const [masteredCards, setMasteredCards] = useState<Set<string>>(new Set());
+  // UI Panels state
+  const [isTreeSidebarOpen, setIsTreeSidebarOpen] = useState(true);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLabelFilter, setSelectedLabelFilter] = useState<string | null>(null);
 
-  // Quiz interaction state
-  const [userQuizAnswers, setUserQuizAnswers] = useState<Record<string, number>>({});
-  const [isQuizSubmitted, setIsQuizSubmitted] = useState(false);
+  // New Note Modal
+  const [isNewNoteModalOpen, setIsNewNoteModalOpen] = useState(false);
+  const [newNoteParentId, setNewNoteParentId] = useState<string | null>(null);
+  const [newNoteTitle, setNewNoteTitle] = useState('');
+  const [newNoteType, setNewNoteType] = useState<TriliumNoteType>('text');
 
-  // Audio Podcast / TTS state
-  const [isPodcastPlaying, setIsPodcastPlaying] = useState(false);
-  const [activeSpeakerIndex, setActiveSpeakerIndex] = useState(0);
-  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  // Attribute Editor State
+  const [newAttrName, setNewAttrName] = useState('');
+  const [newAttrValue, setNewAttrValue] = useState('');
 
-  // Textarea Ref for rich formatting insertions
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  // New Notebook modal state
-  const [isNewNotebookModalOpen, setIsNewNotebookModalOpen] = useState(false);
-  const [newNotebookName, setNewNotebookName] = useState('');
-  const [newNotebookColor, setNewNotebookColor] = useState('from-rose-500 to-pink-600');
-
-  // Voice recording state (Web MediaRecorder)
-  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-
-  // Persist to local storage
+  // Persist to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('omninote_notebooks_v1', JSON.stringify(notebooks));
-    } catch {}
-  }, [notebooks]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('omninote_notes_v1', JSON.stringify(notes));
+      localStorage.setItem('trilium_notes_store_v1', JSON.stringify(notes));
     } catch {}
   }, [notes]);
 
-  // Find active note
+  // Current Active Note
   const activeNote = useMemo(() => {
     return notes.find((n) => n.id === activeNoteId) || notes[0] || null;
   }, [notes, activeNoteId]);
 
-  // Filtered notes list
-  const filteredNotes = useMemo(() => {
-    return notes.filter((note) => {
-      // Trash filter
-      if (selectedNotebookId === 'trash') {
-        return note.isTrash;
+  // Initialize TipTap Rich Editor
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+      }),
+      Highlight.configure({
+        multicolor: true,
+      }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      LinkExtension.configure({
+        openOnClick: false,
+      }),
+      Placeholder.configure({
+        placeholder:
+          language === 'en'
+            ? 'Start typing freely with headings, bold text, tables, task lists, and quotes...'
+            : 'Mulai mengetik bebas dengan heading, teks tebal, tabel, checklist tugas, dan kutipan...',
+      }),
+    ],
+    content: activeNote?.type === 'text' || activeNote?.type === 'tasklist' || activeNote?.type === 'folder'
+      ? activeNote?.content || ''
+      : '',
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      if (activeNote) {
+        setNotes((prev) =>
+          prev.map((n) => (n.id === activeNote.id ? { ...n, content: html, updatedAt: Date.now() } : n))
+        );
       }
-      if (note.isTrash) return false;
+    },
+  });
 
-      // Favorites filter
-      if (selectedNotebookId === 'favorites') {
-        if (!note.isFavorite) return false;
-      } else if (selectedNotebookId !== 'all') {
-        if (note.notebookId !== selectedNotebookId) return false;
+  // Sync editor content when active note changes
+  useEffect(() => {
+    if (!editor || !activeNote) return;
+    if (activeNote.type === 'text' || activeNote.type === 'tasklist' || activeNote.type === 'folder') {
+      const currentHTML = editor.getHTML();
+      if (currentHTML !== activeNote.content) {
+        editor.commands.setContent(activeNote.content || '', { emitUpdate: false });
       }
+    }
+  }, [activeNote?.id, editor]);
 
-      // Tag filter
-      if (selectedTag && !note.tags.includes(selectedTag)) {
-        return false;
+  // Breadcrumbs Hierarchy Path
+  const breadcrumbPath = useMemo(() => {
+    if (!activeNote) return [];
+    const path: TriliumNote[] = [];
+    let curr: TriliumNote | undefined = activeNote;
+
+    while (curr) {
+      path.unshift(curr);
+      if (curr.parentId) {
+        curr = notes.find((n) => n.id === curr!.parentId);
+      } else {
+        break;
       }
+    }
+    return path;
+  }, [activeNote, notes]);
 
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        return note.title.toLowerCase().includes(q) || note.content.toLowerCase().includes(q);
-      }
-
-      return true;
+  // All distinct labels across all notes
+  const allLabels = useMemo(() => {
+    const map = new Map<string, number>();
+    notes.forEach((n) => {
+      n.attributes.forEach((attr) => {
+        if (attr.type === 'label') {
+          const key = attr.value ? `${attr.name}=${attr.value}` : attr.name;
+          map.set(key, (map.get(key) || 0) + 1);
+        }
+      });
     });
-  }, [notes, selectedNotebookId, selectedTag, searchQuery]);
-
-  // All distinct tags across active notes
-  const allTags = useMemo(() => {
-    const set = new Set<string>();
-    notes.filter((n) => !n.isTrash).forEach((n) => n.tags.forEach((t) => set.add(t)));
-    return Array.from(set);
+    return Array.from(map.entries()).map(([label, count]) => ({ label, count }));
   }, [notes]);
 
-  // Word count and metrics
-  const activeNoteMetrics = useMemo(() => {
-    if (!activeNote) return { words: 0, chars: 0, readMins: 0 };
-    const words = activeNote.content.trim() ? activeNote.content.trim().split(/\s+/).length : 0;
-    const chars = activeNote.content.length;
-    const readMins = Math.max(1, Math.ceil(words / 200));
-    return { words, chars, readMins };
-  }, [activeNote]);
-
-  // Update active note helper
-  const updateActiveNote = (updates: Partial<NoteItem>) => {
-    if (!activeNote) return;
+  // Update Note Helper
+  const updateNote = (id: string, updates: Partial<TriliumNote>) => {
     setNotes((prev) =>
-      prev.map((n) => (n.id === activeNote.id ? { ...n, ...updates, updatedAt: Date.now() } : n))
+      prev.map((n) => (n.id === id ? { ...n, ...updates, updatedAt: Date.now() } : n))
     );
   };
 
-  // Create new note
-  const handleCreateNote = () => {
-    const currentNb =
-      selectedNotebookId !== 'all' && selectedNotebookId !== 'favorites' && selectedNotebookId !== 'trash'
-        ? selectedNotebookId
-        : notebooks[0]?.id || 'nb-general';
+  // Open note in tab
+  const handleSelectNote = (id: string) => {
+    setActiveNoteId(id);
+    if (!openTabIds.includes(id)) {
+      setOpenTabIds([...openTabIds, id]);
+    }
+  };
 
-    const newNote: NoteItem = {
+  // Close tab
+  const handleCloseTab = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextTabs = openTabIds.filter((t) => t !== id);
+    setOpenTabIds(nextTabs);
+    if (activeNoteId === id) {
+      if (nextTabs.length > 0) {
+        setActiveNoteId(nextTabs[nextTabs.length - 1]);
+      } else if (notes.length > 0) {
+        setActiveNoteId(notes[0].id);
+        setOpenTabIds([notes[0].id]);
+      }
+    }
+  };
+
+  // Add child or sibling note
+  const handleOpenCreateModal = (parentId: string | null) => {
+    setNewNoteParentId(parentId);
+    setNewNoteTitle('');
+    setNewNoteType('text');
+    setIsNewNoteModalOpen(true);
+  };
+
+  const handleCreateNoteConfirm = () => {
+    if (!newNoteTitle.trim()) return;
+
+    let defaultContent = '<p></p>';
+    if (newNoteType === 'tasklist') {
+      defaultContent = `<ul data-type="taskList"><li data-type="taskItem" data-checked="false">Tugas pertama...</li></ul>`;
+    } else if (newNoteType === 'code') {
+      defaultContent = `// Tulis kode di sini\nconsole.log("Hello Trilium");`;
+    } else if (newNoteType === 'folder') {
+      defaultContent = `<h2>Folder: ${newNoteTitle}</h2><p>Deskripsi kumpulan catatan...</p>`;
+    }
+
+    const newNote: TriliumNote = {
       id: 'note-' + Date.now(),
-      notebookId: currentNb,
-      title: language === 'en' ? 'Untitled Note' : 'Catatan Baru',
-      content: `# ${language === 'en' ? 'Untitled Note' : 'Catatan Baru'}\n\nTulis isi materi atau rangkuman pembelajaran di sini...`,
-      tags: [],
-      isPinned: false,
-      isFavorite: false,
-      color: 'border-stone-200/80 dark:border-zinc-800',
+      parentId: newNoteParentId,
+      title: newNoteTitle.trim(),
+      type: newNoteType,
+      content: defaultContent,
+      codeLanguage: newNoteType === 'code' ? 'javascript' : undefined,
+      attributes: [],
+      isExpanded: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
 
-    setNotes([newNote, ...notes]);
-    setActiveNoteId(newNote.id);
-    setActiveWorkspaceTab('notes');
+    // If parent exists, ensure it is expanded
+    if (newNoteParentId) {
+      setNotes((prev) =>
+        prev.map((n) => (n.id === newNoteParentId ? { ...n, isExpanded: true } : n)).concat(newNote)
+      );
+    } else {
+      setNotes((prev) => [newNote, ...prev]);
+    }
+
+    setIsNewNoteModalOpen(false);
+    handleSelectNote(newNote.id);
   };
 
-  // Delete / Trash note
-  const handleToggleTrashNote = (noteId: string) => {
-    setNotes((prev) =>
-      prev.map((n) => {
-        if (n.id !== noteId) return n;
-        if (n.isTrash) {
-          // Restore
-          return { ...n, isTrash: false };
-        } else {
-          return { ...n, isTrash: true };
-        }
-      })
-    );
-  };
+  // Delete note (and recursively delete children)
+  const handleDeleteNote = (id: string) => {
+    if (!confirm(language === 'en' ? 'Delete this note and its sub-notes?' : 'Hapus catatan ini beserta semua sub-catatannya?')) return;
 
-  const handlePermanentDeleteNote = (noteId: string) => {
-    if (!confirm(language === 'en' ? 'Delete this note permanently?' : 'Hapus catatan ini secara permanen?')) return;
-    setNotes((prev) => prev.filter((n) => n.id !== noteId));
-    if (activeNoteId === noteId) {
-      const remaining = notes.filter((n) => n.id !== noteId);
+    const idsToDelete = new Set<string>();
+    const gatherIds = (targetId: string) => {
+      idsToDelete.add(targetId);
+      notes.filter((n) => n.parentId === targetId).forEach((child) => gatherIds(child.id));
+    };
+    gatherIds(id);
+
+    const remaining = notes.filter((n) => !idsToDelete.has(n.id));
+    setNotes(remaining);
+    setOpenTabIds((prev) => prev.filter((t) => !idsToDelete.has(t)));
+
+    if (idsToDelete.has(activeNoteId)) {
       if (remaining.length > 0) setActiveNoteId(remaining[0].id);
     }
   };
 
-  // Insert markdown snippet into editor
-  const insertFormatting = (prefix: string, suffix: string = '', defaultPlaceholder: string = '') => {
-    const textarea = textareaRef.current;
-    if (!textarea || !activeNote) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = activeNote.content;
-    const selected = text.substring(start, end) || defaultPlaceholder;
-
-    const newContent = text.substring(0, start) + prefix + selected + suffix + text.substring(end);
-    updateActiveNote({ content: newContent });
-
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
-    }, 50);
+  // Toggle tree node expansion
+  const handleToggleExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateNote(id, { isExpanded: !notes.find((n) => n.id === id)?.isExpanded });
   };
 
-  // Voice recording toggle (MediaRecorder)
-  const handleToggleVoiceRecording = async () => {
-    if (isRecordingVoice) {
-      // Stop recording
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
-      setIsRecordingVoice(false);
-    } else {
+  // Add Attribute / Label to active note
+  const handleAddAttribute = () => {
+    if (!activeNote || !newAttrName.trim()) return;
+    const newAttr: TriliumAttribute = {
+      id: 'attr-' + Date.now(),
+      name: newAttrName.trim().toLowerCase(),
+      value: newAttrValue.trim(),
+      type: 'label',
+    };
+    updateNote(activeNote.id, {
+      attributes: [...activeNote.attributes, newAttr],
+    });
+    setNewAttrName('');
+    setNewAttrValue('');
+  };
+
+  const handleRemoveAttribute = (attrId: string) => {
+    if (!activeNote) return;
+    updateNote(activeNote.id, {
+      attributes: activeNote.attributes.filter((a) => a.id !== attrId),
+    });
+  };
+
+  // Export & Backup
+  const handleExportJSON = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(notes, null, 2));
+    const dlAnchor = document.createElement('a');
+    dlAnchor.setAttribute('href', dataStr);
+    dlAnchor.setAttribute('download', `trilium-notes-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    dlAnchor.click();
+  };
+
+  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mediaRecorder = new MediaRecorder(stream);
-        mediaRecorderRef.current = mediaRecorder;
-        audioChunksRef.current = [];
-
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) audioChunksRef.current.push(e.data);
-        };
-
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          const audioUrl = URL.createObjectURL(audioBlob);
-          updateActiveNote({
-            audioRecordUrl: audioUrl,
-            audioRecordDuration: recordingSeconds,
-          });
-          stream.getTracks().forEach((track) => track.stop());
-        };
-
-        mediaRecorder.start();
-        setIsRecordingVoice(true);
-        setRecordingSeconds(0);
-      } catch (err) {
-        alert(
-          language === 'en'
-            ? 'Microphone access was denied or not supported on this browser.'
-            : 'Akses mikrofon tidak diizinkan atau tidak didukung oleh peramban ini.'
-        );
+        const imported = JSON.parse(event.target?.result as string);
+        if (Array.isArray(imported)) {
+          setNotes(imported);
+          alert(language === 'en' ? 'Notes imported successfully!' : 'Catatan berhasil dipulihkan!');
+          if (imported.length > 0) setActiveNoteId(imported[0].id);
+        }
+      } catch {
+        alert('File JSON tidak valid.');
       }
-    }
-  };
-
-  // Timer for voice recording
-  useEffect(() => {
-    let timer: any;
-    if (isRecordingVoice) {
-      timer = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
-    }
-    return () => clearInterval(timer);
-  }, [isRecordingVoice]);
-
-  // Trigger AI Study Generation (NotebookLM-style)
-  const handleGenerateStudyAsset = async (actionType: 'study-guide' | 'flashcards' | 'quiz' | 'audio-overview' | 'cornell-notes') => {
-    if (!activeNote) return;
-    setIsAiProcessing(true);
-    setAiError(null);
-
-    try {
-      const res = await fetch('/api/ai/notebook-study', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: actionType,
-          notesContent: activeNote.content,
-          sources: activeNote.sources || [],
-          language,
-        }),
-      });
-
-      if (!res.ok) throw new Error('Gagal menghubungi AI Study Engine');
-      const json = await res.json();
-      if (!json.success || !json.data) throw new Error(json.error || 'Respons AI tidak valid');
-
-      setAiStudyData(json.data);
-      if (actionType === 'flashcards') {
-        setActiveFlashcardIndex(0);
-        setIsCardFlipped(false);
-        setShowCardHint(false);
-        setMasteredCards(new Set());
-      } else if (actionType === 'quiz') {
-        setUserQuizAnswers({});
-        setIsQuizSubmitted(false);
-      }
-    } catch (err: any) {
-      setAiError(err.message || 'Terjadi kesalahan pemrosesan');
-    } finally {
-      setIsAiProcessing(false);
-    }
-  };
-
-  // Trigger Study Chat
-  const handleSendStudyChat = async () => {
-    if (!chatInput.trim() || !activeNote) return;
-    const userQ = chatInput.trim();
-    setChatInput('');
-
-    const newHistory = [...chatMessages, { role: 'user' as const, text: userQ }];
-    setChatMessages(newHistory);
-    setIsAiProcessing(true);
-
-    try {
-      const res = await fetch('/api/ai/notebook-study', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'chat-notes',
-          notesContent: activeNote.content,
-          sources: activeNote.sources || [],
-          query: userQ,
-          language,
-        }),
-      });
-
-      const json = await res.json();
-      if (json.success && json.data) {
-        setChatMessages([
-          ...newHistory,
-          {
-            role: 'assistant',
-            text: json.data.answer,
-            citations: json.data.citations,
-            followUps: json.data.suggestedFollowUps,
-          },
-        ]);
-      } else {
-        setChatMessages([
-          ...newHistory,
-          {
-            role: 'assistant',
-            text: 'Maaf, saya tidak dapat menemukan informasi yang cukup di dalam catatan ini untuk menjawab pertanyaan tersebut.',
-          },
-        ]);
-      }
-    } catch {
-      setChatMessages([
-        ...newHistory,
-        {
-          role: 'assistant',
-          text: 'Terjadi gangguan jaringan saat memproses jawaban dari catatan Anda.',
-        },
-      ]);
-    } finally {
-      setIsAiProcessing(false);
-    }
-  };
-
-  // TTS Podcast Playback (NotebookLM Audio Overview simulation with Web Speech API)
-  const handleTogglePodcastAudio = () => {
-    if (!aiStudyData?.dialogue || aiStudyData.dialogue.length === 0) return;
-
-    if (isPodcastPlaying) {
-      window.speechSynthesis.cancel();
-      setIsPodcastPlaying(false);
-    } else {
-      setIsPodcastPlaying(true);
-      playDialogueStep(0);
-    }
-  };
-
-  const playDialogueStep = (index: number) => {
-    if (!aiStudyData?.dialogue || index >= aiStudyData.dialogue.length) {
-      setIsPodcastPlaying(false);
-      setActiveSpeakerIndex(0);
-      return;
-    }
-
-    setActiveSpeakerIndex(index);
-    const item = aiStudyData.dialogue[index];
-    const utterance = new SpeechSynthesisUtterance(item.text);
-    speechUtteranceRef.current = utterance;
-
-    // Indonesian or English voice tuning
-    utterance.lang = language === 'en' ? 'en-US' : 'id-ID';
-    utterance.rate = item.speaker === 'Alex' ? 1.05 : 0.95;
-    utterance.pitch = item.speaker === 'Alex' ? 1.1 : 0.95;
-
-    utterance.onend = () => {
-      playDialogueStep(index + 1);
     };
-
-    utterance.onerror = () => {
-      setIsPodcastPlaying(false);
-    };
-
-    window.speechSynthesis.speak(utterance);
+    reader.readAsText(file);
   };
 
-  // Export note as Markdown or HTML
-  const handleExportNote = (format: 'md' | 'html' | 'txt') => {
-    if (!activeNote) return;
-    let content = activeNote.content;
-    let mime = 'text/markdown';
-    let ext = 'md';
+  // Tree rendering recursive component
+  const renderTreeNodes = (parentId: string | null, depth: number = 0) => {
+    const childNotes = notes.filter((n) => n.parentId === parentId);
 
-    if (format === 'html') {
-      content = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${activeNote.title}</title><style>body{font-family:sans-serif;max-width:800px;margin:2rem auto;padding:1rem;line-height:1.6;color:#333;}</style></head><body><h1>${activeNote.title}</h1><div>${activeNote.content.replace(/\n/g, '<br/>')}</div></body></html>`;
-      mime = 'text/html';
-      ext = 'html';
-    } else if (format === 'txt') {
-      mime = 'text/plain';
-      ext = 'txt';
+    // Apply search or label filter
+    const visibleChildren = childNotes.filter((note) => {
+      if (selectedLabelFilter) {
+        const hasLabel = note.attributes.some((a) => {
+          const key = a.value ? `${a.name}=${a.value}` : a.name;
+          return key === selectedLabelFilter;
+        });
+        if (!hasLabel) return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesThis = note.title.toLowerCase().includes(q) || note.content.toLowerCase().includes(q);
+        const hasMatchingChild = (targetId: string): boolean => {
+          return notes
+            .filter((c) => c.parentId === targetId)
+            .some((c) => c.title.toLowerCase().includes(q) || c.content.toLowerCase().includes(q) || hasMatchingChild(c.id));
+        };
+        return matchesThis || hasMatchingChild(note.id);
+      }
+      return true;
+    });
+
+    if (visibleChildren.length === 0 && childNotes.length > 0 && (searchQuery || selectedLabelFilter)) {
+      return null;
     }
 
-    const blob = new Blob([content], { type: `${mime};charset=utf-8` });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${activeNote.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${ext}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
+    return visibleChildren.map((note) => {
+      const hasChildren = notes.some((n) => n.parentId === note.id);
+      const isSelected = activeNoteId === note.id;
+      const isExpanded = note.isExpanded ?? true;
 
-  // Print / PDF
-  const handlePrintNote = () => {
-    window.print();
+      // Icon by note type
+      const getNoteIcon = () => {
+        if (note.type === 'folder') {
+          return isExpanded ? (
+            <FolderOpen size={14} className="text-amber-500 shrink-0" />
+          ) : (
+            <Folder size={14} className="text-amber-500 shrink-0" />
+          );
+        }
+        if (note.type === 'code') {
+          return <Code size={14} className="text-cyan-500 shrink-0" />;
+        }
+        if (note.type === 'tasklist') {
+          return <CheckSquare size={14} className="text-emerald-500 shrink-0" />;
+        }
+        if (note.type === 'bookmark') {
+          return <Bookmark size={14} className="text-indigo-500 shrink-0" />;
+        }
+        return <FileText size={14} className="text-stone-400 dark:text-zinc-400 shrink-0" />;
+      };
+
+      return (
+        <div key={note.id} className="select-none">
+          <div
+            onClick={() => handleSelectNote(note.id)}
+            style={{ paddingLeft: `${depth * 14 + 6}px` }}
+            className={`group flex items-center justify-between py-1.5 pr-2 rounded-lg text-xs transition-colors cursor-pointer ${
+              isSelected
+                ? 'bg-teal-600/15 text-teal-700 dark:text-teal-300 font-semibold border-l-2 border-teal-500'
+                : 'text-stone-700 dark:text-zinc-300 hover:bg-stone-200/60 dark:hover:bg-zinc-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              {/* Expand / Collapse Chevron */}
+              {hasChildren ? (
+                <button
+                  type="button"
+                  onClick={(e) => handleToggleExpand(note.id, e)}
+                  className="w-4 h-4 flex items-center justify-center text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 rounded shrink-0 cursor-pointer"
+                >
+                  {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                </button>
+              ) : (
+                <div className="w-4 shrink-0" />
+              )}
+
+              {getNoteIcon()}
+
+              <span className="truncate text-left flex-1">{note.title || 'Tanpa Judul'}</span>
+            </div>
+
+            {/* Quick Action buttons on hover */}
+            <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0 transition-opacity">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenCreateModal(note.id);
+                }}
+                className="p-1 rounded hover:bg-stone-300 dark:hover:bg-zinc-700 text-stone-400 hover:text-teal-600 cursor-pointer"
+                title="Tambah Sub-catatan di bawah ini"
+              >
+                <Plus size={11} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteNote(note.id);
+                }}
+                className="p-1 rounded hover:bg-rose-100 dark:hover:bg-rose-950/40 text-stone-400 hover:text-rose-600 cursor-pointer"
+                title="Hapus Catatan"
+              >
+                <Trash2 size={11} />
+              </button>
+            </div>
+          </div>
+
+          {/* Render Children if expanded */}
+          {hasChildren && isExpanded && renderTreeNodes(note.id, depth + 1)}
+        </div>
+      );
+    });
   };
 
   return (
-    <div className="min-h-screen pt-20 pb-16 px-3 sm:px-6 lg:px-8 max-w-[1700px] mx-auto space-y-4 font-sans antialiased text-stone-900 dark:text-zinc-100">
+    <div className="min-h-screen pt-18 pb-12 px-2 sm:px-4 max-w-[1780px] mx-auto space-y-2 font-sans antialiased text-stone-900 dark:text-zinc-100">
       <Seo
         title={
           language === 'en'
-            ? 'OmniNote: Evernote-Grade Rich Notes & Gemini NotebookLM Study Studio'
-            : 'OmniNote: Catatan Lengkap Ala Evernote & Notebook Belajar AI Ala Gemini NotebookLM'
+            ? 'Trilium Notes: Hierarchical Personal Knowledge Base & Rich WYSIWYG Editor'
+            : 'Trilium Notes: Basis Pengetahuan Hierarkis & Editor Visual WYSIWYG'
         }
         description={
           language === 'en'
-            ? 'Advanced Evernote-style note-taking app with notebooks, voice memos, rich markdown, and a NotebookLM-grade AI Study Studio for auto flashcards, study guides, grounded chat, and podcast audio overviews.'
-            : 'Aplikasi catatan lengkap setara Evernote dengan multi-notebook, memo suara, editor markdown kaya, serta Studio Belajar AI ala Gemini NotebookLM untuk membuat flashcard, rangkuman, kuis, dan siniar audio otomatis.'
+            ? 'Trilium Notes recreation with unlimited nested tree hierarchy, true WYSIWYG rich text editor, task lists, code snippets, tabs, and Trilium label attributes.'
+            : 'Aplikasi catatan hierarkis ala Trilium Notes dengan struktur pohon tak terbatas, editor visual murni tanpa kode markdown, tab catatan, cuplikan kode, dan label atribut.'
         }
         url="/tools/notes"
       />
 
-      {/* Top Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-stone-200/80 dark:border-zinc-800/80">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-linear-to-tr from-emerald-600 via-teal-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-emerald-600/20">
-            <BookOpen size={20} />
-          </div>
-          <div>
+      {/* Trilium Main Window Container */}
+      <div className="bg-[#f8fafc] dark:bg-[#1e2124] rounded-2xl border border-stone-300/80 dark:border-[#2f3136] shadow-xl overflow-hidden flex flex-col h-[calc(100vh-6.5rem)] min-h-[720px]">
+        {/* TOP TRILIUM SYSTEM TOOLBAR */}
+        <div className="h-10 bg-[#e2e8f0] dark:bg-[#282b30] border-b border-stone-300/80 dark:border-[#202225] flex items-center justify-between px-3 shrink-0 text-xs select-none">
+          {/* Left: App Title & Toggle Tree */}
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight">OmniNote & AI Study Studio</h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                Evernote + NotebookLM
-              </span>
-            </div>
-            <p className="text-xs text-stone-500 dark:text-zinc-400">
-              {language === 'en'
-                ? 'Capture thoughts with rich media, and synthesize with Gemini NotebookLM academic engine.'
-                : 'Tulis catatan harian kaya fitur, dan ubah materi belajar jadi flashcard, kuis, serta rangkuman otomatis.'}
-            </p>
-          </div>
-        </div>
-
-        {/* Global Action & Workspace Tabs */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center p-1 bg-stone-100 dark:bg-zinc-900 rounded-2xl border border-stone-200 dark:border-zinc-800 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setActiveWorkspaceTab('notes')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-                activeWorkspaceTab === 'notes'
-                  ? 'bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                  : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
-              }`}
-            >
-              <FileText size={14} />
-              <span>{language === 'en' ? 'Notes Workspace' : 'Lembar Catatan'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveWorkspaceTab('study_studio');
-                if (!aiStudyData) {
-                  handleGenerateStudyAsset('study-guide');
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-                activeWorkspaceTab === 'study_studio'
-                  ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                  : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-100'
-              }`}
-            >
-              <Sparkles size={14} className="text-indigo-500 animate-pulse" />
-              <span>{language === 'en' ? 'AI Study Studio (NotebookLM)' : 'Studio Belajar AI (NotebookLM)'}</span>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleCreateNote}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all cursor-pointer"
-          >
-            <Plus size={14} />
-            <span>{language === 'en' ? 'New Note' : 'Catatan Baru'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main 3-Column Split Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start min-h-[780px]">
-        {/* COLUMN 1: Notebooks & Navigation Sidebar (2.5 cols on lg) */}
-        <div className="md:col-span-3 lg:col-span-2 space-y-4 bg-white dark:bg-zinc-900 p-3.5 rounded-3xl border border-stone-200/80 dark:border-zinc-800/80 shadow-2xs">
-          {/* Quick Filter Section */}
-          <div className="space-y-1">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 px-2 py-1">
-              {language === 'en' ? 'Views' : 'Navigasi'}
+              <div className="w-5 h-5 rounded bg-teal-600 flex items-center justify-center text-white font-bold text-[11px] shadow-2xs">
+                T
+              </div>
+              <span className="font-bold tracking-tight text-stone-800 dark:text-zinc-200">Trilium Notes</span>
             </div>
 
             <button
               type="button"
-              onClick={() => setSelectedNotebookId('all')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                selectedNotebookId === 'all'
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
-                  : 'text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800'
-              }`}
+              onClick={() => setIsTreeSidebarOpen(!isTreeSidebarOpen)}
+              className="p-1 rounded hover:bg-stone-300/70 dark:hover:bg-[#36393f] text-stone-600 dark:text-zinc-400 cursor-pointer"
+              title={isTreeSidebarOpen ? 'Tutup Pohon Catatan' : 'Buka Pohon Catatan'}
             >
-              <div className="flex items-center gap-2">
-                <FileText size={15} />
-                <span>{language === 'en' ? 'All Notes' : 'Semua Catatan'}</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-500 font-mono">
-                {notes.filter((n) => !n.isTrash).length}
-              </span>
+              <Columns size={14} />
             </button>
 
             <button
               type="button"
-              onClick={() => setSelectedNotebookId('favorites')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                selectedNotebookId === 'favorites'
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold'
-                  : 'text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800'
-              }`}
+              onClick={() => handleOpenCreateModal(null)}
+              className="flex items-center gap-1 px-2 py-0.5 rounded bg-teal-600 hover:bg-teal-500 text-white font-semibold text-[11px] cursor-pointer shadow-2xs transition-colors"
             >
-              <div className="flex items-center gap-2">
-                <Star size={15} className="text-amber-500" />
-                <span>{language === 'en' ? 'Favorites' : 'Favorit'}</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-500 font-mono">
-                {notes.filter((n) => !n.isTrash && n.isFavorite).length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedNotebookId('trash')}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
-                selectedNotebookId === 'trash'
-                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold'
-                  : 'text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Trash2 size={15} />
-                <span>{language === 'en' ? 'Trash' : 'Tempat Sampah'}</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-500 font-mono">
-                {notes.filter((n) => n.isTrash).length}
-              </span>
+              <Plus size={12} />
+              <span>{language === 'en' ? 'New Note' : 'Catatan Baru'}</span>
             </button>
           </div>
 
-          <div className="h-px bg-stone-100 dark:bg-zinc-800" />
-
-          {/* Notebooks List */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between px-2 py-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500">
-                Notebooks ({notebooks.length})
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsNewNotebookModalOpen(true)}
-                className="p-1 rounded-md text-stone-400 hover:text-emerald-600 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
-                title="Tambah Notebook Baru"
-              >
-                <Plus size={13} />
-              </button>
-            </div>
-
-            {notebooks.map((nb) => {
-              const count = notes.filter((n) => !n.isTrash && n.notebookId === nb.id).length;
-              const isSelected = selectedNotebookId === nb.id;
-              return (
+          {/* Center: Trilium Breadcrumb Bar */}
+          <div className="hidden md:flex items-center gap-1 px-2 py-0.5 rounded bg-white/70 dark:bg-[#1e2124]/70 border border-stone-300/60 dark:border-[#36393f] text-[11px] text-stone-600 dark:text-zinc-400 max-w-lg overflow-x-auto truncate">
+            <span className="text-stone-400">root</span>
+            {breadcrumbPath.map((item, idx) => (
+              <React.Fragment key={item.id}>
+                <ChevronRight size={11} className="text-stone-400 shrink-0" />
                 <button
-                  key={nb.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedNotebookId(nb.id);
-                    setSelectedTag(null);
-                  }}
-                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer group ${
-                    isSelected
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold'
-                      : 'text-stone-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800'
+                  onClick={() => handleSelectNote(item.id)}
+                  className={`hover:underline truncate cursor-pointer ${
+                    idx === breadcrumbPath.length - 1 ? 'font-bold text-teal-600 dark:text-teal-400' : ''
                   }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className={`w-2.5 h-2.5 rounded-full bg-linear-to-r ${nb.color} shrink-0`} />
-                    <span className="truncate text-left">{nb.name}</span>
+                  {item.title}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
+
+          {/* Right: Actions (Backup, Restore, Info, Print) */}
+          <div className="flex items-center gap-1 text-stone-600 dark:text-zinc-400">
+            <label
+              className="p-1 rounded hover:bg-stone-300/70 dark:hover:bg-[#36393f] cursor-pointer"
+              title="Pulihkan Cadangan (Import JSON)"
+            >
+              <FileUp size={14} />
+              <input type="file" accept=".json" onChange={handleImportJSON} className="hidden" />
+            </label>
+
+            <button
+              type="button"
+              onClick={handleExportJSON}
+              className="p-1 rounded hover:bg-stone-300/70 dark:hover:bg-[#36393f] cursor-pointer"
+              title="Unduh Cadangan (Export JSON)"
+            >
+              <FileDown size={14} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="p-1 rounded hover:bg-stone-300/70 dark:hover:bg-[#36393f] cursor-pointer"
+              title="Cetak Catatan / PDF"
+            >
+              <Printer size={14} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+              className={`p-1 rounded cursor-pointer ${
+                isRightSidebarOpen
+                  ? 'bg-teal-600 text-white'
+                  : 'hover:bg-stone-300/70 dark:hover:bg-[#36393f]'
+              }`}
+              title="Panel Atribut & Metadata"
+            >
+              <Sliders size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* TRILIUM TABBED BROWSING BAR */}
+        <div className="h-8 bg-[#f1f5f9] dark:bg-[#202225] border-b border-stone-300/80 dark:border-[#2f3136] flex items-center px-2 gap-1 overflow-x-auto shrink-0 select-none">
+          {openTabIds.map((tabId) => {
+            const note = notes.find((n) => n.id === tabId);
+            if (!note) return null;
+            const isActiveTab = activeNoteId === tabId;
+
+            return (
+              <div
+                key={tabId}
+                onClick={() => setActiveNoteId(tabId)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-t-md text-xs transition-colors cursor-pointer border-t border-x ${
+                  isActiveTab
+                    ? 'bg-white dark:bg-[#1e2124] border-stone-300/80 dark:border-[#2f3136] text-stone-900 dark:text-zinc-100 font-semibold shadow-2xs'
+                    : 'bg-stone-200/50 dark:bg-[#282b30]/50 border-transparent text-stone-600 dark:text-zinc-400 hover:bg-stone-200 dark:hover:bg-[#282b30]'
+                }`}
+              >
+                {note.type === 'code' ? (
+                  <Code size={12} className="text-cyan-500" />
+                ) : note.type === 'tasklist' ? (
+                  <CheckSquare size={12} className="text-emerald-500" />
+                ) : note.type === 'folder' ? (
+                  <Folder size={12} className="text-amber-500" />
+                ) : (
+                  <FileText size={12} className="text-stone-400" />
+                )}
+                <span className="truncate max-w-[130px]">{note.title}</span>
+                <button
+                  type="button"
+                  onClick={(e) => handleCloseTab(tabId, e)}
+                  className="hover:text-rose-500 rounded p-0.5 ml-1 cursor-pointer"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* TRILIUM BODY: 3 PANE WORKSPACE */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* PANE 1: HIERARCHICAL NOTE TREE (LEFT SIDEBAR) */}
+          {isTreeSidebarOpen && (
+            <div className="w-64 sm:w-72 bg-[#f8fafc] dark:bg-[#282b30] border-r border-stone-300/80 dark:border-[#202225] flex flex-col shrink-0">
+              {/* Tree Header & Search */}
+              <div className="p-2 space-y-2 border-b border-stone-300/60 dark:border-[#202225]">
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-2 text-stone-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={language === 'en' ? 'Search note tree...' : 'Cari di pohon catatan...'}
+                    className="w-full pl-7 pr-3 py-1 rounded bg-white dark:bg-[#1e2124] border border-stone-300 dark:border-[#36393f] text-xs text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-teal-500"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2 top-2 text-stone-400 hover:text-stone-600"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Label filter chips if any */}
+                {allLabels.length > 0 && (
+                  <div className="flex items-center gap-1 overflow-x-auto py-0.5 text-[10px]">
+                    <span className="text-stone-400 uppercase font-bold shrink-0">Label:</span>
+                    {allLabels.slice(0, 4).map(({ label, count }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() =>
+                          setSelectedLabelFilter(selectedLabelFilter === label ? null : label)
+                        }
+                        className={`px-1.5 py-0.5 rounded border whitespace-nowrap cursor-pointer transition-colors ${
+                          selectedLabelFilter === label
+                            ? 'bg-teal-600 text-white border-teal-600 font-bold'
+                            : 'bg-white dark:bg-[#1e2124] text-stone-600 dark:text-zinc-400 border-stone-300 dark:border-[#36393f]'
+                        }`}
+                      >
+                        #{label} ({count})
+                      </button>
+                    ))}
                   </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 dark:bg-zinc-800 text-stone-500 font-mono shrink-0">
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                )}
+              </div>
 
-          <div className="h-px bg-stone-100 dark:bg-zinc-800" />
+              {/* Tree Nodes List */}
+              <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
+                {renderTreeNodes(null)}
+              </div>
 
-          {/* Tags Chips */}
-          <div className="space-y-2">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 px-2">
-              Tags ({allTags.length})
-            </div>
-            <div className="flex flex-wrap gap-1 px-1">
-              {allTags.map((tag) => (
+              {/* Tree Bottom Action */}
+              <div className="p-2 border-t border-stone-300/60 dark:border-[#202225] flex items-center justify-between text-[11px] text-stone-500 dark:text-zinc-400">
+                <span>{notes.length} Total Catatan</span>
                 <button
-                  key={tag}
                   type="button"
-                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                  className={`text-[11px] px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
-                    selectedTag === tag
-                      ? 'bg-emerald-600 text-white border-emerald-600 font-bold'
-                      : 'bg-stone-50 dark:bg-zinc-800/70 text-stone-600 dark:text-zinc-400 border-stone-200 dark:border-zinc-700 hover:border-emerald-500'
-                  }`}
+                  onClick={() => handleOpenCreateModal(null)}
+                  className="text-teal-600 dark:text-teal-400 font-semibold hover:underline cursor-pointer"
                 >
-                  #{tag}
+                  + Tambah Root
                 </button>
-              ))}
-              {allTags.length === 0 && (
-                <div className="text-[11px] text-stone-400 italic px-1">Belum ada tag</div>
-              )}
+              </div>
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* COLUMN 2: Notes List Drawer (3.5 cols on lg) */}
-        <div className="md:col-span-4 lg:col-span-3 space-y-3 bg-white dark:bg-zinc-900 p-3.5 rounded-3xl border border-stone-200/80 dark:border-zinc-800/80 shadow-2xs h-[780px] flex flex-col">
-          {/* Search bar */}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-2.5 text-stone-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={language === 'en' ? 'Search notes, tags...' : 'Cari isi catatan, kata kunci...'}
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-stone-50 dark:bg-zinc-800/80 border border-stone-200 dark:border-zinc-700 text-xs text-stone-900 dark:text-zinc-100 placeholder-stone-400 focus:outline-emerald-500"
-            />
-          </div>
+          {/* PANE 2: MAIN NOTE WORKSPACE (CENTER) */}
+          <div className="flex-1 flex flex-col bg-white dark:bg-[#1e2124] overflow-hidden">
+            {activeNote ? (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Note Title & Type Selector Header */}
+                <div className="px-6 pt-4 pb-2 border-b border-stone-200 dark:border-[#282b30] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+                  <div className="flex-1 space-y-1">
+                    <input
+                      type="text"
+                      value={activeNote.title}
+                      onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
+                      placeholder="Judul Catatan..."
+                      className="w-full text-xl sm:text-2xl font-bold text-stone-900 dark:text-zinc-100 bg-transparent border-none focus:outline-none placeholder-stone-300 dark:placeholder-zinc-600"
+                    />
 
-          <div className="flex items-center justify-between text-[11px] text-stone-500 px-1">
-            <span>{filteredNotes.length} Catatan</span>
-            {selectedTag && (
-              <button
-                type="button"
-                onClick={() => setSelectedTag(null)}
-                className="text-rose-500 hover:underline text-[10px] flex items-center gap-0.5 cursor-pointer"
-              >
-                <span>Hapus filter #{selectedTag}</span>
-                <X size={10} />
-              </button>
-            )}
-          </div>
+                    {/* Active Labels Bar */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                      {activeNote.attributes
+                        .filter((a) => a.type === 'label')
+                        .map((attr) => (
+                          <span
+                            key={attr.id}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 font-mono"
+                          >
+                            <Hash size={10} />
+                            <span>
+                              {attr.name}
+                              {attr.value ? `=${attr.value}` : ''}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAttribute(attr.id)}
+                              className="hover:text-rose-500 cursor-pointer ml-0.5"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
 
-          {/* Notes Scrollable Cards */}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {filteredNotes.map((note) => {
-              const isActive = note.id === activeNoteId;
-              const dateStr = new Date(note.updatedAt).toLocaleDateString('id-ID', {
-                month: 'short',
-                day: 'numeric',
-              });
-              const previewSnippet = note.content
-                .replace(/[#*`$\->]/g, '')
-                .slice(0, 100)
-                .trim();
-
-              return (
-                <div
-                  key={note.id}
-                  onClick={() => {
-                    setActiveNoteId(note.id);
-                    if (activeWorkspaceTab === 'study_studio') {
-                      // Trigger refresh when user clicks note in study mode
-                      setAiStudyData(null);
-                    }
-                  }}
-                  className={`p-3 rounded-2xl border transition-all cursor-pointer text-left relative group ${
-                    isActive
-                      ? 'border-emerald-500 bg-emerald-500/5 shadow-xs'
-                      : 'border-stone-200/80 dark:border-zinc-800 hover:border-stone-300 dark:hover:border-zinc-700 bg-stone-50/50 dark:bg-zinc-800/30'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-1">
-                    <h3 className="text-xs font-bold text-stone-900 dark:text-zinc-100 line-clamp-1">
-                      {note.title || 'Tanpa Judul'}
-                    </h3>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {note.isPinned && <span className="text-[10px]">📌</span>}
-                      {note.isFavorite && <Star size={12} className="text-amber-500 fill-amber-500" />}
+                      <button
+                        type="button"
+                        onClick={() => setIsRightSidebarOpen(true)}
+                        className="text-stone-400 hover:text-teal-600 dark:hover:text-teal-400 cursor-pointer font-medium"
+                      >
+                        + Label
+                      </button>
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-stone-500 dark:text-zinc-400 line-clamp-2 mt-1 leading-relaxed">
-                    {previewSnippet || 'Tidak ada teks tambahan'}
-                  </p>
-
-                  <div className="flex items-center justify-between mt-2 pt-1 border-t border-stone-100 dark:border-zinc-800/60 text-[10px] text-stone-400">
-                    <span>{dateStr}</span>
-                    {note.tags.length > 0 && (
-                      <span className="font-mono text-emerald-600 dark:text-emerald-400">#{note.tags[0]}</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {filteredNotes.length === 0 && (
-              <div className="text-center py-12 text-stone-400 text-xs space-y-2">
-                <FileText size={28} className="mx-auto opacity-40" />
-                <p>{language === 'en' ? 'No notes match your filter.' : 'Tidak ada catatan yang cocok.'}</p>
-                <button
-                  type="button"
-                  onClick={handleCreateNote}
-                  className="text-emerald-600 font-bold hover:underline cursor-pointer"
-                >
-                  + {language === 'en' ? 'Create Note' : 'Buat Catatan Baru'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* COLUMN 3: Work Area: Editor OR NotebookLM Study Studio (7 cols on lg) */}
-        <div className="md:col-span-5 lg:col-span-7 bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-stone-200/80 dark:border-zinc-800/80 shadow-2xs min-h-[780px] flex flex-col">
-          {activeNote ? (
-            activeWorkspaceTab === 'notes' ? (
-              /* TAB A: EVERNOTE-GRADE RICH NOTE EDITOR */
-              <div className="flex-1 flex flex-col space-y-4">
-                {/* Note Top Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-stone-100 dark:border-zinc-800">
+                  {/* Note Type Selector */}
                   <div className="flex items-center gap-2">
-                    {/* Notebook selector dropdown */}
                     <select
-                      value={activeNote.notebookId}
-                      onChange={(e) => updateActiveNote({ notebookId: e.target.value })}
-                      className="text-xs font-semibold px-2 py-1 rounded-lg bg-stone-100 dark:bg-zinc-800 border-none text-stone-700 dark:text-zinc-300 focus:outline-emerald-500 cursor-pointer"
+                      value={activeNote.type}
+                      onChange={(e) =>
+                        updateNote(activeNote.id, { type: e.target.value as TriliumNoteType })
+                      }
+                      className="text-xs font-semibold px-2 py-1 rounded bg-stone-100 dark:bg-[#282b30] border border-stone-300 dark:border-[#36393f] text-stone-700 dark:text-zinc-300 focus:outline-teal-500 cursor-pointer"
                     >
-                      {notebooks.map((nb) => (
-                        <option key={nb.id} value={nb.id}>
-                          📁 {nb.name}
-                        </option>
-                      ))}
+                      <option value="text">📝 Rich Text (WYSIWYG)</option>
+                      <option value="code">💻 Code Snippet</option>
+                      <option value="tasklist">☑️ Task List (To-Do)</option>
+                      <option value="folder">🗂️ Folder Container</option>
                     </select>
 
-                    {/* Pin button */}
                     <button
                       type="button"
-                      onClick={() => updateActiveNote({ isPinned: !activeNote.isPinned })}
-                      className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
-                        activeNote.isPinned
-                          ? 'bg-amber-500/10 text-amber-600'
-                          : 'text-stone-400 hover:bg-stone-100 dark:hover:bg-zinc-800'
-                      }`}
-                      title={activeNote.isPinned ? 'Lepas Pin' : 'Sematkan ke Atas'}
+                      onClick={() => handleDeleteNote(activeNote.id)}
+                      className="p-1.5 rounded hover:bg-rose-100 dark:hover:bg-rose-950/40 text-stone-400 hover:text-rose-600 cursor-pointer"
+                      title="Hapus Catatan"
                     >
-                      📌
-                    </button>
-
-                    {/* Favorite button */}
-                    <button
-                      type="button"
-                      onClick={() => updateActiveNote({ isFavorite: !activeNote.isFavorite })}
-                      className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
-                        activeNote.isFavorite
-                          ? 'bg-amber-500/10 text-amber-600'
-                          : 'text-stone-400 hover:bg-stone-100 dark:hover:bg-zinc-800'
-                      }`}
-                      title="Favorit"
-                    >
-                      <Star size={14} className={activeNote.isFavorite ? 'fill-amber-500' : ''} />
-                    </button>
-
-                    {/* Voice Memo Record Button */}
-                    <button
-                      type="button"
-                      onClick={handleToggleVoiceRecording}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                        isRecordingVoice
-                          ? 'bg-rose-500 text-white animate-pulse'
-                          : activeNote.audioRecordUrl
-                          ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                          : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-zinc-800'
-                      }`}
-                      title="Rekam Voice Memo untuk Catatan Ini"
-                    >
-                      {isRecordingVoice ? <MicOff size={14} /> : <Mic size={14} />}
-                      <span>
-                        {isRecordingVoice
-                          ? `Merekam (${recordingSeconds}s)...`
-                          : activeNote.audioRecordUrl
-                          ? 'Voice Memo Ada'
-                          : 'Voice Memo'}
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* Actions & View Modes */}
-                  <div className="flex items-center gap-1.5">
-                    {/* Mode Toggle: Edit / Preview / Split */}
-                    <div className="flex items-center p-0.5 bg-stone-100 dark:bg-zinc-800 rounded-lg text-[11px]">
-                      <button
-                        type="button"
-                        onClick={() => setEditorMode('edit')}
-                        className={`px-2 py-0.5 rounded-md cursor-pointer ${
-                          editorMode === 'edit'
-                            ? 'bg-white dark:bg-zinc-700 font-bold text-emerald-600 shadow-2xs'
-                            : 'text-stone-500'
-                        }`}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditorMode('split')}
-                        className={`px-2 py-0.5 rounded-md cursor-pointer ${
-                          editorMode === 'split'
-                            ? 'bg-white dark:bg-zinc-700 font-bold text-emerald-600 shadow-2xs'
-                            : 'text-stone-500'
-                        }`}
-                      >
-                        Split
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditorMode('preview')}
-                        className={`px-2 py-0.5 rounded-md cursor-pointer ${
-                          editorMode === 'preview'
-                            ? 'bg-white dark:bg-zinc-700 font-bold text-emerald-600 shadow-2xs'
-                            : 'text-stone-500'
-                        }`}
-                      >
-                        Preview
-                      </button>
-                    </div>
-
-                    {/* Export / Print menu */}
-                    <button
-                      type="button"
-                      onClick={() => handleExportNote('md')}
-                      className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
-                      title="Unduh Markdown (.md)"
-                    >
-                      <Download size={14} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handlePrintNote}
-                      className="p-1.5 rounded-lg text-stone-500 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
-                      title="Cetak / Simpan PDF"
-                    >
-                      <Printer size={14} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleToggleTrashNote(activeNote.id)}
-                      className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
-                      title={activeNote.isTrash ? 'Pulihkan Catatan' : 'Pindahkan ke Tempat Sampah'}
-                    >
-                      <Trash2 size={14} />
+                      <Trash2 size={15} />
                     </button>
                   </div>
                 </div>
 
-                {/* Voice Player Banner if present */}
-                {activeNote.audioRecordUrl && (
-                  <div className="flex items-center justify-between p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs">
-                    <div className="flex items-center gap-2">
-                      <Volume2 size={16} className="text-emerald-600 dark:text-emerald-400" />
-                      <span className="font-semibold text-emerald-700 dark:text-emerald-300">
-                        Voice Memo Terlampir
-                      </span>
-                      <audio controls src={activeNote.audioRecordUrl} className="h-7 w-52 sm:w-64" />
-                    </div>
+                {/* RICH TEXT FORMATTING TOOLBAR (TipTap WYSIWYG) */}
+                {activeNote.type !== 'code' && editor && (
+                  <div className="px-4 py-1.5 bg-[#f8fafc] dark:bg-[#282b30] border-b border-stone-200 dark:border-[#2f3136] flex flex-wrap items-center gap-1 text-stone-700 dark:text-zinc-300 text-xs shrink-0 select-none">
+                    {/* Headings */}
                     <button
                       type="button"
-                      onClick={() => updateActiveNote({ audioRecordUrl: undefined })}
-                      className="text-stone-400 hover:text-rose-500 p-1 cursor-pointer"
-                      title="Hapus rekaman suara"
+                      onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer ${
+                        editor.isActive('heading', { level: 1 }) ? 'bg-teal-600 text-white font-bold' : ''
+                      }`}
+                      title="Heading 1"
                     >
-                      <X size={14} />
+                      <Heading1 size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer ${
+                        editor.isActive('heading', { level: 2 }) ? 'bg-teal-600 text-white font-bold' : ''
+                      }`}
+                      title="Heading 2"
+                    >
+                      <Heading2 size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer ${
+                        editor.isActive('heading', { level: 3 }) ? 'bg-teal-600 text-white font-bold' : ''
+                      }`}
+                      title="Heading 3"
+                    >
+                      <Heading3 size={15} />
+                    </button>
+
+                    <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
+
+                    {/* Basic Styling */}
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().toggleBold().run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer ${
+                        editor.isActive('bold') ? 'bg-teal-600 text-white' : ''
+                      }`}
+                      title="Tebal (Ctrl+B)"
+                    >
+                      <Bold size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().toggleItalic().run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer ${
+                        editor.isActive('italic') ? 'bg-teal-600 text-white' : ''
+                      }`}
+                      title="Miring (Ctrl+I)"
+                    >
+                      <Italic size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().toggleStrike().run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer ${
+                        editor.isActive('strike') ? 'bg-teal-600 text-white' : ''
+                      }`}
+                      title="Coretan"
+                    >
+                      <Strikethrough size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().toggleHighlight().run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer text-amber-500 ${
+                        editor.isActive('highlight') ? 'bg-amber-500 text-white' : ''
+                      }`}
+                      title="Stabilo Sorot"
+                    >
+                      <Highlighter size={15} />
+                    </button>
+
+                    <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
+
+                    {/* Lists */}
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().toggleBulletList().run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer ${
+                        editor.isActive('bulletList') ? 'bg-teal-600 text-white' : ''
+                      }`}
+                      title="Daftar Poin"
+                    >
+                      <List size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer ${
+                        editor.isActive('orderedList') ? 'bg-teal-600 text-white' : ''
+                      }`}
+                      title="Daftar Nomor"
+                    >
+                      <ListOrdered size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().toggleTaskList().run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer ${
+                        editor.isActive('taskList') ? 'bg-teal-600 text-white' : ''
+                      }`}
+                      title="Checklist Tugas"
+                    >
+                      <CheckSquare size={15} />
+                    </button>
+
+                    <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
+
+                    {/* Quotes & Tables */}
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                      className={`p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer ${
+                        editor.isActive('blockquote') ? 'bg-teal-600 text-white' : ''
+                      }`}
+                      title="Kutipan"
+                    >
+                      <Quote size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        editor
+                          .chain()
+                          .focus()
+                          .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+                          .run()
+                      }
+                      className="p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer"
+                      title="Sisipkan Tabel (3x3)"
+                    >
+                      <TableIcon size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                      className="p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] cursor-pointer"
+                      title="Garis Pemisah"
+                    >
+                      <Minus size={15} />
+                    </button>
+
+                    <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
+
+                    {/* Undo / Redo */}
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().undo().run()}
+                      disabled={!editor.can().undo()}
+                      className="p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] disabled:opacity-30 cursor-pointer"
+                      title="Undo (Ctrl+Z)"
+                    >
+                      <Undo size={14} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => editor.chain().focus().redo().run()}
+                      disabled={!editor.can().redo()}
+                      className="p-1.5 rounded hover:bg-stone-200 dark:hover:bg-[#36393f] disabled:opacity-30 cursor-pointer"
+                      title="Redo (Ctrl+Y)"
+                    >
+                      <Redo size={14} />
                     </button>
                   </div>
                 )}
 
-                {/* Title Input */}
-                <input
-                  type="text"
-                  value={activeNote.title}
-                  onChange={(e) => updateActiveNote({ title: e.target.value })}
-                  placeholder={language === 'en' ? 'Note Title...' : 'Judul Catatan...'}
-                  className="w-full text-xl sm:text-2xl font-extrabold text-stone-900 dark:text-zinc-100 bg-transparent border-none focus:outline-none placeholder-stone-300 dark:placeholder-zinc-600"
-                />
+                {/* EDITOR CONTENT AREA */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  {activeNote.type === 'code' ? (
+                    /* CODE NOTE EDITOR */
+                    <div className="space-y-3 h-full flex flex-col">
+                      <div className="flex items-center justify-between text-xs text-stone-500 dark:text-zinc-400">
+                        <div className="flex items-center gap-2">
+                          <span>Bahasa Pemrograman:</span>
+                          <select
+                            value={activeNote.codeLanguage || 'javascript'}
+                            onChange={(e) =>
+                              updateNote(activeNote.id, { codeLanguage: e.target.value })
+                            }
+                            className="px-2 py-0.5 rounded bg-stone-100 dark:bg-[#282b30] border border-stone-300 dark:border-[#36393f] font-mono text-xs focus:outline-teal-500"
+                          >
+                            <option value="javascript">JavaScript</option>
+                            <option value="typescript">TypeScript</option>
+                            <option value="python">Python</option>
+                            <option value="html">HTML</option>
+                            <option value="css">CSS</option>
+                            <option value="sql">SQL</option>
+                            <option value="json">JSON</option>
+                            <option value="rust">Rust</option>
+                            <option value="go">Go</option>
+                          </select>
+                        </div>
 
-                {/* Tags input bar */}
-                <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
-                  <Tag size={13} className="text-stone-400" />
-                  {activeNote.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-100 dark:bg-zinc-800 text-[11px] text-stone-700 dark:text-zinc-300 font-mono"
-                    >
-                      #{tag}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateActiveNote({ tags: activeNote.tags.filter((t) => t !== tag) })
-                        }
-                        className="hover:text-rose-500 cursor-pointer"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                  <input
-                    type="text"
-                    placeholder="+ Tambah tag..."
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const val = e.currentTarget.value.trim().replace(/^#/, '');
-                        if (val && !activeNote.tags.includes(val)) {
-                          updateActiveNote({ tags: [...activeNote.tags, val] });
-                          e.currentTarget.value = '';
-                        }
-                      }
-                    }}
-                    className="text-[11px] px-2 py-0.5 rounded-md bg-transparent text-stone-700 dark:text-zinc-300 placeholder-stone-400 focus:outline-none"
-                  />
-                </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(activeNote.content);
+                            alert('Kode berhasil disalin!');
+                          }}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded bg-stone-100 dark:bg-[#282b30] hover:bg-stone-200 text-stone-700 dark:text-zinc-300 cursor-pointer"
+                        >
+                          <Copy size={12} />
+                          <span>Salin Kode</span>
+                        </button>
+                      </div>
 
-                {/* Formatting Toolbar */}
-                <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-xl bg-stone-50 dark:bg-zinc-800/80 border border-stone-200/80 dark:border-zinc-700/80 text-stone-600 dark:text-zinc-300 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('# ', '', 'Judul Besar')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Heading 1"
-                  >
-                    <Heading1 size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('## ', '', 'Sub-bab')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Heading 2"
-                  >
-                    <Heading2 size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('### ', '', 'Poin')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Heading 3"
-                  >
-                    <Heading3 size={14} />
-                  </button>
-
-                  <div className="w-px h-4 bg-stone-200 dark:bg-zinc-700 mx-1" />
-
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('**', '**', 'teks tebal')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer font-bold"
-                    title="Bold"
-                  >
-                    <Bold size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('*', '*', 'teks miring')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer italic"
-                    title="Italic"
-                  >
-                    <Italic size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('~~', '~~', 'coret')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Strikethrough"
-                  >
-                    <Strikethrough size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('==', '==', 'stabilo sorot')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 text-amber-500 cursor-pointer"
-                    title="Highlight"
-                  >
-                    <Highlighter size={14} />
-                  </button>
-
-                  <div className="w-px h-4 bg-stone-200 dark:bg-zinc-700 mx-1" />
-
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('- ', '', 'Poin daftar')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Bullet List"
-                  >
-                    <List size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('1. ', '', 'Langkah pertama')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Numbered List"
-                  >
-                    <ListOrdered size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('- [ ] ', '', 'Tugas atau target')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Checklist / To-Do"
-                  >
-                    <CheckSquare size={14} />
-                  </button>
-
-                  <div className="w-px h-4 bg-stone-200 dark:bg-zinc-700 mx-1" />
-
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('> ', '', 'Kutipan penting')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Quote"
-                  >
-                    <Quote size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('```\n', '\n```', 'kode atau formula')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Code Block"
-                  >
-                    <Code size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      insertFormatting(
-                        '\n| Kolom 1 | Kolom 2 |\n|---------|---------|\n| Data A  | Data B  |\n'
-                      )
-                    }
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Insert Table"
-                  >
-                    <TableIcon size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => insertFormatting('\n---\n')}
-                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-zinc-700 cursor-pointer"
-                    title="Horizontal Divider"
-                  >
-                    <Minus size={14} />
-                  </button>
-                </div>
-
-                {/* Editor & Preview Pane */}
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 h-[440px]">
-                  {/* Left or Full Editor */}
-                  {(editorMode === 'edit' || editorMode === 'split') && (
-                    <textarea
-                      ref={textareaRef}
-                      value={activeNote.content}
-                      onChange={(e) => updateActiveNote({ content: e.target.value })}
-                      placeholder="Mulai menulis catatan di sini... Dukungan penuh Markdown, checklist, rumus matematika $$...$$, dan tabel."
-                      className={`w-full h-full p-4 rounded-2xl bg-stone-50/50 dark:bg-zinc-800/40 border border-stone-200/80 dark:border-zinc-700/80 font-mono text-xs text-stone-900 dark:text-zinc-100 resize-none focus:outline-emerald-500 leading-relaxed ${
-                        editorMode === 'edit' ? 'col-span-2' : ''
-                      }`}
-                    />
-                  )}
-
-                  {/* Right or Full Preview */}
-                  {(editorMode === 'preview' || editorMode === 'split') && (
-                    <div
-                      className={`w-full h-full p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-stone-200/80 dark:border-zinc-800/80 overflow-y-auto prose dark:prose-invert prose-xs max-w-none text-xs leading-relaxed ${
-                        editorMode === 'preview' ? 'col-span-2' : ''
-                      }`}
-                    >
-                      {activeNote.content.split('\n').map((line, idx) => {
-                        // Checkbox rendering
-                        if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) {
-                          const isChecked = line.startsWith('- [x] ');
-                          const label = line.replace(/^- \[[ x]\] /, '');
-                          return (
-                            <div key={idx} className="flex items-center gap-2 py-0.5 font-sans">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const lines = activeNote.content.split('\n');
-                                  lines[idx] = isChecked ? `- [ ] ${label}` : `- [x] ${label}`;
-                                  updateActiveNote({ content: lines.join('\n') });
-                                }}
-                                className="cursor-pointer text-emerald-600"
-                              >
-                                {isChecked ? <CheckSquare size={14} /> : <Square size={14} />}
-                              </button>
-                              <span className={isChecked ? 'line-through text-stone-400' : ''}>
-                                {label}
-                              </span>
-                            </div>
-                          );
-                        }
-
-                        // Headings
-                        if (line.startsWith('# ')) {
-                          return (
-                            <h1 key={idx} className="text-lg font-bold text-stone-900 dark:text-zinc-100 my-2">
-                              {line.replace(/^# /, '')}
-                            </h1>
-                          );
-                        }
-                        if (line.startsWith('## ')) {
-                          return (
-                            <h2 key={idx} className="text-base font-bold text-stone-900 dark:text-zinc-100 my-1.5">
-                              {line.replace(/^## /, '')}
-                            </h2>
-                          );
-                        }
-                        if (line.startsWith('### ')) {
-                          return (
-                            <h3 key={idx} className="text-sm font-bold text-stone-900 dark:text-zinc-100 my-1">
-                              {line.replace(/^### /, '')}
-                            </h3>
-                          );
-                        }
-
-                        // Quote
-                        if (line.startsWith('> ')) {
-                          return (
-                            <blockquote
-                              key={idx}
-                              className="border-l-2 border-emerald-500 pl-3 py-1 my-1 italic text-stone-600 dark:text-zinc-300 bg-emerald-500/5 rounded-r-md"
-                            >
-                              {line.replace(/^> /, '')}
-                            </blockquote>
-                          );
-                        }
-
-                        // Bullet list
-                        if (line.startsWith('- ')) {
-                          return (
-                            <li key={idx} className="ml-4 list-disc my-0.5">
-                              {line.replace(/^- /, '')}
-                            </li>
-                          );
-                        }
-
-                        // Divider
-                        if (line.trim() === '---') {
-                          return <hr key={idx} className="my-2 border-stone-200 dark:border-zinc-800" />;
-                        }
-
-                        if (!line.trim()) return <div key={idx} className="h-2" />;
-
-                        return (
-                          <p key={idx} className="my-0.5">
-                            {line}
-                          </p>
-                        );
-                      })}
+                      <textarea
+                        value={activeNote.content}
+                        onChange={(e) => updateNote(activeNote.id, { content: e.target.value })}
+                        placeholder="// Tulis kode di sini..."
+                        className="flex-1 w-full p-4 rounded-xl font-mono text-xs leading-relaxed bg-[#f8fafc] dark:bg-[#0f1115] text-stone-900 dark:text-emerald-400 border border-stone-300 dark:border-[#2f3136] resize-none focus:outline-teal-500"
+                      />
+                    </div>
+                  ) : (
+                    /* WYSIWYG TIPTAP EDITOR */
+                    <div className="prose dark:prose-invert prose-stone max-w-none min-h-[420px] focus:outline-none">
+                      <EditorContent
+                        editor={editor}
+                        className="min-h-[420px] focus:outline-none text-stone-800 dark:text-zinc-200 leading-relaxed text-sm"
+                      />
                     </div>
                   )}
                 </div>
 
-                {/* Bottom Status Bar */}
-                <div className="flex items-center justify-between pt-2 border-t border-stone-100 dark:border-zinc-800 text-[11px] text-stone-400">
+                {/* NOTE BOTTOM METRICS BAR */}
+                <div className="h-7 bg-[#f8fafc] dark:bg-[#202225] border-t border-stone-200 dark:border-[#2f3136] px-4 flex items-center justify-between text-[11px] text-stone-500 dark:text-zinc-400 select-none shrink-0">
                   <div className="flex items-center gap-3 font-mono">
-                    <span>{activeNoteMetrics.words} kata</span>
+                    <span>ID: {activeNote.id}</span>
                     <span>•</span>
-                    <span>{activeNoteMetrics.chars} karakter</span>
+                    <span>Tipe: {activeNote.type}</span>
                     <span>•</span>
-                    <span>~{activeNoteMetrics.readMins} menit baca</span>
+                    <span>
+                      Diperbarui:{' '}
+                      {new Date(activeNote.updatedAt).toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
                   </div>
-                  <div className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                  <div className="flex items-center gap-1 text-teal-600 dark:text-teal-400 font-semibold">
                     <Check size={12} />
-                    <span>Tersimpan otomatis di peramban</span>
+                    <span>Tersimpan Otomatis</span>
                   </div>
                 </div>
               </div>
             ) : (
-              /* TAB B: GEMINI NOTEBOOKLM-GRADE AI STUDY & SYNTHESIS STUDIO */
-              <div className="flex-1 flex flex-col space-y-4">
-                {/* NotebookLM Header Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100 dark:border-zinc-800">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
-                      <h2 className="text-base font-bold text-stone-900 dark:text-zinc-100">
-                        {language === 'en' ? 'NotebookLM Study Studio' : 'Studio Pembelajaran NotebookLM'}
-                      </h2>
-                    </div>
-                    <p className="text-xs text-stone-500 dark:text-zinc-400">
-                      Materi aktif: <strong className="text-stone-700 dark:text-zinc-200">{activeNote.title}</strong>
-                    </p>
-                  </div>
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-stone-400 space-y-2">
+                <FileText size={36} className="opacity-30" />
+                <p className="text-sm font-semibold">Pilih atau buat catatan di panel pohon sebelah kiri</p>
+                <button
+                  type="button"
+                  onClick={() => handleOpenCreateModal(null)}
+                  className="px-3 py-1 rounded bg-teal-600 text-white text-xs font-semibold cursor-pointer hover:bg-teal-500"
+                >
+                  + Catatan Baru
+                </button>
+              </div>
+            )}
+          </div>
 
-                  {/* Study Sub-Tab Buttons */}
-                  <div className="flex flex-wrap items-center gap-1 p-1 bg-stone-100 dark:bg-zinc-800/80 rounded-2xl text-xs font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStudyTab('guide');
-                        handleGenerateStudyAsset('study-guide');
-                      }}
-                      className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                        studyTab === 'guide'
-                          ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs'
-                          : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900'
-                      }`}
-                    >
-                      <BookOpen size={13} />
-                      <span>Study Guide</span>
-                    </button>
+          {/* PANE 3: NOTE ATTRIBUTES & METADATA (RIGHT SIDEBAR) */}
+          {isRightSidebarOpen && activeNote && (
+            <div className="w-72 bg-[#f8fafc] dark:bg-[#282b30] border-l border-stone-300/80 dark:border-[#202225] p-4 flex flex-col space-y-4 overflow-y-auto shrink-0">
+              <div className="flex items-center justify-between pb-2 border-b border-stone-300/60 dark:border-[#36393f]">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-stone-700 dark:text-zinc-300">
+                  Atribut & Properti
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsRightSidebarOpen(false)}
+                  className="text-stone-400 hover:text-stone-600 p-0.5 cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStudyTab('flashcards');
-                        handleGenerateStudyAsset('flashcards');
-                      }}
-                      className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                        studyTab === 'flashcards'
-                          ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs'
-                          : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900'
-                      }`}
-                    >
-                      <Brain size={13} />
-                      <span>Flashcards</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStudyTab('quiz');
-                        handleGenerateStudyAsset('quiz');
-                      }}
-                      className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                        studyTab === 'quiz'
-                          ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs'
-                          : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900'
-                      }`}
-                    >
-                      <Award size={13} />
-                      <span>Practice Quiz</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStudyTab('audio_overview');
-                        handleGenerateStudyAsset('audio-overview');
-                      }}
-                      className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                        studyTab === 'audio_overview'
-                          ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs'
-                          : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900'
-                      }`}
-                    >
-                      <Radio size={13} />
-                      <span>Audio Overview</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setStudyTab('chat')}
-                      className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                        studyTab === 'chat'
-                          ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs'
-                          : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900'
-                      }`}
-                    >
-                      <MessageSquare size={13} />
-                      <span>Chat with Notes</span>
-                    </button>
-                  </div>
+              {/* Attributes / Labels Manager */}
+              <div className="space-y-2">
+                <div className="text-[11px] font-bold text-stone-500 dark:text-zinc-400 uppercase">
+                  Label Catatan ({activeNote.attributes.length})
                 </div>
 
-                {/* Sub-view Content */}
-                <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-                  {/* Loading indicator */}
-                  {isAiProcessing && (
-                    <div className="p-8 rounded-3xl bg-indigo-500/5 border border-indigo-500/20 text-center space-y-3">
-                      <Sparkles size={28} className="mx-auto text-indigo-600 animate-spin" />
-                      <div className="text-sm font-bold text-stone-900 dark:text-zinc-100">
-                        {language === 'en'
-                          ? 'Synthesizing with Gemini Academic Engine...'
-                          : 'Sedang menganalisis catatan dan menyintesis materi pembelajaran...'}
+                <div className="space-y-1.5">
+                  {activeNote.attributes.map((attr) => (
+                    <div
+                      key={attr.id}
+                      className="flex items-center justify-between p-1.5 rounded bg-white dark:bg-[#1e2124] border border-stone-300/80 dark:border-[#36393f] text-xs font-mono"
+                    >
+                      <div className="flex items-center gap-1 text-teal-600 dark:text-teal-400 truncate">
+                        <Tag size={11} />
+                        <span className="font-bold">{attr.name}</span>
+                        {attr.value && <span className="text-stone-400">={attr.value}</span>}
                       </div>
-                      <p className="text-xs text-stone-500 dark:text-zinc-400 max-w-md mx-auto">
-                        Mengekstrak konsep inti, menyusun peta pengetahuan, dan memastikan akurasi data.
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAttribute(attr.id)}
+                        className="text-stone-400 hover:text-rose-500 p-0.5 cursor-pointer"
+                      >
+                        <X size={12} />
+                      </button>
                     </div>
-                  )}
+                  ))}
+                </div>
 
-                  {/* 1. STUDY GUIDE VIEW */}
-                  {studyTab === 'guide' && aiStudyData && !isAiProcessing && (
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/60">
-                        <h3 className="text-sm font-bold text-indigo-950 dark:text-indigo-200 mb-1">
-                          {aiStudyData.title || 'Panduan Belajar Komprehensif'}
-                        </h3>
-                        <p className="text-xs text-stone-700 dark:text-zinc-300 leading-relaxed">
-                          {aiStudyData.executiveSummary}
-                        </p>
-                      </div>
-
-                      {/* Core Concepts */}
-                      {aiStudyData.coreConcepts && aiStudyData.coreConcepts.length > 0 && (
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                            Konsep Kunci & Definisi
-                          </h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {aiStudyData.coreConcepts.map((c: any, i: number) => (
-                              <div
-                                key={i}
-                                className="p-3.5 rounded-2xl bg-stone-50 dark:bg-zinc-800/50 border border-stone-200/80 dark:border-zinc-700/80 space-y-1.5"
-                              >
-                                <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                                  {c.term}
-                                </div>
-                                <div className="text-xs text-stone-600 dark:text-zinc-300 leading-relaxed">
-                                  {c.definition}
-                                </div>
-                                {c.practicalExample && (
-                                  <div className="text-[11px] text-stone-500 dark:text-zinc-400 italic pt-1 border-t border-stone-200/50 dark:border-zinc-700/50">
-                                    💡 Contoh: {c.practicalExample}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Key Takeaways */}
-                      {aiStudyData.keyTakeaways && aiStudyData.keyTakeaways.length > 0 && (
-                        <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5">
-                            <Check size={14} />
-                            <span>Poin Inti yang Wajib Diingat</span>
-                          </h4>
-                          <ul className="space-y-1 text-xs text-stone-700 dark:text-zinc-300 list-disc list-inside">
-                            {aiStudyData.keyTakeaways.map((point: string, i: number) => (
-                              <li key={i}>{point}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 2. FLASHCARDS VIEW (Active Recall) */}
-                  {studyTab === 'flashcards' && aiStudyData?.flashcards && !isAiProcessing && (
-                    <div className="space-y-4 max-w-xl mx-auto">
-                      {/* Score Tracker */}
-                      <div className="flex items-center justify-between text-xs text-stone-500 px-1">
-                        <span>
-                          Kartu {activeFlashcardIndex + 1} dari {aiStudyData.flashcards.length}
-                        </span>
-                        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                          {masteredCards.size} Dikuasai
-                        </span>
-                      </div>
-
-                      {/* 3D Flip Card Container */}
-                      {aiStudyData.flashcards[activeFlashcardIndex] && (
-                        <div
-                          onClick={() => setIsCardFlipped(!isCardFlipped)}
-                          className="min-h-[260px] p-6 rounded-3xl bg-linear-to-b from-stone-50 to-stone-100 dark:from-zinc-800 dark:to-zinc-850 border border-stone-200 dark:border-zinc-700 shadow-md flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.01]"
-                        >
-                          <div className="flex items-center justify-between text-xs text-stone-400">
-                            <span className="uppercase tracking-wider font-bold text-[10px]">
-                              {isCardFlipped ? 'Jawaban & Penjelasan' : 'Pertanyaan / Konsep'}
-                            </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-200 dark:bg-zinc-700 font-mono">
-                              {aiStudyData.flashcards[activeFlashcardIndex].category || 'Bab'}
-                            </span>
-                          </div>
-
-                          <div className="text-center py-6">
-                            <div className="text-base sm:text-lg font-bold text-stone-900 dark:text-zinc-100 leading-snug">
-                              {isCardFlipped
-                                ? aiStudyData.flashcards[activeFlashcardIndex].back
-                                : aiStudyData.flashcards[activeFlashcardIndex].front}
-                            </div>
-
-                            {showCardHint && !isCardFlipped && (
-                              <div className="mt-3 text-xs text-amber-600 dark:text-amber-400 italic">
-                                💡 Petunjuk: {aiStudyData.flashcards[activeFlashcardIndex].hint}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="text-center text-[11px] text-stone-400 flex items-center justify-center gap-1">
-                            <RotateCcw size={12} />
-                            <span>Klik kartu untuk membalik</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Flashcard Nav Buttons */}
-                      <div className="flex items-center justify-between gap-2 pt-2">
-                        <button
-                          type="button"
-                          disabled={activeFlashcardIndex === 0}
-                          onClick={() => {
-                            setActiveFlashcardIndex((i) => Math.max(0, i - 1));
-                            setIsCardFlipped(false);
-                            setShowCardHint(false);
-                          }}
-                          className="px-3 py-1.5 rounded-xl border border-stone-200 dark:border-zinc-700 text-xs font-semibold disabled:opacity-40 cursor-pointer"
-                        >
-                          ← Sebelumnya
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setShowCardHint(!showCardHint)}
-                          className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold cursor-pointer"
-                        >
-                          {showCardHint ? 'Sembunyikan Petunjuk' : 'Buka Petunjuk'}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const cardId = aiStudyData.flashcards[activeFlashcardIndex].id;
-                            const nextSet = new Set(masteredCards);
-                            if (nextSet.has(cardId)) nextSet.delete(cardId);
-                            else nextSet.add(cardId);
-                            setMasteredCards(nextSet);
-                          }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                            masteredCards.has(aiStudyData.flashcards[activeFlashcardIndex]?.id)
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-stone-100 dark:bg-zinc-800 text-stone-600 dark:text-zinc-300'
-                          }`}
-                        >
-                          {masteredCards.has(aiStudyData.flashcards[activeFlashcardIndex]?.id)
-                            ? '✓ Dikuasai'
-                            : 'Tandai Dikuasai'}
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={activeFlashcardIndex >= aiStudyData.flashcards.length - 1}
-                          onClick={() => {
-                            setActiveFlashcardIndex((i) =>
-                              Math.min(aiStudyData.flashcards.length - 1, i + 1)
-                            );
-                            setIsCardFlipped(false);
-                            setShowCardHint(false);
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold disabled:opacity-40 cursor-pointer"
-                        >
-                          Berikutnya →
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 3. PRACTICE QUIZ VIEW */}
-                  {studyTab === 'quiz' && aiStudyData?.questions && !isAiProcessing && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between pb-2 border-b border-stone-100 dark:border-zinc-800">
-                        <h3 className="text-sm font-bold text-stone-900 dark:text-zinc-100">
-                          {aiStudyData.quizTitle || 'Ujian Latihan Pemahaman'}
-                        </h3>
-                        {isQuizSubmitted && (
-                          <span className="text-xs font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full">
-                            Skor:{' '}
-                            {
-                              aiStudyData.questions.filter(
-                                (q: any) => userQuizAnswers[q.id] === q.correctIndex
-                              ).length
-                            }{' '}
-                            / {aiStudyData.questions.length}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="space-y-4">
-                        {aiStudyData.questions.map((q: any, qIdx: number) => {
-                          const selected = userQuizAnswers[q.id];
-                          const isAnswered = selected !== undefined;
-                          const isCorrect = isAnswered && selected === q.correctIndex;
-
-                          return (
-                            <div
-                              key={q.id || qIdx}
-                              className="p-4 rounded-2xl bg-stone-50 dark:bg-zinc-800/40 border border-stone-200 dark:border-zinc-700/80 space-y-3"
-                            >
-                              <div className="text-xs font-bold text-stone-900 dark:text-zinc-100">
-                                {qIdx + 1}. {q.question}
-                              </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {q.options.map((opt: string, optIdx: number) => {
-                                  const isOptionChosen = selected === optIdx;
-                                  let optionClass =
-                                    'border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-indigo-400';
-
-                                  if (isQuizSubmitted) {
-                                    if (optIdx === q.correctIndex) {
-                                      optionClass =
-                                        'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 font-bold';
-                                    } else if (isOptionChosen && !isCorrect) {
-                                      optionClass =
-                                        'border-rose-500 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300';
-                                    }
-                                  } else if (isOptionChosen) {
-                                    optionClass =
-                                      'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 font-bold';
-                                  }
-
-                                  return (
-                                    <button
-                                      key={optIdx}
-                                      type="button"
-                                      disabled={isQuizSubmitted}
-                                      onClick={() =>
-                                        setUserQuizAnswers({ ...userQuizAnswers, [q.id]: optIdx })
-                                      }
-                                      className={`p-2.5 rounded-xl border text-xs text-left transition-all cursor-pointer ${optionClass}`}
-                                    >
-                                      {opt}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-
-                              {isQuizSubmitted && (
-                                <div className="text-[11px] text-stone-600 dark:text-zinc-400 p-2.5 rounded-xl bg-stone-100 dark:bg-zinc-750 border border-stone-200/60 dark:border-zinc-700/60">
-                                  <strong>Penjelasan:</strong> {q.explanation}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      <div className="pt-2">
-                        {!isQuizSubmitted ? (
-                          <button
-                            type="button"
-                            onClick={() => setIsQuizSubmitted(true)}
-                            className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs transition-all cursor-pointer"
-                          >
-                            Kirim Jawaban & Periksa Skor
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setUserQuizAnswers({});
-                              setIsQuizSubmitted(false);
-                            }}
-                            className="w-full py-2 px-4 rounded-xl text-xs font-semibold bg-stone-100 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:bg-stone-200 transition-all cursor-pointer"
-                          >
-                            Ulangi Kuis
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 4. AUDIO OVERVIEW VIEW (Podcast Deep Dive) */}
-                  {studyTab === 'audio_overview' && aiStudyData?.dialogue && !isAiProcessing && (
-                    <div className="space-y-4">
-                      {/* Audio Player Banner */}
-                      <div className="p-5 rounded-3xl bg-linear-to-r from-indigo-900 to-violet-900 text-white shadow-lg space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
-                              NotebookLM Deep Dive Podcast
-                            </span>
-                            <h3 className="text-sm font-bold">{aiStudyData.episodeTitle || 'Membedah Catatan'}</h3>
-                          </div>
-                          <span className="text-xs text-indigo-200 font-mono">
-                            {aiStudyData.durationEstimate || '5 mnt'}
-                          </span>
-                        </div>
-
-                        {/* Player Control */}
-                        <div className="flex items-center gap-3 pt-1">
-                          <button
-                            type="button"
-                            onClick={handleTogglePodcastAudio}
-                            className="w-10 h-10 rounded-full bg-white text-indigo-900 flex items-center justify-center shadow-md hover:scale-105 transition-transform cursor-pointer"
-                          >
-                            {isPodcastPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
-                          </button>
-
-                          <div className="flex-1 text-xs">
-                            <div className="font-semibold">
-                              {isPodcastPlaying ? 'Sedang memutar audio podcast...' : 'Putar Siniar Bersama Host'}
-                            </div>
-                            <div className="text-[10px] text-indigo-200">
-                              {isPodcastPlaying
-                                ? `Pembicara: ${aiStudyData.dialogue[activeSpeakerIndex]?.speaker || 'Alex'}`
-                                : 'Menggunakan suara browser (Web Speech Synthesizer)'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Script Dialogue Flow */}
-                      <div className="space-y-2.5">
-                        <div className="text-xs font-bold uppercase tracking-wider text-stone-400">
-                          Transkrip Percakapan Siniar
-                        </div>
-                        {aiStudyData.dialogue.map((d: any, idx: number) => {
-                          const isAlex = d.speaker === 'Alex';
-                          const isCurrent = isPodcastPlaying && activeSpeakerIndex === idx;
-
-                          return (
-                            <div
-                              key={idx}
-                              className={`p-3.5 rounded-2xl border text-xs transition-all ${
-                                isCurrent
-                                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 shadow-xs'
-                                  : 'border-stone-200/80 dark:border-zinc-800 bg-stone-50/50 dark:bg-zinc-800/30'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <span
-                                  className={`font-bold text-[11px] ${
-                                    isAlex ? 'text-indigo-600 dark:text-indigo-400' : 'text-teal-600 dark:text-teal-400'
-                                  }`}
-                                >
-                                  🎙️ {d.speaker} ({d.role})
-                                </span>
-                              </div>
-                              <p className="text-stone-700 dark:text-zinc-300 leading-relaxed">{d.text}</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 5. GROUNDED CHAT WITH NOTES */}
-                  {studyTab === 'chat' && (
-                    <div className="space-y-3 flex flex-col h-[520px]">
-                      {/* Messages Scroll Area */}
-                      <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                        {chatMessages.map((msg, idx) => (
-                          <div
-                            key={idx}
-                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div
-                              className={`max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed space-y-2 ${
-                                msg.role === 'user'
-                                  ? 'bg-emerald-600 text-white rounded-br-none'
-                                  : 'bg-stone-100 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 rounded-bl-none border border-stone-200/60 dark:border-zinc-700/60'
-                              }`}
-                            >
-                              <div>{msg.text}</div>
-
-                              {/* Grounded Citations */}
-                              {msg.citations && msg.citations.length > 0 && (
-                                <div className="p-2 rounded-xl bg-stone-200/60 dark:bg-zinc-700/60 text-[10px] space-y-1">
-                                  <div className="font-bold text-stone-500 dark:text-zinc-300 flex items-center gap-1">
-                                    <span>📌 Kutipan Sumber Catatan:</span>
-                                  </div>
-                                  {msg.citations.map((c, i) => (
-                                    <div key={i} className="italic text-stone-600 dark:text-zinc-300">
-                                      "{c}"
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Chat Input Bar */}
-                      <div className="flex items-center gap-2 pt-2 border-t border-stone-100 dark:border-zinc-800">
-                        <input
-                          type="text"
-                          value={chatInput}
-                          onChange={(e) => setChatInput(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSendStudyChat()}
-                          placeholder={
-                            language === 'en'
-                              ? 'Ask anything strictly about this note...'
-                              : 'Tanyakan apa saja khusus mengenai catatan ini...'
-                          }
-                          className="flex-1 px-3 py-2 rounded-xl bg-stone-50 dark:bg-zinc-800/80 border border-stone-200 dark:border-zinc-700 text-xs text-stone-900 dark:text-zinc-100 focus:outline-emerald-500"
-                        />
-                        <button
-                          type="button"
-                          disabled={isAiProcessing || !chatInput.trim()}
-                          onClick={handleSendStudyChat}
-                          className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 cursor-pointer shadow-xs"
-                        >
-                          <Send size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                {/* Add new attribute input */}
+                <div className="pt-2 space-y-1.5">
+                  <input
+                    type="text"
+                    value={newAttrName}
+                    onChange={(e) => setNewAttrName(e.target.value)}
+                    placeholder="Nama label (e.g. status)"
+                    className="w-full px-2 py-1 rounded bg-white dark:bg-[#1e2124] border border-stone-300 dark:border-[#36393f] text-xs focus:outline-teal-500"
+                  />
+                  <input
+                    type="text"
+                    value={newAttrValue}
+                    onChange={(e) => setNewAttrValue(e.target.value)}
+                    placeholder="Nilai (opsional, e.g. active)"
+                    className="w-full px-2 py-1 rounded bg-white dark:bg-[#1e2124] border border-stone-300 dark:border-[#36393f] text-xs focus:outline-teal-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddAttribute}
+                    disabled={!newAttrName.trim()}
+                    className="w-full py-1 rounded bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold disabled:opacity-40 cursor-pointer shadow-2xs"
+                  >
+                    + Tambah Label
+                  </button>
                 </div>
               </div>
-            )
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-stone-400 space-y-3">
-              <FileText size={36} className="opacity-30" />
-              <div className="text-sm font-semibold">Pilih atau buat catatan untuk memulai</div>
-              <button
-                type="button"
-                onClick={handleCreateNote}
-                className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold cursor-pointer hover:bg-emerald-500"
-              >
-                + Catatan Baru
-              </button>
+
+              <div className="h-px bg-stone-300/60 dark:bg-[#36393f]" />
+
+              {/* Sub-notes Summary */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-bold text-stone-500 dark:text-zinc-400 uppercase">
+                  Sub-catatan ({notes.filter((n) => n.parentId === activeNote.id).length})
+                </div>
+                <div className="space-y-1">
+                  {notes
+                    .filter((n) => n.parentId === activeNote.id)
+                    .map((child) => (
+                      <button
+                        key={child.id}
+                        type="button"
+                        onClick={() => handleSelectNote(child.id)}
+                        className="w-full text-left p-1.5 rounded bg-white dark:bg-[#1e2124] hover:border-teal-500 border border-stone-300/80 dark:border-[#36393f] text-xs truncate cursor-pointer block"
+                      >
+                        {child.title}
+                      </button>
+                    ))}
+                  {notes.filter((n) => n.parentId === activeNote.id).length === 0 && (
+                    <div className="text-stone-400 text-xs italic">Tidak ada sub-catatan</div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenCreateModal(activeNote.id)}
+                  className="text-xs text-teal-600 dark:text-teal-400 font-semibold hover:underline cursor-pointer block pt-1"
+                >
+                  + Tambah Sub-catatan
+                </button>
+              </div>
+
+              <div className="h-px bg-stone-300/60 dark:bg-[#36393f]" />
+
+              {/* Note Metadata */}
+              <div className="space-y-1.5 text-xs text-stone-600 dark:text-zinc-400">
+                <div className="text-[11px] font-bold uppercase text-stone-500">Metadata</div>
+                <div className="flex justify-between">
+                  <span>Dibuat:</span>
+                  <span className="font-mono">{new Date(activeNote.createdAt).toLocaleDateString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Dimodifikasi:</span>
+                  <span className="font-mono">{new Date(activeNote.updatedAt).toLocaleDateString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Karakter:</span>
+                  <span className="font-mono">{activeNote.content.length}</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Modal: New Notebook */}
-      {isNewNotebookModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-stone-200 dark:border-zinc-800 max-w-sm w-full space-y-4 shadow-xl">
-            <h3 className="text-base font-bold text-stone-900 dark:text-zinc-100">
-              {language === 'en' ? 'Create New Notebook' : 'Buat Notebook Baru'}
-            </h3>
+      {/* MODAL: CREATE NEW TRILIUM NOTE */}
+      {isNewNoteModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#282b30] p-6 rounded-2xl border border-stone-300 dark:border-[#36393f] max-w-md w-full space-y-4 shadow-2xl text-stone-900 dark:text-zinc-100">
+            <div className="flex items-center justify-between pb-2 border-b border-stone-200 dark:border-[#36393f]">
+              <h3 className="text-base font-bold">
+                {newNoteParentId ? 'Tambah Sub-catatan' : 'Tambah Catatan Baru'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsNewNoteModalOpen(false)}
+                className="text-stone-400 hover:text-stone-600 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-semibold text-stone-600 dark:text-zinc-400 mb-1">
-                  Nama Notebook
+                <label className="block font-semibold mb-1 text-stone-700 dark:text-zinc-300">
+                  Judul Catatan
                 </label>
                 <input
                   type="text"
-                  value={newNotebookName}
-                  onChange={(e) => setNewNotebookName(e.target.value)}
-                  placeholder="e.g. Matematika Diskrit / Riset Finansial"
-                  className="w-full px-3 py-2 rounded-xl bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 text-xs text-stone-900 dark:text-zinc-100 focus:outline-emerald-500"
+                  value={newNoteTitle}
+                  onChange={(e) => setNewNoteTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateNoteConfirm()}
+                  placeholder="e.g. Arsitektur Microservices / Daftar Belanja"
+                  autoFocus
+                  className="w-full px-3 py-2 rounded-lg bg-stone-50 dark:bg-[#1e2124] border border-stone-300 dark:border-[#36393f] text-stone-900 dark:text-zinc-100 focus:outline-teal-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-600 dark:text-zinc-400 mb-1">
-                  Warna Label
+                <label className="block font-semibold mb-1 text-stone-700 dark:text-zinc-300">
+                  Tipe Catatan
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    'from-rose-500 to-pink-600',
-                    'from-amber-500 to-orange-600',
-                    'from-emerald-500 to-teal-600',
-                    'from-blue-500 to-cyan-600',
-                    'from-violet-500 to-indigo-600',
-                  ].map((grad) => (
+                    { type: 'text' as const, label: '📝 Rich Text', desc: 'Editor visual kaya fitur' },
+                    { type: 'code' as const, label: '💻 Code Snippet', desc: 'Cuplikan kode monospace' },
+                    { type: 'tasklist' as const, label: '☑️ Task List', desc: 'Daftar to-do interaktif' },
+                    { type: 'folder' as const, label: '🗂️ Folder', desc: 'Wadah kumpulan catatan' },
+                  ].map((item) => (
                     <button
-                      key={grad}
+                      key={item.type}
                       type="button"
-                      onClick={() => setNewNotebookColor(grad)}
-                      className={`w-6 h-6 rounded-full bg-linear-to-r ${grad} cursor-pointer ${
-                        newNotebookColor === grad ? 'ring-2 ring-stone-900 dark:ring-white scale-110' : ''
+                      onClick={() => setNewNoteType(item.type)}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        newNoteType === item.type
+                          ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-300 font-bold'
+                          : 'border-stone-200 dark:border-[#36393f] bg-stone-50/50 dark:bg-[#1e2124]'
                       }`}
-                    />
+                    >
+                      <div>{item.label}</div>
+                      <div className="text-[10px] text-stone-500 dark:text-zinc-400 font-normal">
+                        {item.desc}
+                      </div>
+                    </button>
                   ))}
                 </div>
               </div>
+
+              {newNoteParentId && (
+                <div className="text-[11px] text-stone-500 dark:text-zinc-400 p-2 rounded bg-stone-100 dark:bg-[#1e2124]">
+                  Induk Catatan: <strong>{notes.find((n) => n.id === newNoteParentId)?.title}</strong>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setIsNewNotebookModalOpen(false)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-stone-500 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
+                onClick={() => setIsNewNoteModalOpen(false)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-stone-500 hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  if (!newNotebookName.trim()) return;
-                  const newNb: NotebookFolder = {
-                    id: 'nb-' + Date.now(),
-                    name: newNotebookName.trim(),
-                    icon: 'Folder',
-                    color: newNotebookColor,
-                  };
-                  setNotebooks([...notebooks, newNb]);
-                  setSelectedNotebookId(newNb.id);
-                  setNewNotebookName('');
-                  setIsNewNotebookModalOpen(false);
-                }}
-                className="px-4 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-xs"
+                onClick={handleCreateNoteConfirm}
+                disabled={!newNoteTitle.trim()}
+                className="px-4 py-1.5 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-500 text-white cursor-pointer shadow-2xs disabled:opacity-40"
               >
-                Buat Notebook
+                Buat Catatan
               </button>
             </div>
           </div>
