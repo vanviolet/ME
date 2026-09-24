@@ -1,12 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    },
-     {
       "source": "/music/:path*",
       "destination": "https://music.vanviolet.my.id/:path*"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
     }
   ]
 }
