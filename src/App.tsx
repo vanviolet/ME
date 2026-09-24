@@ -46,19 +46,20 @@ import { MetaTagGeneratorPage } from './components/tools/MetaTagGeneratorPage';
 import { QrCodeGeneratorPage } from './components/tools/QrCodeGeneratorPage';
 import { UrlEncoderDecoderPage } from './components/tools/UrlEncoderDecoderPage';
 import { AiIllustrationPage } from './components/tools/AiIllustrationPage';
-import { VideoEditor } from './components/tools/video-editor/VideoEditor';
-import { FlowchartPage } from './components/tools/FlowchartPage';
-import { ApiTesterPage } from './components/tools/ApiTesterPage';
-import { EslintRulesGeneratorPage } from './components/tools/EslintRulesGeneratorPage';
-import { NotesNotebookPage } from './components/tools/NotesNotebookPage';
-import { CvPage } from './components/CvPage';
-import { JiraApp } from './components/jira/JiraApp';
 import { JiraProvider } from './components/jira/JiraContext';
 import { AiChatFloating } from './components/AiChatFloating';
 import { TextSelectionPopover } from './components/TextSelectionPopover';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 import React from 'react';
+
+const VideoEditor = lazy(() => import('./components/tools/video-editor/VideoEditor').then(m => ({ default: m.VideoEditor })));
+const FlowchartPage = lazy(() => import('./components/tools/FlowchartPage').then(m => ({ default: m.FlowchartPage })));
+const ApiTesterPage = lazy(() => import('./components/tools/ApiTesterPage').then(m => ({ default: m.ApiTesterPage })));
+const EslintRulesGeneratorPage = lazy(() => import('./components/tools/EslintRulesGeneratorPage').then(m => ({ default: m.EslintRulesGeneratorPage })));
+const NotesNotebookPage = lazy(() => import('./components/tools/NotesNotebookPage').then(m => ({ default: m.NotesNotebookPage })));
+const CvPage = lazy(() => import('./components/CvPage').then(m => ({ default: m.CvPage })));
+const JiraApp = lazy(() => import('./components/jira/JiraApp').then(m => ({ default: m.JiraApp })));
 
 /**
  * Home page — renders all portfolio sections as a single scroll-based page.
@@ -125,7 +126,8 @@ const AppLayout: React.FC = () => {
     <div className="min-h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 selection:bg-rose-500/20 selection:text-rose-600 dark:selection:bg-rose-500/30 dark:selection:text-rose-400 font-sans">
       {!isFullScreenStudio && <Navbar />}
       <ScrollHandler />
-      <Routes>
+      <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center text-sm font-medium text-stone-400 dark:text-zinc-500">Memuat modul...</div>}>
+        <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/articles" element={<ArticlesPage />} />
         <Route path="/article" element={<ArticlesPage />} />
@@ -220,6 +222,7 @@ const AppLayout: React.FC = () => {
         {/* Fallback */}
         <Route path="*" element={<HomePage />} />
       </Routes>
+      </Suspense>
       {!isFullScreenStudio && (
         <div className="print:hidden">
           <Footer />

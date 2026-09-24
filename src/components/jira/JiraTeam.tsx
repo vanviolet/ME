@@ -14,6 +14,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { UserRole } from './types';
+import { ShadcnSelect } from '../ui/select';
 
 export const JiraTeam: React.FC = () => {
   const {
@@ -222,16 +223,18 @@ export const JiraTeam: React.FC = () => {
                   {canManageRoles && !isOwner ? (
                     <div className="flex items-center gap-1.5">
                       <label className="text-[10px] text-stone-400 font-mono hidden sm:inline">Role:</label>
-                      <select
+                      <ShadcnSelect
                         value={member.role}
-                        onChange={(e) => handleRoleChange(member.id, e.target.value as UserRole)}
-                        className="px-2.5 py-1 text-xs font-semibold font-mono uppercase rounded-xl border border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                      >
-                        <option value="admin">ADMIN</option>
-                        <option value="lead">LEAD</option>
-                        <option value="member">MEMBER</option>
-                        <option value="viewer">VIEWER</option>
-                      </select>
+                        onChange={(val) => handleRoleChange(member.id, val as UserRole)}
+                        size="sm"
+                        className="w-28"
+                        options={[
+                          { value: 'admin', label: 'ADMIN' },
+                          { value: 'lead', label: 'LEAD' },
+                          { value: 'member', label: 'MEMBER' },
+                          { value: 'viewer', label: 'VIEWER' },
+                        ]}
+                      />
                     </div>
                   ) : (
                     <span

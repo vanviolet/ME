@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { VsCodePlayground } from './eslint/VsCodePlayground';
+import { ShadcnSelect } from '../ui/select';
 
 type ConfigFormat = 'flat-js' | 'flat-ts' | 'legacy-json' | 'legacy-js' | 'package-json' | 'cli';
 
@@ -1536,10 +1537,9 @@ export default tseslint.config(
                       {opt.label}
                     </label>
                     {opt.type === 'select' && (
-                      <select
+                      <ShadcnSelect
                         value={ruleStates[editingOptionsRule.name]?.options || opt.default}
-                        onChange={(e) => {
-                          const val = e.target.value;
+                        onChange={(val) => {
                           setRuleStates((prev) => ({
                             ...prev,
                             [editingOptionsRule.name]: {
@@ -1548,14 +1548,12 @@ export default tseslint.config(
                             },
                           }));
                         }}
-                        className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-rose-500"
-                      >
-                        {opt.options?.map((o) => (
-                          <option key={String(o.value)} value={String(o.value)}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
+                        size="sm"
+                        options={(opt.options || []).map((o) => ({
+                          value: String(o.value),
+                          label: o.label,
+                        }))}
+                      />
                     )}
 
                     {opt.type === 'boolean' && (

@@ -21,6 +21,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { ShadcnSelect } from '../ui/select';
 
 interface QueryParamItem {
   id: string;
@@ -453,16 +454,18 @@ export const UrlEncoderDecoderPage: React.FC = () => {
                   <span className="text-xs font-medium text-stone-500 dark:text-zinc-400">
                     {language === 'en' ? 'Method:' : 'Metode:'}
                   </span>
-                  <select
+                  <ShadcnSelect
                     value={standard}
-                    onChange={e => setStandard(e.target.value as EncodeStandard)}
-                    className="px-2.5 py-1 text-xs font-medium rounded-lg bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 text-stone-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
-                  >
-                    <option value="component">encodeURIComponent (Recommended)</option>
-                    <option value="uri">encodeURI (Full URL safe)</option>
-                    <option value="rfc3986">RFC 3986 Strict (!'()* escaped)</option>
-                    <option value="form">Form urlencoded (space to +)</option>
-                  </select>
+                    onChange={(val) => setStandard(val as EncodeStandard)}
+                    size="sm"
+                    className="w-64"
+                    options={[
+                      { value: 'component', label: 'encodeURIComponent (Recommended)' },
+                      { value: 'uri', label: 'encodeURI (Full URL safe)' },
+                      { value: 'rfc3986', label: "RFC 3986 Strict (!'()* escaped)" },
+                      { value: 'form', label: 'Form urlencoded (space to +)' },
+                    ]}
+                  />
                 </div>
               )}
 

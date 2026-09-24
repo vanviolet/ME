@@ -1,5 +1,6 @@
 import React from 'react';
 import { FlowchartNode, FlowchartEdge, NodeType, EdgeStyle, EdgeLineStyle, CanvasDirection } from './types';
+import { ShadcnSelect } from '../../ui/select';
 import {
   Sliders,
   Trash2,
@@ -147,22 +148,23 @@ export const InspectorPanel: React.FC<InspectorPanelProps> = ({
               <label className="text-[11px] font-semibold text-stone-600 dark:text-zinc-400">
                 Bentuk / Tipe Simbol
               </label>
-              <select
+              <ShadcnSelect
                 value={selectedNode.type}
-                onChange={e => onUpdateNode({ ...selectedNode, type: e.target.value as NodeType })}
-                className="w-full px-2.5 py-1.5 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-lg outline-none focus:border-rose-500"
-              >
-                <option value="process">Proses / Tugas [Kotak Persegi]</option>
-                <option value="decision">Keputusan &#123;Belah Ketupat&#125;</option>
-                <option value="start">Mulai / Selesai ([Pill Kapsul])</option>
-                <option value="input">Input / Output [/Jajar Genjang/]</option>
-                <option value="database">Basis Data [(Silinder)]</option>
-                <option value="subroutine">Subrutin [[Kotak Ganda]]</option>
-                <option value="cloud">Layanan Cloud [☁️ Awan]</option>
-                <option value="actor">Aktor / Pengguna [👤 User]</option>
-                <option value="document">Dokumen [&gt;Laporan]</option>
-                <option value="note">Catatan Tempel [Sticky Note]</option>
-              </select>
+                onChange={(val) => onUpdateNode({ ...selectedNode, type: val as NodeType })}
+                size="sm"
+                options={[
+                  { value: 'process', label: 'Proses / Tugas [Kotak Persegi]' },
+                  { value: 'decision', label: 'Keputusan {Belah Ketupat}' },
+                  { value: 'start', label: 'Mulai / Selesai ([Pill Kapsul])' },
+                  { value: 'input', label: 'Input / Output [/Jajar Genjang/]' },
+                  { value: 'database', label: 'Basis Data [(Silinder)]' },
+                  { value: 'subroutine', label: 'Subrutin [[Kotak Ganda]]' },
+                  { value: 'cloud', label: 'Layanan Cloud [☁️ Awan]' },
+                  { value: 'actor', label: 'Aktor / Pengguna [👤 User]' },
+                  { value: 'document', label: 'Dokumen [>Laporan]' },
+                  { value: 'note', label: 'Catatan Tempel [Sticky Note]' },
+                ]}
+              />
             </div>
 
             {/* Color Theme Presets */}

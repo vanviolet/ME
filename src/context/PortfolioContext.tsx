@@ -9,6 +9,8 @@ interface PortfolioContextType {
   toggleLanguage: () => void;
   t: (val: LocalizedString | string | any) => string;
   tArr: (val: LocalizedStringArray | string[] | any) => string[];
+  darkMode?: boolean;
+  setDarkMode?: (dark: boolean) => void;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -98,6 +100,8 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         toggleLanguage,
         t,
         tArr,
+        darkMode: theme === 'dark',
+        setDarkMode: (dark: boolean) => setThemeState(dark ? 'dark' : 'light'),
       }}
     >
       {children}

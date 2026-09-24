@@ -3,6 +3,7 @@ import { usePortfolio } from '../../context/PortfolioContext';
 import { Seo } from '../Seo';
 import { Link } from 'react-router-dom';
 import { ShadcnSelect } from '../ui/select';
+import { TriliumCodeEditor } from './trilium/TriliumCodeEditor';
 import {
   Folder,
   FolderOpen,
@@ -1536,53 +1537,22 @@ export const NotesNotebookPage: React.FC = () => {
               {/* EDITOR MAIN AREA */}
               <div className="flex-1 overflow-y-auto">
                 {activeNote.type === 'code' ? (
-                  <div className="p-6 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                          Bahasa Pemrograman:
-                        </span>
-                        <div className="w-36">
-                          <ShadcnSelect
-                            value={activeNote.codeLanguage || 'typescript'}
-                            onChange={(val) =>
-                              updateNote(activeNote.id, { codeLanguage: val as string })
-                            }
-                            options={[
-                              { value: 'typescript', label: 'TypeScript' },
-                              { value: 'javascript', label: 'JavaScript' },
-                              { value: 'python', label: 'Python' },
-                              { value: 'html', label: 'HTML' },
-                              { value: 'css', label: 'CSS' },
-                              { value: 'sql', label: 'SQL' },
-                              { value: 'json', label: 'JSON' },
-                              { value: 'rust', label: 'Rust' },
-                              { value: 'go', label: 'Go' },
-                            ]}
-                            size="sm"
-                          />
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(activeNote.content);
-                          alert('Kode berhasil disalin ke papan klip!');
-                        }}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-stone-100 dark:bg-zinc-800 hover:bg-stone-200 dark:hover:bg-zinc-700 text-xs font-semibold cursor-pointer"
-                      >
-                        <Copy size={13} />
-                        <span>Salin Kode</span>
-                      </button>
-                    </div>
-
-                    <textarea
-                      value={activeNote.content}
-                      onChange={(e) => updateNote(activeNote.id, { content: e.target.value })}
-                      placeholder="// Ketik kode di sini..."
-                      rows={22}
-                      className="w-full p-4 rounded-xl font-mono text-sm bg-stone-900 text-rose-300 dark:bg-[#111215] dark:text-rose-300 border border-stone-800 focus:outline-rose-500 leading-relaxed resize-none"
+                  <div className="p-4 sm:p-6 min-h-full flex flex-col">
+                    <TriliumCodeEditor
+                      content={activeNote.content || ''}
+                      language={activeNote.codeLanguage || 'typescript'}
+                      noteTitle={activeNote.title}
+                      parentFolderTitle={
+                        breadcrumbPath.length > 1
+                          ? breadcrumbPath[breadcrumbPath.length - 2].title
+                          : undefined
+                      }
+                      onChangeContent={(newContent) =>
+                        updateNote(activeNote.id, { content: newContent })
+                      }
+                      onChangeLanguage={(newLang) =>
+                        updateNote(activeNote.id, { codeLanguage: newLang })
+                      }
                     />
                   </div>
                 ) : activeNote.type === 'folder' ? (

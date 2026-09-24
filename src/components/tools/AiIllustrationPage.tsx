@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { Seo } from '../Seo';
 import { Link } from 'react-router-dom';
+import { ShadcnSelect } from '../ui/select';
 import {
   Wrench,
   Sparkles,
@@ -1045,14 +1046,15 @@ export const AiIllustrationPage: React.FC = () => {
                     <span>{language === 'en' ? 'AI Diffusion Model' : 'Model Mesin AI'}</span>
                     <span className="text-emerald-500 font-normal">Free Limit</span>
                   </label>
-                  <select
+                  <ShadcnSelect
                     value={modelType}
-                    onChange={e => setModelType(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-stone-50 dark:bg-zinc-950 border border-stone-200 dark:border-zinc-800 text-xs text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                  >
-                    <option value="flux">FLUX.1 Schnell (Highest Fidelity & Vector Details)</option>
-                    <option value="turbo">SDXL Turbo (Ultra-Fast 2s Render)</option>
-                  </select>
+                    onChange={(val) => setModelType(String(val))}
+                    size="sm"
+                    options={[
+                      { value: 'flux', label: 'FLUX.1 Schnell (Highest Fidelity & Vector Details)' },
+                      { value: 'turbo', label: 'SDXL Turbo (Ultra-Fast 2s Render)' },
+                    ]}
+                  />
                 </div>
 
                 {/* Seed Control */}

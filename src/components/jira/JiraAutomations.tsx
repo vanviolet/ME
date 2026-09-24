@@ -12,6 +12,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { AutomationRule } from './types';
+import { ShadcnSelect } from '../ui/select';
 
 export const JiraAutomations: React.FC = () => {
   const { automationRules, setAutomationRules, activeProject } = useJira();
@@ -174,16 +175,16 @@ export const JiraAutomations: React.FC = () => {
                 <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
                   Trigger
                 </label>
-                <select
+                <ShadcnSelect
                   value={trigger}
-                  onChange={(e) => setTrigger(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
-                >
-                  <option value="ISSUE_STATUS_CHANGED">Issue Status Changed</option>
-                  <option value="SUBTASK_ALL_DONE">All Subtasks Done</option>
-                  <option value="ISSUE_CREATED">Issue Created</option>
-                  <option value="PRIORITY_SET_HIGHEST">Priority Set to Highest</option>
-                </select>
+                  onChange={(val) => setTrigger(String(val))}
+                  options={[
+                    { value: 'ISSUE_STATUS_CHANGED', label: 'Issue Status Changed' },
+                    { value: 'SUBTASK_ALL_DONE', label: 'All Subtasks Done' },
+                    { value: 'ISSUE_CREATED', label: 'Issue Created' },
+                    { value: 'PRIORITY_SET_HIGHEST', label: 'Priority Set to Highest' },
+                  ]}
+                />
               </div>
 
               <div>

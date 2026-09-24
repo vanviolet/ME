@@ -61,7 +61,7 @@ export interface WorklogEntry {
 
 export interface SubTask {
   id: string;
-  key: string;
+  key?: string;
   title: string;
   completed: boolean;
   assigneeId?: string;

@@ -17,6 +17,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { ShadcnSelect } from '../ui/select';
 
 const PRESETS = [
   {
@@ -333,16 +334,17 @@ export const MetaTagGeneratorPage: React.FC = () => {
             </div>
             <div className="space-y-1">
               <label className="font-semibold text-stone-700 dark:text-zinc-300">OG Type</label>
-              <select
+              <ShadcnSelect
                 value={ogType}
-                onChange={e => setOgType(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
-              >
-                <option value="website">website</option>
-                <option value="article">article</option>
-                <option value="profile">profile</option>
-                <option value="product">product</option>
-              </select>
+                onChange={(val) => setOgType(String(val))}
+                size="sm"
+                options={[
+                  { value: 'website', label: 'website' },
+                  { value: 'article', label: 'article' },
+                  { value: 'profile', label: 'profile' },
+                  { value: 'product', label: 'product' },
+                ]}
+              />
             </div>
           </div>
         </div>

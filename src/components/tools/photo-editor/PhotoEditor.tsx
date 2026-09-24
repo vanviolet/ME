@@ -1339,27 +1339,32 @@ export const PhotoEditor: React.FC = () => {
   };
 
   // Copy to Clipboard
-  const handleExportClipboard = async () => {
+  const handleExportClipboard = async (): Promise<boolean> => {
     const canvas = fabricRef.current;
-    if (!canvas) return;
+    if (!canvas) return false;
     try {
       const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 2 });
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      alert('Photo copied to clipboard as high-res PNG!');
+      return true;
     } catch (err) {
       console.error('Clipboard copy failed:', err);
+      return false;
     }
   };
 
   // Copy Base64 String
-  const handleExportBase64 = () => {
+  const handleExportBase64 = async (): Promise<string> => {
     const canvas = fabricRef.current;
-    if (!canvas) return;
+    if (!canvas) return '';
     const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 1 });
-    navigator.clipboard.writeText(dataUrl);
-    alert('Base64 Data URL copied to clipboard!');
+    try {
+      await navigator.clipboard.writeText(dataUrl);
+    } catch (err) {
+      console.error('Copy base64 failed:', err);
+    }
+    return dataUrl;
   };
 
   return (

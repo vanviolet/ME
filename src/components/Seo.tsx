@@ -10,6 +10,11 @@ interface SeoProps {
   url?: string;
   type?: 'website' | 'article' | 'profile';
   keywords?: string;
+  article?: {
+    publishedTime?: string;
+    author?: string;
+    tags?: string[];
+  };
 }
 
 /**

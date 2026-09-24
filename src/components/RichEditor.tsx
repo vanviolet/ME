@@ -31,6 +31,7 @@ interface RichEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   minHeight?: string;
+  height?: string;
   label?: string;
   required?: boolean;
   vanpediaTerms?: { slug: string; title: string }[];

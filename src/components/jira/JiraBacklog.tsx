@@ -25,6 +25,7 @@ import {
   getStatusBadgeClass,
   getStatusName,
 } from './jiraUtils';
+import { ShadcnSelect } from '../ui/select';
 
 export const JiraBacklog: React.FC = () => {
   const {
@@ -326,15 +327,17 @@ export const JiraBacklog: React.FC = () => {
 
           {/* Quick inline create */}
           <form onSubmit={handleQuickCreate} className="flex items-center gap-2">
-            <select
+            <ShadcnSelect
               value={quickType}
-              onChange={(e) => setQuickType(e.target.value as any)}
-              className="text-xs px-2 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/80 text-stone-800 dark:text-zinc-200 focus:outline-hidden cursor-pointer"
-            >
-              <option value="story">Story</option>
-              <option value="task">Task</option>
-              <option value="bug">Bug</option>
-            </select>
+              onChange={(val) => setQuickType(val as any)}
+              size="sm"
+              className="w-28 shrink-0"
+              options={[
+                { value: 'story', label: 'Story' },
+                { value: 'task', label: 'Task' },
+                { value: 'bug', label: 'Bug' },
+              ]}
+            />
             <input
               type="text"
               placeholder="+ Create issue in backlog (Press Enter to save)..."

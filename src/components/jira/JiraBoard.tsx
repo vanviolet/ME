@@ -22,6 +22,7 @@ import {
   getPriorityIcon,
   getStatusName,
 } from './jiraUtils';
+import { ShadcnSelect } from '../ui/select';
 
 export const JiraBoard: React.FC = () => {
   const {
@@ -237,18 +238,19 @@ export const JiraBoard: React.FC = () => {
 
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Swimlane control */}
-          <div className="flex items-center gap-1.5 text-xs bg-white dark:bg-zinc-900 border border-stone-200 dark:border-zinc-800 rounded-lg px-2.5 py-1.5">
-            <Layers size={14} className="text-stone-400" />
-            <span className="text-stone-500 dark:text-zinc-400 hidden sm:inline">Swimlane:</span>
-            <select
+          <div className="flex items-center gap-1.5 text-xs">
+            <ShadcnSelect
               value={swimlaneBy}
-              onChange={(e) => setSwimlaneBy(e.target.value as any)}
-              className="bg-transparent font-medium text-stone-800 dark:text-zinc-200 focus:outline-hidden cursor-pointer"
-            >
-              <option value="none" className="dark:bg-zinc-900">None</option>
-              <option value="epic" className="dark:bg-zinc-900">Group by Epic</option>
-              <option value="assignee" className="dark:bg-zinc-900">Group by Assignee</option>
-            </select>
+              onChange={(val) => setSwimlaneBy(val as any)}
+              size="sm"
+              icon={<Layers size={14} />}
+              className="w-44"
+              options={[
+                { value: 'none', label: 'Swimlane: None' },
+                { value: 'epic', label: 'Swimlane: Epic' },
+                { value: 'assignee', label: 'Swimlane: Assignee' },
+              ]}
+            />
           </div>
 
           {/* Complete sprint button if active sprint exists */}

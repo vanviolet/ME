@@ -14,6 +14,7 @@ import {
   Check,
 } from 'lucide-react';
 import { initialJiraState } from './initialData';
+import { ShadcnSelect } from '../ui/select';
 
 export const JiraSettings: React.FC = () => {
   const {
@@ -199,17 +200,14 @@ export const JiraSettings: React.FC = () => {
             <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
               Project Lead
             </label>
-            <select
+            <ShadcnSelect
               value={leadId}
-              onChange={(e) => setLeadId(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
-            >
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.title})
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setLeadId(String(val))}
+              options={members.map((m) => ({
+                value: m.id,
+                label: `${m.name} (${m.title})`,
+              }))}
+            />
           </div>
 
           <div>
@@ -276,15 +274,17 @@ export const JiraSettings: React.FC = () => {
             onChange={(e) => setNewFieldName(e.target.value)}
             className="flex-1 text-xs px-3 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
           />
-          <select
+          <ShadcnSelect
             value={newFieldType}
-            onChange={(e) => setNewFieldType(e.target.value as any)}
-            className="text-xs px-2 py-2 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
-          >
-            <option value="text">Text</option>
-            <option value="number">Number</option>
-            <option value="select">Dropdown</option>
-          </select>
+            onChange={(val) => setNewFieldType(val as any)}
+            size="sm"
+            className="w-32"
+            options={[
+              { value: 'text', label: 'Text' },
+              { value: 'number', label: 'Number' },
+              { value: 'select', label: 'Dropdown' },
+            ]}
+          />
           <button
             type="submit"
             disabled={!newFieldName.trim()}

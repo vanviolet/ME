@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useJira } from './JiraContext';
 import { X, FolderPlus, Layers, ShieldCheck, Sparkles, Check } from 'lucide-react';
 import { JiraProject } from './types';
+import { ShadcnSelect } from '../ui/select';
 
 const TEMPLATES: {
   id: 'scrum' | 'kanban' | 'bug_tracking';
@@ -227,17 +228,18 @@ export const CreateProjectModal: React.FC = () => {
               <label className="block text-xs font-semibold text-stone-700 dark:text-zinc-300 mb-1">
                 Category
               </label>
-              <select
+              <ShadcnSelect
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Software Engineering">Software Engineering</option>
-                <option value="Product & Design">Product & Design</option>
-                <option value="DevOps & Infrastructure">DevOps & Infrastructure</option>
-                <option value="Marketing & Growth">Marketing & Growth</option>
-                <option value="Operations & IT">Operations & IT</option>
-              </select>
+                onChange={(val) => setCategory(String(val))}
+                size="sm"
+                options={[
+                  'Software Engineering',
+                  'Product & Design',
+                  'DevOps & Infrastructure',
+                  'Marketing & Growth',
+                  'Operations & IT',
+                ]}
+              />
             </div>
 
             <div>

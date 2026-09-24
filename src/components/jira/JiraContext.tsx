@@ -54,6 +54,8 @@ interface JiraContextType {
   worklogs: WorklogEntry[];
   versions: ProjectVersion[];
   automations: AutomationRule[];
+  automationRules: AutomationRule[];
+  setAutomationRules: React.Dispatch<React.SetStateAction<AutomationRule[]>>;
   auditLogs: JiraAuditLog[];
   notifications: { id: string; title: string; time: string; read: boolean }[];
   isCreateModalOpen: boolean;
@@ -1171,6 +1173,8 @@ export const JiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createVersion,
         releaseVersion,
 
+        automationRules: automations,
+        setAutomationRules: setAutomations,
         toggleAutomation,
         inviteMember,
         updateMemberRole,

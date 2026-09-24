@@ -40,6 +40,7 @@ import {
 } from './jiraUtils';
 import { callJiraAiAssist } from './jiraApi';
 import { ShadcnSelect } from '../ui/select';
+import { ShadcnCombobox } from '../ui/combobox';
 
 export const IssueDetailModal: React.FC = () => {
   const {
@@ -434,29 +435,30 @@ export const IssueDetailModal: React.FC = () => {
                   className="p-3 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/40 space-y-2 text-xs"
                 >
                   <div className="grid grid-cols-2 gap-2">
-                    <select
+                    <ShadcnSelect
                       value={linkType}
-                      onChange={(e) => setLinkType(e.target.value as any)}
-                      className="px-2.5 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                    >
-                      <option value="blocks">Blocks</option>
-                      <option value="is_blocked_by">Is blocked by</option>
-                      <option value="relates_to">Relates to</option>
-                      <option value="duplicates">Duplicates</option>
-                    </select>
+                      onChange={(val) => setLinkType(val as any)}
+                      size="sm"
+                      options={[
+                        { value: 'blocks', label: 'Blocks' },
+                        { value: 'is_blocked_by', label: 'Is blocked by' },
+                        { value: 'relates_to', label: 'Relates to' },
+                        { value: 'duplicates', label: 'Duplicates' },
+                      ]}
+                    />
 
-                    <select
+                    <ShadcnCombobox
                       value={targetIssueId}
-                      onChange={(e) => setTargetIssueId(e.target.value)}
-                      className="px-2.5 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                    >
-                      <option value="">Select target issue...</option>
-                      {otherIssues.map((oi) => (
-                        <option key={oi.id} value={oi.id}>
-                          {oi.key} - {oi.title}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => setTargetIssueId(val)}
+                      size="sm"
+                      placeholder="Select target issue..."
+                      searchPlaceholder="Search issue..."
+                      options={otherIssues.map((oi) => ({
+                        value: oi.id,
+                        label: `${oi.key} - ${oi.title}`,
+                        badge: oi.key,
+                      }))}
+                    />
                   </div>
                   <div className="flex justify-end gap-2">
                     <button

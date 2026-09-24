@@ -116,7 +116,7 @@ export const ContextToolbar: React.FC<ContextToolbarProps> = ({
               <select
                 value={fontFamily}
                 onChange={(e) => onUpdateTextProp('fontFamily', e.target.value)}
-                className="h-8 pl-2.5 pr-7 rounded-lg bg-zinc-800 hover:bg-zinc-700/80 text-zinc-100 text-xs font-semibold border border-zinc-700 cursor-pointer appearance-none outline-none focus:ring-1 focus:ring-purple-500"
+                className="no-shadcn h-8 pl-2.5 pr-7 rounded-lg bg-zinc-800 hover:bg-zinc-700/80 text-zinc-100 text-xs font-semibold border border-zinc-700 cursor-pointer appearance-none outline-none focus:ring-1 focus:ring-purple-500"
               >
                 {FONT_OPTIONS.map((f) => (
                   <option key={f.name} value={f.fontFamily} style={{ fontFamily: f.fontFamily }}>

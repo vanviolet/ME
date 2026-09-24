@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { FlowchartNode, FlowchartEdge, HandlePosition, NodeType } from './types';
+import { ShadcnSelect } from '../../ui/select';
 import {
   Play,
   Square,
@@ -1120,22 +1121,22 @@ export const CanvasView: React.FC<CanvasViewProps> = ({
               <label className="text-[11px] font-semibold text-stone-700 dark:text-zinc-300">
                 Bentuk Simbol (Berdasarkan Standar Flowchart)
               </label>
-              <select
+              <ShadcnSelect
                 value={editingType}
-                onChange={e => setEditingType(e.target.value as NodeType)}
-                className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 text-stone-900 dark:text-white cursor-pointer font-medium"
-              >
-                <option value="process">Proses / Aktivitas [Kotak Persegi]</option>
-                <option value="decision">Keputusan / Evaluasi &#123;Belah Ketupat&#125;</option>
-                <option value="start">Mulai / Selesai ([Kapsul Pill])</option>
-                <option value="input">Input / Output [/Jajar Genjang/]</option>
-                <option value="database">Basis Data [(Silinder)]</option>
-                <option value="subroutine">Subrutin / Prosedur [[Kotak Ganda]]</option>
-                <option value="document">Dokumen / Berkas [Lembaran]</option>
-                <option value="cloud">Layanan Cloud / Eksternal</option>
-                <option value="actor">Pengguna / Aktor Sistem</option>
-                <option value="note">Catatan / Sticky Note</option>
-              </select>
+                onChange={(val) => setEditingType(val as NodeType)}
+                options={[
+                  { value: 'process', label: 'Proses / Aktivitas [Kotak Persegi]' },
+                  { value: 'decision', label: 'Keputusan / Evaluasi {Belah Ketupat}' },
+                  { value: 'start', label: 'Mulai / Selesai ([Kapsul Pill])' },
+                  { value: 'input', label: 'Input / Output [/Jajar Genjang/]' },
+                  { value: 'database', label: 'Basis Data [(Silinder)]' },
+                  { value: 'subroutine', label: 'Subrutin / Prosedur [[Kotak Ganda]]' },
+                  { value: 'document', label: 'Dokumen / Berkas [Lembaran]' },
+                  { value: 'cloud', label: 'Layanan Cloud / Eksternal' },
+                  { value: 'actor', label: 'Pengguna / Aktor Sistem' },
+                  { value: 'note', label: 'Catatan / Sticky Note' },
+                ]}
+              />
             </div>
 
             {/* Footer Buttons */}

@@ -11,6 +11,7 @@ import {
 import { ParamsEditor } from './ParamsEditor';
 import { BodySchemaEditor } from './BodySchemaEditor';
 import { ResponsesEditor } from './ResponsesEditor';
+import { ShadcnSelect } from '../../ui/select';
 
 interface RequestEditorPanelProps {
   request: ApiRequestState;
@@ -331,21 +332,21 @@ export const RequestEditorPanel: React.FC<RequestEditorPanelProps> = ({
               <label className="text-xs font-bold text-stone-700 dark:text-zinc-300">
                 Tipe Autentikasi
               </label>
-              <select
+              <ShadcnSelect
                 value={request.auth.type}
-                onChange={e =>
+                onChange={(val) =>
                   setRequest({
                     ...request,
-                    auth: { ...request.auth, type: e.target.value as any },
+                    auth: { ...request.auth, type: val as any },
                   })
                 }
-                className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 font-semibold cursor-pointer text-stone-900 dark:text-white"
-              >
-                <option value="none">Tanpa Autentikasi (No Auth)</option>
-                <option value="bearer">Bearer Token (JWT / API Token)</option>
-                <option value="basic">Basic Auth (Username & Password)</option>
-                <option value="apikey">API Key (Header / Query Parameter)</option>
-              </select>
+                options={[
+                  { value: 'none', label: 'Tanpa Autentikasi (No Auth)' },
+                  { value: 'bearer', label: 'Bearer Token (JWT / API Token)' },
+                  { value: 'basic', label: 'Basic Auth (Username & Password)' },
+                  { value: 'apikey', label: 'API Key (Header / Query Parameter)' },
+                ]}
+              />
             </div>
 
             {request.auth.type === 'bearer' && (
@@ -468,19 +469,19 @@ export const RequestEditorPanel: React.FC<RequestEditorPanelProps> = ({
                   <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
                     Lokasi Penyisipan
                   </label>
-                  <select
+                  <ShadcnSelect
                     value={request.auth.apiKeyLocation || 'header'}
-                    onChange={e =>
+                    onChange={(val) =>
                       setRequest({
                         ...request,
-                        auth: { ...request.auth, apiKeyLocation: e.target.value as any },
+                        auth: { ...request.auth, apiKeyLocation: val as any },
                       })
                     }
-                    className="w-full px-3 py-2 text-xs bg-stone-50 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 rounded-xl outline-none focus:border-rose-500 font-semibold cursor-pointer text-stone-900 dark:text-white"
-                  >
-                    <option value="header">Headers (Header HTTP)</option>
-                    <option value="query">Query Params (URL parameter)</option>
-                  </select>
+                    options={[
+                      { value: 'header', label: 'Headers (Header HTTP)' },
+                      { value: 'query', label: 'Query Params (URL parameter)' },
+                    ]}
+                  />
                 </div>
               </div>
             )}
