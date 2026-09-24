@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import { Seo } from './Seo';
+import { ShadcnSelect } from './ui/select';
 import {
   FileText,
   Copy,
@@ -365,16 +366,17 @@ export const LoremIpsumPage: React.FC = () => {
                 <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300 block">
                   HTML Tag Wrapper
                 </label>
-                <select
+                <ShadcnSelect
                   value={wrapper}
-                  onChange={e => setWrapper(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs font-medium text-stone-900 dark:text-zinc-100 focus:outline-hidden"
-                >
-                  <option value="none">{language === 'en' ? 'Plain Text (No HTML)' : 'Teks Biasa (Tanpa HTML)'}</option>
-                  <option value="p">{language === 'en' ? 'Paragraphs <p>' : 'Paragraf <p>'}</option>
-                  <option value="div">{language === 'en' ? 'Containers <div>' : 'Kontainer <div>'}</option>
-                  <option value="ul">{language === 'en' ? 'List Items <ul> <li>' : 'Daftar <ul> <li>'}</option>
-                </select>
+                  onChange={val => setWrapper(val as any)}
+                  options={[
+                    { value: 'none', label: language === 'en' ? 'Plain Text (No HTML)' : 'Teks Biasa (Tanpa HTML)' },
+                    { value: 'p', label: language === 'en' ? 'Paragraphs <p>' : 'Paragraf <p>' },
+                    { value: 'div', label: language === 'en' ? 'Containers <div>' : 'Kontainer <div>' },
+                    { value: 'ul', label: language === 'en' ? 'List Items <ul> <li>' : 'Daftar <ul> <li>' },
+                  ]}
+                  size="sm"
+                />
               </div>
 
               {/* Start with Lorem */}

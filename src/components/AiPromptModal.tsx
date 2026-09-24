@@ -28,6 +28,8 @@ import {
   GeneratedVanpediaResult,
   GEMINI_FREE_MODELS,
 } from '../services/aiService';
+import { ShadcnCombobox } from './ui/combobox';
+import { ShadcnSelect } from './ui/select';
 
 interface AiPromptModalProps {
   isOpen: boolean;
@@ -272,23 +274,19 @@ export const AiPromptModal: React.FC<AiPromptModalProps> = ({
                 <label className="block font-semibold text-stone-700 dark:text-zinc-300 mb-1">
                   Kategori
                 </label>
-                <div className="relative">
-                  <select
-                    value={category}
-                    onChange={e => setCategory(e.target.value)}
-                    className="w-full appearance-none px-3.5 py-2.5 pr-8 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600 focus:outline-none"
-                  >
-                    <option value="Learning (AI)">Learning (AI)</option>
-                    <option value="Computer Systems">Computer Systems</option>
-                    <option value="Database Systems">Database Systems</option>
-                    <option value="Biometric Security">Biometric Security</option>
-                    <option value="Software Architecture">Software Architecture</option>
-                    <option value="General">General</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-stone-500 dark:text-zinc-400">
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </div>
-                </div>
+                <ShadcnSelect
+                  value={category}
+                  onChange={val => setCategory(val as string)}
+                  options={[
+                    { value: 'Learning (AI)', label: 'Learning (AI)' },
+                    { value: 'Computer Systems', label: 'Computer Systems' },
+                    { value: 'Database Systems', label: 'Database Systems' },
+                    { value: 'Biometric Security', label: 'Biometric Security' },
+                    { value: 'Software Architecture', label: 'Software Architecture' },
+                    { value: 'General', label: 'General' },
+                  ]}
+                  size="sm"
+                />
               </div>
 
               <div>
@@ -300,38 +298,24 @@ export const AiPromptModal: React.FC<AiPromptModalProps> = ({
                     {GEMINI_FREE_MODELS.find(m => m.id === directModel)?.isNoAuth ? '⚡ No Auth' : '100% Free'}
                   </span>
                 </div>
-                <div className="relative">
-                  <select
-                    value={directModel}
-                    onChange={e => setDirectModel(e.target.value)}
-                    className="w-full appearance-none px-3.5 py-2.5 pr-8 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600 focus:outline-none"
-                  >
-                    <optgroup label="🌟 OpenCode Free (9Router / No Auth)">
-                      {GEMINI_FREE_MODELS.filter(m => m.provider === 'OpenCode Free (No Auth)').map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.badge})
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="⚡ Google Gemini Free Tier">
-                      {GEMINI_FREE_MODELS.filter(m => m.provider === 'Google Gemini Free').map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.badge})
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="🌐 OpenRouter Free Tier">
-                      {GEMINI_FREE_MODELS.filter(m => m.provider === 'OpenRouter Free').map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} ({m.badge})
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-stone-500 dark:text-zinc-400">
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </div>
-                </div>
+                <ShadcnCombobox
+                  value={directModel}
+                  onChange={val => setDirectModel(val as string)}
+                  placeholder="Pilih Model AI..."
+                  searchPlaceholder="Cari model AI..."
+                  options={GEMINI_FREE_MODELS.map(m => ({
+                    value: m.id,
+                    label: `${m.name} (${m.badge})`,
+                    displayLabel: (
+                      <div className="flex items-center justify-between gap-1 w-full">
+                        <span className="truncate">{m.name}</span>
+                        <span className="text-[10px] opacity-75 font-mono">{m.badge}</span>
+                      </div>
+                    ),
+                    category: m.provider,
+                  }))}
+                  size="sm"
+                />
                 <p className="text-[10px] text-stone-500 dark:text-zinc-400 mt-1">
                   {GEMINI_FREE_MODELS.find(m => m.id === directModel)?.description}
                 </p>
@@ -508,22 +492,18 @@ export const AiPromptModal: React.FC<AiPromptModalProps> = ({
                 <label className="block font-semibold text-stone-700 dark:text-zinc-300 mb-1">
                   Target Model AI Eksternal
                 </label>
-                <div className="relative">
-                  <select
-                    value={selectedModel}
-                    onChange={e => setSelectedModel(e.target.value)}
-                    className="w-full appearance-none px-3.5 py-2.5 pr-8 rounded-xl border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs focus:ring-2 focus:ring-stone-400 dark:focus:ring-zinc-600 focus:outline-none"
-                  >
-                    <option value="Gemini 3.8 Flash">Gemini 3.8 Flash</option>
-                    <option value="ChatGPT (GPT-4o)">ChatGPT (GPT-4o)</option>
-                    <option value="Claude 3.7 Sonnet">Claude 3.7 Sonnet</option>
-                    <option value="V0 (v0.dev)">V0 by Vercel</option>
-                    <option value="Scira AI">Scira AI</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-stone-500 dark:text-zinc-400">
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </div>
-                </div>
+                <ShadcnSelect
+                  value={selectedModel}
+                  onChange={val => setSelectedModel(val as string)}
+                  options={[
+                    { value: 'Gemini 3.8 Flash', label: 'Gemini 3.8 Flash' },
+                    { value: 'ChatGPT (GPT-4o)', label: 'ChatGPT (GPT-4o)' },
+                    { value: 'Claude 3.7 Sonnet', label: 'Claude 3.7 Sonnet' },
+                    { value: 'V0 (v0.dev)', label: 'V0 by Vercel' },
+                    { value: 'Scira AI', label: 'Scira AI' },
+                  ]}
+                  size="sm"
+                />
               </div>
 
               {/* AI Destination Launch Grid */}

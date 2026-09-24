@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import QRCode from 'qrcode';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { Seo } from '../Seo';
+import { ShadcnSelect } from '../ui/select';
 import {
   QrCode,
   Copy,
@@ -642,15 +643,16 @@ export const QrCodeGeneratorPage: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">Coin / Network</label>
-                      <select
+                      <ShadcnSelect
                         value={cryptoCoin}
-                        onChange={e => setCryptoCoin(e.target.value as any)}
-                        className="w-full px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs text-stone-900 dark:text-zinc-100"
-                      >
-                        <option value="ethereum">Ethereum (ETH)</option>
-                        <option value="bitcoin">Bitcoin (BTC)</option>
-                        <option value="solana">Solana (SOL)</option>
-                      </select>
+                        onChange={val => setCryptoCoin(val as any)}
+                        options={[
+                          { value: 'ethereum', label: 'Ethereum (ETH)' },
+                          { value: 'bitcoin', label: 'Bitcoin (BTC)' },
+                          { value: 'solana', label: 'Solana (SOL)' },
+                        ]}
+                        size="sm"
+                      />
                     </div>
                     <div className="sm:col-span-2 space-y-1">
                       <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">Wallet Address</label>
@@ -818,47 +820,50 @@ export const QrCodeGeneratorPage: React.FC = () => {
                 <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
                   {language === 'en' ? 'Resolution (Print Quality)' : 'Resolusi Ekspor'}
                 </label>
-                <select
+                <ShadcnSelect
                   value={resolution}
-                  onChange={e => setResolution(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs text-stone-900 dark:text-zinc-100"
-                >
-                  <option value={512}>512 x 512 px (Standard)</option>
-                  <option value={1024}>1024 x 1024 px (HD Print)</option>
-                  <option value={2048}>2048 x 2048 px (Ultra UHD)</option>
-                </select>
+                  onChange={val => setResolution(Number(val))}
+                  options={[
+                    { value: 512, label: '512 x 512 px (Standard)' },
+                    { value: 1024, label: '1024 x 1024 px (HD Print)' },
+                    { value: 2048, label: '2048 x 2048 px (Ultra UHD)' },
+                  ]}
+                  size="sm"
+                />
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
                   {language === 'en' ? 'Quiet Zone (Margin)' : 'Batas Tepi (Margin)'}
                 </label>
-                <select
+                <ShadcnSelect
                   value={margin}
-                  onChange={e => setMargin(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs text-stone-900 dark:text-zinc-100"
-                >
-                  <option value={0}>0 (No margin / Flush)</option>
-                  <option value={1}>1 module</option>
-                  <option value={2}>2 modules (Recommended)</option>
-                  <option value={4}>4 modules (Standard)</option>
-                </select>
+                  onChange={val => setMargin(Number(val))}
+                  options={[
+                    { value: 0, label: '0 (No margin / Flush)' },
+                    { value: 1, label: '1 module' },
+                    { value: 2, label: '2 modules (Recommended)' },
+                    { value: 4, label: '4 modules (Standard)' },
+                  ]}
+                  size="sm"
+                />
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-stone-700 dark:text-zinc-300">
                   {language === 'en' ? 'Error Correction' : 'Koreksi Error (ECC)'}
                 </label>
-                <select
+                <ShadcnSelect
                   value={errorLevel}
-                  onChange={e => setErrorLevel(e.target.value as ErrorCorrectionLevel)}
-                  className="w-full px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-xs text-stone-900 dark:text-zinc-100"
-                >
-                  <option value="L">L — 7% recovery</option>
-                  <option value="M">M — 15% recovery</option>
-                  <option value="Q">Q — 25% recovery</option>
-                  <option value="H">H — 30% recovery (Best)</option>
-                </select>
+                  onChange={val => setErrorLevel(val as ErrorCorrectionLevel)}
+                  options={[
+                    { value: 'L', label: 'L — 7% recovery' },
+                    { value: 'M', label: 'M — 15% recovery' },
+                    { value: 'Q', label: 'Q — 25% recovery' },
+                    { value: 'H', label: 'H — 30% recovery (Best)' },
+                  ]}
+                  size="sm"
+                />
               </div>
             </div>
           </div>

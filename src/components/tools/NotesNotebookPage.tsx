@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { Seo } from '../Seo';
 import { Link } from 'react-router-dom';
+import { ShadcnSelect } from '../ui/select';
 import {
   Folder,
   FolderOpen,
@@ -1160,18 +1161,21 @@ export const NotesNotebookPage: React.FC = () => {
 
                 {/* Actions & Note Type Selector */}
                 <div className="flex items-center gap-2 shrink-0">
-                  <select
-                    value={activeNote.type}
-                    onChange={(e) =>
-                      updateNote(activeNote.id, { type: e.target.value as TriliumNoteType })
-                    }
-                    className="text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700 text-stone-700 dark:text-zinc-300 focus:outline-rose-500 cursor-pointer"
-                  >
-                    <option value="text">📝 Rich Text (WYSIWYG)</option>
-                    <option value="code">💻 Code Snippet</option>
-                    <option value="tasklist">☑️ Task Checklist</option>
-                    <option value="folder">🗂️ Folder Overview</option>
-                  </select>
+                  <div className="w-48">
+                    <ShadcnSelect
+                      value={activeNote.type}
+                      onChange={(val) =>
+                        updateNote(activeNote.id, { type: val as TriliumNoteType })
+                      }
+                      options={[
+                        { value: 'text', label: '📝 Rich Text' },
+                        { value: 'code', label: '💻 Code Snippet' },
+                        { value: 'tasklist', label: '☑️ Task Checklist' },
+                        { value: 'folder', label: '🗂️ Folder Overview' },
+                      ]}
+                      size="sm"
+                    />
+                  </div>
 
                   <button
                     type="button"
@@ -1538,23 +1542,26 @@ export const NotesNotebookPage: React.FC = () => {
                         <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
                           Bahasa Pemrograman:
                         </span>
-                        <select
-                          value={activeNote.codeLanguage || 'typescript'}
-                          onChange={(e) =>
-                            updateNote(activeNote.id, { codeLanguage: e.target.value })
-                          }
-                          className="text-xs font-mono px-2 py-1 rounded-lg bg-stone-100 dark:bg-zinc-800 border border-stone-200 dark:border-zinc-700"
-                        >
-                          <option value="typescript">TypeScript</option>
-                          <option value="javascript">JavaScript</option>
-                          <option value="python">Python</option>
-                          <option value="html">HTML</option>
-                          <option value="css">CSS</option>
-                          <option value="sql">SQL</option>
-                          <option value="json">JSON</option>
-                          <option value="rust">Rust</option>
-                          <option value="go">Go</option>
-                        </select>
+                        <div className="w-36">
+                          <ShadcnSelect
+                            value={activeNote.codeLanguage || 'typescript'}
+                            onChange={(val) =>
+                              updateNote(activeNote.id, { codeLanguage: val as string })
+                            }
+                            options={[
+                              { value: 'typescript', label: 'TypeScript' },
+                              { value: 'javascript', label: 'JavaScript' },
+                              { value: 'python', label: 'Python' },
+                              { value: 'html', label: 'HTML' },
+                              { value: 'css', label: 'CSS' },
+                              { value: 'sql', label: 'SQL' },
+                              { value: 'json', label: 'JSON' },
+                              { value: 'rust', label: 'Rust' },
+                              { value: 'go', label: 'Go' },
+                            ]}
+                            size="sm"
+                          />
+                        </div>
                       </div>
 
                       <button

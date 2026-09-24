@@ -4,6 +4,7 @@ import { X, Plus, Zap, Sparkles, Loader2 } from 'lucide-react';
 import { IssueType, IssuePriority } from './types';
 import { getIssueTypeIcon, parseJiraTimeToMinutes } from './jiraUtils';
 import { callJiraAiAssist } from './jiraApi';
+import { ShadcnSelect } from '../ui/select';
 
 export const CreateIssueModal: React.FC = () => {
   const {
@@ -207,17 +208,18 @@ export const CreateIssueModal: React.FC = () => {
               <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
                 Priority
               </label>
-              <select
+              <ShadcnSelect
                 value={priority}
-                onChange={(e) => setPriority(e.target.value as IssuePriority)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
-              >
-                <option value="highest">🔴 Highest</option>
-                <option value="high">🟠 High</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="low">🔵 Low</option>
-                <option value="lowest">⚪ Lowest</option>
-              </select>
+                onChange={(val) => setPriority(val as IssuePriority)}
+                options={[
+                  { value: 'highest', label: '🔴 Highest' },
+                  { value: 'high', label: '🟠 High' },
+                  { value: 'medium', label: '🟡 Medium' },
+                  { value: 'low', label: '🔵 Low' },
+                  { value: 'lowest', label: '⚪ Lowest' },
+                ]}
+                size="md"
+              />
             </div>
 
             <div>
@@ -254,54 +256,54 @@ export const CreateIssueModal: React.FC = () => {
               <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
                 Assignee
               </label>
-              <select
+              <ShadcnSelect
                 value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
-              >
-                <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setAssigneeId(val as string)}
+                options={[
+                  { value: '', label: 'Unassigned' },
+                  ...members.map((m) => ({
+                    value: m.id,
+                    label: m.name,
+                  })),
+                ]}
+                size="md"
+              />
             </div>
 
             <div>
               <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
                 Sprint
               </label>
-              <select
+              <ShadcnSelect
                 value={sprintId}
-                onChange={(e) => setSprintId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
-              >
-                <option value="">Backlog</option>
-                {projectSprints.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.status})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setSprintId(val as string)}
+                options={[
+                  { value: '', label: 'Backlog' },
+                  ...projectSprints.map((s) => ({
+                    value: s.id,
+                    label: `${s.name} (${s.status})`,
+                  })),
+                ]}
+                size="md"
+              />
             </div>
 
             <div>
               <label className="font-semibold text-stone-700 dark:text-zinc-300 block mb-1">
                 Parent Epic
               </label>
-              <select
+              <ShadcnSelect
                 value={epicId}
-                onChange={(e) => setEpicId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-700 bg-stone-50 dark:bg-zinc-800 text-stone-900 dark:text-zinc-100"
-              >
-                <option value="">None</option>
-                {epics.map((ep) => (
-                  <option key={ep.id} value={ep.id}>
-                    {ep.key} - {ep.title}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setEpicId(val as string)}
+                options={[
+                  { value: '', label: 'None' },
+                  ...epics.map((ep) => ({
+                    value: ep.id,
+                    label: `${ep.key} - ${ep.title}`,
+                  })),
+                ]}
+                size="md"
+              />
             </div>
           </div>
 

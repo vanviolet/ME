@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { Seo } from './Seo';
 import { EmojiPicker } from './EmojiPicker';
+import { ShadcnCombobox } from './ui/combobox';
 
 const STORAGE_KEY = 'muchamad_irvan_issues_store';
 const ITEMS_PER_PAGE = 6;
@@ -1463,20 +1464,20 @@ export const IssuesPage: React.FC = () => {
                     <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
                       {language === 'en' ? 'Category' : 'Kategori'}
                     </label>
-                    <div className="relative">
-                      <select
-                        value={newCategory}
-                        onChange={e => setNewCategory(e.target.value)}
-                        className="w-full appearance-none pl-3.5 pr-10 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30 text-xs cursor-pointer shadow-xs"
-                      >
-                        <option value="General">General</option>
-                        <option value="AI & Math">AI & Math</option>
-                        <option value="Architecture">Architecture</option>
-                        <option value="Database">Database</option>
-                        <option value="Security">Security</option>
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-stone-400 dark:text-zinc-500 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-                    </div>
+                    <ShadcnCombobox
+                      value={newCategory}
+                      onChange={val => setNewCategory(val)}
+                      placeholder={language === 'en' ? 'Select or search category...' : 'Pilih atau cari kategori...'}
+                      searchPlaceholder={language === 'en' ? 'Search category...' : 'Cari kategori...'}
+                      options={[
+                        { value: 'General', label: 'General' },
+                        { value: 'AI & Math', label: 'AI & Math' },
+                        { value: 'Architecture', label: 'Architecture' },
+                        { value: 'Database', label: 'Database' },
+                        { value: 'Security', label: 'Security' },
+                      ]}
+                      size="sm"
+                    />
                   </div>
 
                   <div>

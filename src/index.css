@@ -505,3 +505,62 @@ code, kbd, samp, pre {
   background-color: #713f12;
   color: #fef08a;
 }
+
+/* =========================================================================
+   Shadcn-Inspired Global Select Input Styling
+   ========================================================================= */
+select:not([multiple]):not([size]):not(.no-shadcn) {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2371717a' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.15rem 1.15rem;
+  padding-right: 2.25rem !important;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+:where(.dark) select:not([multiple]):not([size]):not(.no-shadcn) {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a1a1aa' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+}
+
+select:not([multiple]):not([size]):not(.no-shadcn):hover {
+  border-color: #a8a29e;
+}
+
+:where(.dark) select:not([multiple]):not([size]):not(.no-shadcn):hover {
+  border-color: #52525b;
+}
+
+select:not([multiple]):not([size]):not(.no-shadcn):focus {
+  outline: none;
+  border-color: #f43f5e;
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.2);
+}
+
+select option {
+  background-color: #ffffff;
+  color: #1c1917;
+  padding: 8px 12px;
+}
+
+:where(.dark) select option {
+  background-color: #18181b;
+  color: #f4f4f5;
+  padding: 8px 12px;
+}
+
+select optgroup {
+  font-weight: 700;
+  color: #71717a;
+  background-color: #f4f4f5;
+  padding: 6px 10px;
+}
+
+:where(.dark) select optgroup {
+  background-color: #09090b;
+  color: #a1a1aa;
+}
+

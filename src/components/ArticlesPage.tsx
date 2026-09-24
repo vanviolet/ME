@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Seo } from './Seo';
 import { RichEditor } from './RichEditor';
+import { ShadcnCombobox } from './ui/combobox';
 import { TemplateUploadZone } from './TemplateUploadZone';
 import { AiPromptModal } from './AiPromptModal';
 import { ParsedArticleFile } from '../utils/fileParser';
@@ -673,20 +674,20 @@ export const ArticlesPage: React.FC = () => {
                     <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
                       {language === 'en' ? 'Category' : 'Kategori'}
                     </label>
-                    <div className="relative">
-                      <select
-                        value={newCategory}
-                        onChange={e => setNewCategory(e.target.value)}
-                        className="w-full appearance-none pl-3.5 pr-10 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30 text-xs cursor-pointer shadow-xs"
-                      >
-                        <option value="Learning (AI)">Learning (AI)</option>
-                        <option value="Fakta Unik">Fakta Unik</option>
-                        <option value="Architecture">Architecture</option>
-                        <option value="Security">Security</option>
-                        <option value="General">General</option>
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-stone-400 dark:text-zinc-500 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-                    </div>
+                    <ShadcnCombobox
+                      value={newCategory}
+                      onChange={val => setNewCategory(val)}
+                      placeholder={language === 'en' ? 'Select or search category...' : 'Pilih atau cari kategori...'}
+                      searchPlaceholder={language === 'en' ? 'Search category...' : 'Cari kategori...'}
+                      options={[
+                        { value: 'Learning (AI)', label: 'Learning (AI)' },
+                        { value: 'Fakta Unik', label: 'Fakta Unik' },
+                        { value: 'Architecture', label: 'Architecture' },
+                        { value: 'Security', label: 'Security' },
+                        { value: 'General', label: 'General' },
+                      ]}
+                      size="sm"
+                    />
                   </div>
 
                   <div>

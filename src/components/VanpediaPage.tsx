@@ -46,6 +46,7 @@ import { Seo } from './Seo';
 import { exportToPdf } from '../utils/pdfExport';
 import { buildAiDiscussionLinks } from '../utils/aiPrompts';
 import { RichEditor } from './RichEditor';
+import { ShadcnCombobox } from './ui/combobox';
 import { TemplateUploadZone } from './TemplateUploadZone';
 import { AiPromptModal } from './AiPromptModal';
 import { ParsedVanpediaFile } from '../utils/fileParser';
@@ -1110,20 +1111,20 @@ export const VanpediaIndexPage: React.FC = () => {
                     <label className="block text-stone-700 dark:text-zinc-300 font-semibold mb-1">
                       {language === 'en' ? 'Category' : 'Kategori'}
                     </label>
-                    <div className="relative">
-                      <select
-                        value={newCategory}
-                        onChange={e => setNewCategory(e.target.value)}
-                        className="w-full appearance-none pl-3.5 pr-10 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-rose-500/30 text-xs cursor-pointer shadow-xs"
-                      >
-                        <option value="General">General</option>
-                        <option value="Learning (AI)">Learning (AI)</option>
-                        <option value="Architecture">Architecture</option>
-                        <option value="Security">Security</option>
-                        <option value="Fakta Unik">Fakta Unik</option>
-                      </select>
-                      <ChevronDown className="w-4 h-4 text-stone-400 dark:text-zinc-500 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-                    </div>
+                    <ShadcnCombobox
+                      value={newCategory}
+                      onChange={val => setNewCategory(val)}
+                      placeholder={language === 'en' ? 'Select or search category...' : 'Pilih atau cari kategori...'}
+                      searchPlaceholder={language === 'en' ? 'Search category...' : 'Cari kategori...'}
+                      options={[
+                        { value: 'General', label: 'General' },
+                        { value: 'Learning (AI)', label: 'Learning (AI)' },
+                        { value: 'Architecture', label: 'Architecture' },
+                        { value: 'Security', label: 'Security' },
+                        { value: 'Fakta Unik', label: 'Fakta Unik' },
+                      ]}
+                      size="sm"
+                    />
                   </div>
                 </div>
 
@@ -1191,23 +1192,23 @@ export const VanpediaIndexPage: React.FC = () => {
                       <label className="block text-stone-600 dark:text-zinc-400 font-medium mb-1">
                         {language === 'en' ? 'AI Model Used' : 'Model AI yang Digunakan'}
                       </label>
-                      <div className="relative">
-                        <select
-                          value={aiModel}
-                          onChange={e => setAiModel(e.target.value)}
-                          className="w-full appearance-none pl-3.5 pr-10 py-2 rounded-lg border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-stone-900 dark:text-zinc-100 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/30 cursor-pointer"
-                        >
-                          <option value="Gemini 3.7 Flash">Gemini 3.7 Flash</option>
-                          <option value="Gemini 2.5 Pro">Gemini 2.5 Pro</option>
-                          <option value="ChatGPT (GPT-4o)">ChatGPT (GPT-4o)</option>
-                          <option value="Claude 3.7 Sonnet">Claude 3.7 Sonnet</option>
-                          <option value="v0 by Vercel">v0 by Vercel</option>
-                          <option value="Scira AI">Scira AI</option>
-                          <option value="GLM-4 / Zhipu AI">GLM-4 / Zhipu AI</option>
-                          <option value="DeepSeek R1 / V3">DeepSeek R1 / V3</option>
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-stone-400 dark:text-zinc-500 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
-                      </div>
+                      <ShadcnCombobox
+                        value={aiModel}
+                        onChange={val => setAiModel(val)}
+                        placeholder="Select AI Model..."
+                        searchPlaceholder="Search model..."
+                        options={[
+                          { value: 'Gemini 3.7 Flash', label: 'Gemini 3.7 Flash' },
+                          { value: 'Gemini 2.5 Pro', label: 'Gemini 2.5 Pro' },
+                          { value: 'ChatGPT (GPT-4o)', label: 'ChatGPT (GPT-4o)' },
+                          { value: 'Claude 3.7 Sonnet', label: 'Claude 3.7 Sonnet' },
+                          { value: 'v0 by Vercel', label: 'v0 by Vercel' },
+                          { value: 'Scira AI', label: 'Scira AI' },
+                          { value: 'GLM-4 / Zhipu AI', label: 'GLM-4 / Zhipu AI' },
+                          { value: 'DeepSeek R1 / V3', label: 'DeepSeek R1 / V3' },
+                        ]}
+                        size="sm"
+                      />
                     </div>
                   )}
                 </div>

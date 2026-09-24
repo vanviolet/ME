@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { Seo } from '../Seo';
+import { ShadcnSelect } from '../ui/select';
 import {
   Database,
   Copy,
@@ -530,25 +531,28 @@ export const MockDataGeneratorPage: React.FC = () => {
                   className="flex-1 px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-mono text-xs text-stone-900 dark:text-zinc-100"
                   placeholder="field_name"
                 />
-                <select
-                  value={field.type}
-                  onChange={e => handleUpdateField(field.id, 'type', e.target.value)}
-                  className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-stone-900 dark:text-zinc-100"
-                >
-                  <option value="id">Numeric ID (1, 2, 3...)</option>
-                  <option value="uuid">UUID v4</option>
-                  <option value="name">Full Name (Nama Lengkap)</option>
-                  <option value="email">Email Address</option>
-                  <option value="phone">Phone Number (+62)</option>
-                  <option value="job">Job Title (Role)</option>
-                  <option value="company">Company Name</option>
-                  <option value="city">City (Kota)</option>
-                  <option value="price">Price / Amount (IDR)</option>
-                  <option value="status">Status (active, pending, etc.)</option>
-                  <option value="boolean">Boolean (true / false)</option>
-                  <option value="date">Date (YYYY-MM-DD)</option>
-                  <option value="avatar">Avatar Image URL</option>
-                </select>
+                <div className="w-full sm:w-56 shrink-0">
+                  <ShadcnSelect
+                    value={field.type}
+                    onChange={val => handleUpdateField(field.id, 'type', val)}
+                    options={[
+                      { value: 'id', label: 'Numeric ID (1, 2, 3...)' },
+                      { value: 'uuid', label: 'UUID v4' },
+                      { value: 'name', label: 'Full Name (Nama Lengkap)' },
+                      { value: 'email', label: 'Email Address' },
+                      { value: 'phone', label: 'Phone Number (+62)' },
+                      { value: 'job', label: 'Job Title (Role)' },
+                      { value: 'company', label: 'Company Name' },
+                      { value: 'city', label: 'City (Kota)' },
+                      { value: 'price', label: 'Price / Amount (IDR)' },
+                      { value: 'status', label: 'Status (active, pending)' },
+                      { value: 'boolean', label: 'Boolean (true / false)' },
+                      { value: 'date', label: 'Date (YYYY-MM-DD)' },
+                      { value: 'avatar', label: 'Avatar Image URL' },
+                    ]}
+                    size="sm"
+                  />
+                </div>
                 <button
                   onClick={() => handleRemoveField(field.id)}
                   disabled={fields.length <= 1}

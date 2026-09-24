@@ -39,6 +39,7 @@ import {
   parseJiraTimeToMinutes,
 } from './jiraUtils';
 import { callJiraAiAssist } from './jiraApi';
+import { ShadcnSelect } from '../ui/select';
 
 export const IssueDetailModal: React.FC = () => {
   const {
@@ -687,19 +688,18 @@ export const IssueDetailModal: React.FC = () => {
               <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 font-mono mb-1">
                 Status
               </label>
-              <select
+              <ShadcnSelect
                 value={selectedIssue.status}
-                onChange={(e) => handleStatusChange(e.target.value as IssueStatus)}
-                className={`w-full px-3 py-2 rounded-xl font-semibold border cursor-pointer ${getStatusBadgeClass(
-                  selectedIssue.status
-                )}`}
-              >
-                <option value="todo">To Do</option>
-                <option value="in_progress">In Progress</option>
-                <option value="in_review">Code Review</option>
-                <option value="qa">QA Testing</option>
-                <option value="done">Done</option>
-              </select>
+                onChange={(val) => handleStatusChange(val as IssueStatus)}
+                options={[
+                  { value: 'todo', label: 'To Do' },
+                  { value: 'in_progress', label: 'In Progress' },
+                  { value: 'in_review', label: 'Code Review' },
+                  { value: 'qa', label: 'QA Testing' },
+                  { value: 'done', label: 'Done' },
+                ]}
+                size="sm"
+              />
             </div>
 
             {/* Assignee */}
@@ -707,18 +707,18 @@ export const IssueDetailModal: React.FC = () => {
               <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 font-mono mb-1">
                 Assignee
               </label>
-              <select
+              <ShadcnSelect
                 value={selectedIssue.assigneeId || ''}
-                onChange={(e) => handleAssigneeChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/70 text-stone-900 dark:text-zinc-100 font-medium"
-              >
-                <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} ({m.title})
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleAssigneeChange(val as string)}
+                options={[
+                  { value: '', label: 'Unassigned' },
+                  ...members.map((m) => ({
+                    value: m.id,
+                    label: `${m.name} (${m.title})`,
+                  })),
+                ]}
+                size="sm"
+              />
             </div>
 
             {/* Priority */}
@@ -726,17 +726,18 @@ export const IssueDetailModal: React.FC = () => {
               <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 font-mono mb-1">
                 Priority
               </label>
-              <select
+              <ShadcnSelect
                 value={selectedIssue.priority}
-                onChange={(e) => handlePriorityChange(e.target.value as IssuePriority)}
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/70 text-stone-900 dark:text-zinc-100 font-medium capitalize"
-              >
-                <option value="highest">🔴 Highest</option>
-                <option value="high">🟠 High</option>
-                <option value="medium">🟡 Medium</option>
-                <option value="low">🔵 Low</option>
-                <option value="lowest">⚪ Lowest</option>
-              </select>
+                onChange={(val) => handlePriorityChange(val as IssuePriority)}
+                options={[
+                  { value: 'highest', label: '🔴 Highest' },
+                  { value: 'high', label: '🟠 High' },
+                  { value: 'medium', label: '🟡 Medium' },
+                  { value: 'low', label: '🔵 Low' },
+                  { value: 'lowest', label: '⚪ Lowest' },
+                ]}
+                size="sm"
+              />
             </div>
 
             {/* Story Points */}
@@ -763,24 +764,24 @@ export const IssueDetailModal: React.FC = () => {
               <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 font-mono mb-1">
                 Sprint
               </label>
-              <select
+              <ShadcnSelect
                 value={selectedIssue.sprintId || ''}
-                onChange={(e) =>
+                onChange={(val) =>
                   updateIssue(selectedIssue.id, {
-                    sprintId: e.target.value || undefined,
+                    sprintId: (val as string) || undefined,
                   })
                 }
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/70 text-stone-900 dark:text-zinc-100 font-medium"
-              >
-                <option value="">Backlog (No Sprint)</option>
-                {sprints
-                  .filter((s) => s.projectId === activeProject.id)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.status})
-                    </option>
-                  ))}
-              </select>
+                options={[
+                  { value: '', label: 'Backlog (No Sprint)' },
+                  ...sprints
+                    .filter((s) => s.projectId === activeProject.id)
+                    .map((s) => ({
+                      value: s.id,
+                      label: `${s.name} (${s.status})`,
+                    })),
+                ]}
+                size="sm"
+              />
             </div>
 
             {/* Epic Link */}
@@ -788,22 +789,22 @@ export const IssueDetailModal: React.FC = () => {
               <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 font-mono mb-1">
                 Epic
               </label>
-              <select
+              <ShadcnSelect
                 value={selectedIssue.epicId || ''}
-                onChange={(e) =>
+                onChange={(val) =>
                   updateIssue(selectedIssue.id, {
-                    epicId: e.target.value || undefined,
+                    epicId: (val as string) || undefined,
                   })
                 }
-                className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-zinc-800 bg-stone-50 dark:bg-zinc-800/70 text-stone-900 dark:text-zinc-100 font-medium"
-              >
-                <option value="">No Epic</option>
-                {epics.map((ep) => (
-                  <option key={ep.id} value={ep.id}>
-                    {ep.key} - {ep.title}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'No Epic' },
+                  ...epics.map((ep) => ({
+                    value: ep.id,
+                    label: `${ep.key} - ${ep.title}`,
+                  })),
+                ]}
+                size="sm"
+              />
             </div>
 
             {/* Due Date */}

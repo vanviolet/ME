@@ -7,6 +7,7 @@ import { Article } from '../types';
 import { ArrowLeft, Save, Sparkles, Globe, Lock, User, Edit3, CheckCircle2 } from 'lucide-react';
 import { Seo } from './Seo';
 import { RichEditor } from './RichEditor';
+import { ShadcnCombobox } from './ui/combobox';
 
 export const EditArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -298,19 +299,22 @@ export const EditArticlePage: React.FC = () => {
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-zinc-400 mb-1">
                 {language === 'en' ? 'Category' : 'Kategori'}
               </label>
-              <select
+              <ShadcnCombobox
                 value={category}
-                onChange={e => setCategory(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-stone-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30"
-              >
-                <option value="Learning (AI)">Learning (AI)</option>
-                <option value="Software Engineering">Software Engineering</option>
-                <option value="System Architecture">System Architecture</option>
-                <option value="Database Systems">Database Systems</option>
-                <option value="Security & Auth">Security & Auth</option>
-                <option value="Music Theory">Music Theory</option>
-                <option value="General">General</option>
-              </select>
+                onChange={val => setCategory(val)}
+                placeholder="Pilih kategori..."
+                searchPlaceholder="Cari kategori..."
+                options={[
+                  { value: 'Learning (AI)', label: 'Learning (AI)' },
+                  { value: 'Software Engineering', label: 'Software Engineering' },
+                  { value: 'System Architecture', label: 'System Architecture' },
+                  { value: 'Database Systems', label: 'Database Systems' },
+                  { value: 'Security & Auth', label: 'Security & Auth' },
+                  { value: 'Music Theory', label: 'Music Theory' },
+                  { value: 'General', label: 'General' },
+                ]}
+                size="md"
+              />
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-600 dark:text-zinc-400 mb-1">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { Seo } from '../Seo';
+import { ShadcnSelect } from '../ui/select';
 import {
   Send,
   Plus,
@@ -1327,23 +1328,22 @@ export const ApiTesterPage: React.FC = () => {
             {/* METHOD & URL COMMAND BAR */}
             <div className="flex items-center gap-1.5 sm:gap-2">
               {/* Method Dropdown */}
-              <div className="relative shrink-0">
-                <select
+              <div className="shrink-0 w-28 sm:w-32">
+                <ShadcnSelect
                   value={request.method}
-                  onChange={e => setRequest({ ...request, method: e.target.value as HttpMethod })}
-                  className={`w-20 sm:w-28 px-2 sm:px-3 py-2 text-xs font-extrabold rounded-xl border outline-none cursor-pointer appearance-none ${getMethodBadgeClass(
-                    request.method
-                  )}`}
-                >
-                  <option value="GET">GET</option>
-                  <option value="POST">POST</option>
-                  <option value="PUT">PUT</option>
-                  <option value="PATCH">PATCH</option>
-                  <option value="DELETE">DELETE</option>
-                  <option value="HEAD">HEAD</option>
-                  <option value="OPTIONS">OPTIONS</option>
-                </select>
-                <ChevronDown size={13} className="absolute right-1.5 sm:right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                  onChange={val => setRequest({ ...request, method: val as HttpMethod })}
+                  options={[
+                    { value: 'GET', label: 'GET', badge: 'GET' },
+                    { value: 'POST', label: 'POST', badge: 'POST' },
+                    { value: 'PUT', label: 'PUT', badge: 'PUT' },
+                    { value: 'PATCH', label: 'PATCH', badge: 'PATCH' },
+                    { value: 'DELETE', label: 'DELETE', badge: 'DEL' },
+                    { value: 'HEAD', label: 'HEAD', badge: 'HEAD' },
+                    { value: 'OPTIONS', label: 'OPTIONS', badge: 'OPT' },
+                  ]}
+                  size="md"
+                  triggerClassName={`font-extrabold ${getMethodBadgeClass(request.method)}`}
+                />
               </div>
 
               {/* URL Input */}
