@@ -364,6 +364,117 @@ code, kbd, samp, pre {
   pointer-events: none;
 }
 
+/* Headings Hierarchy (Clear distinction for H1, H2, H3) */
+.tiptap-content h1 {
+  font-size: 2rem !important; /* 32px */
+  line-height: 2.35rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important;
+  margin-top: 1.75rem !important;
+  margin-bottom: 0.75rem !important;
+  color: #111827 !important;
+  border-bottom: 1.5px solid rgba(226, 232, 240, 0.8) !important;
+  padding-bottom: 0.4rem !important;
+}
+:where(.dark) .tiptap-content h1 {
+  color: #f9fafb !important;
+  border-color: rgba(63, 63, 70, 0.6) !important;
+}
+
+.tiptap-content h2 {
+  font-size: 1.5rem !important; /* 24px */
+  line-height: 1.95rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  margin-top: 1.35rem !important;
+  margin-bottom: 0.55rem !important;
+  color: #1f2937 !important;
+}
+:where(.dark) .tiptap-content h2 {
+  color: #f3f4f6 !important;
+}
+
+.tiptap-content h3 {
+  font-size: 1.25rem !important; /* 20px */
+  line-height: 1.75rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.015em !important;
+  margin-top: 1.1rem !important;
+  margin-bottom: 0.4rem !important;
+  color: #374151 !important;
+}
+:where(.dark) .tiptap-content h3 {
+  color: #e5e7eb !important;
+}
+
+/* Paragraphs & Inlines */
+.tiptap-content p {
+  margin: 0.55rem 0 !important;
+  line-height: 1.75 !important;
+}
+
+.tiptap-content strong,
+.tiptap-content b {
+  font-weight: 700 !important;
+  color: inherit !important;
+}
+
+.tiptap-content em,
+.tiptap-content i {
+  font-style: italic !important;
+}
+
+.tiptap-content u {
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+
+.tiptap-content s {
+  text-decoration: line-through !important;
+}
+
+/* Lists with authentic bullets and numbering */
+.tiptap-content ul:not([data-type="taskList"]) {
+  list-style-type: disc !important;
+  padding-left: 1.75rem !important;
+  margin: 0.75rem 0 !important;
+}
+
+.tiptap-content ul:not([data-type="taskList"]) ul {
+  list-style-type: circle !important;
+  margin: 0.25rem 0 !important;
+}
+
+.tiptap-content ul:not([data-type="taskList"]) ul ul {
+  list-style-type: square !important;
+}
+
+.tiptap-content ol {
+  list-style-type: decimal !important;
+  padding-left: 1.75rem !important;
+  margin: 0.75rem 0 !important;
+}
+
+.tiptap-content ol ol {
+  list-style-type: lower-alpha !important;
+  margin: 0.25rem 0 !important;
+}
+
+.tiptap-content ol ol ol {
+  list-style-type: lower-roman !important;
+}
+
+.tiptap-content li {
+  margin: 0.35rem 0 !important;
+  line-height: 1.65 !important;
+  display: list-item !important;
+}
+
+.tiptap-content li > p {
+  margin: 0 !important;
+  display: inline;
+}
+
 /* Trilium Tables */
 .tiptap-content table {
   border-collapse: collapse;
@@ -468,19 +579,64 @@ code, kbd, samp, pre {
 
 /* Code & Blockquote */
 .tiptap-content pre {
-  background: #090d16;
-  color: #fb7185;
-  font-family: 'JetBrains Mono', 'Geist Mono', monospace;
-  padding: 1rem 1.25rem;
-  border-radius: 0.75rem;
-  margin: 1.25rem 0;
-  overflow-x: auto;
-  border: 1px solid #1e293b;
+  background: #1e1e1e !important;
+  color: #d4d4d4 !important;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+  padding: 1.1rem 1.25rem !important;
+  border-radius: 0.75rem !important;
+  margin: 1.25rem 0 !important;
+  overflow-x: auto !important;
+  border: 1px solid #333333 !important;
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
 }
 
-:where(.dark) .tiptap-content pre {
-  background: #141518;
-  border-color: #27272a;
+.tiptap-content pre code {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: inherit !important;
+  font-size: inherit !important;
+  font-family: inherit !important;
+}
+
+/* TipTap Lowlight / Highlight.js Syntax Highlighting (VS Code Dark Modern Theme) */
+.tiptap-content .hljs-keyword,
+.tiptap-content .hljs-selector-tag {
+  color: #c586c0 !important;
+  font-weight: 600;
+}
+.tiptap-content .hljs-built_in,
+.tiptap-content .hljs-title.class_,
+.tiptap-content .hljs-type {
+  color: #4ec9b0 !important;
+}
+.tiptap-content .hljs-function,
+.tiptap-content .hljs-title.function_ {
+  color: #dcdcaa !important;
+}
+.tiptap-content .hljs-string,
+.tiptap-content .hljs-meta .hljs-string {
+  color: #ce9178 !important;
+}
+.tiptap-content .hljs-number,
+.tiptap-content .hljs-literal {
+  color: #b5cea8 !important;
+}
+.tiptap-content .hljs-comment {
+  color: #6a9955 !important;
+  font-style: italic !important;
+}
+.tiptap-content .hljs-variable,
+.tiptap-content .hljs-property,
+.tiptap-content .hljs-attr {
+  color: #9cdcfe !important;
+}
+.tiptap-content .hljs-tag {
+  color: #569cd6 !important;
+}
+.tiptap-content .hljs-operator {
+  color: #d4d4d4 !important;
 }
 
 .tiptap-content blockquote {
