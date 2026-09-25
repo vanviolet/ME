@@ -48,6 +48,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { DesktopOnlyNotice } from './common/DesktopOnlyNotice';
 import {
   ApiRequestState,
   ApiResponseState,
@@ -710,8 +711,15 @@ export const ApiTesterPage: React.FC = () => {
   }, [activeWorkspace]);
 
   return (
-    <div className="h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 flex flex-col font-sans overflow-hidden">
-      <Seo
+    <DesktopOnlyNotice
+      toolName="API Testing Studio"
+      badgeText="Desktop REST API Studio"
+      description="dirancang khusus untuk pengalaman layar lebar. Panel multi-kolom pengeditan request, body schema builder, inspeksi response JSON mendalam, environment variables, dan generator Swagger 2.0 memerlukan ruang layar desktop agar optimal dan nyaman digunakan."
+      icon={Globe}
+      accentColor="blue"
+    >
+      <div className="h-screen bg-stone-50 dark:bg-zinc-950 text-stone-900 dark:text-zinc-100 flex flex-col font-sans overflow-hidden">
+        <Seo
         title="API Testing Studio & Swagger 2.0 Studio - Muchamad Irvan"
         description="Alat pengujian REST API canggih mirip Postman yang menghasilkan Swagger 2.0, spesifikasi response & param type, serta impor swagger.json/yaml tanpa hambatan CORS."
         url="/tools/api-tester"
@@ -1684,6 +1692,7 @@ export const ApiTesterPage: React.FC = () => {
           }}
         />
       )}
-    </div>
+      </div>
+    </DesktopOnlyNotice>
   );
 };

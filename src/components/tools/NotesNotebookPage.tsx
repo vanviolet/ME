@@ -4,6 +4,7 @@ import { Seo } from '../Seo';
 import { Link } from 'react-router-dom';
 import { ShadcnSelect } from '../ui/select';
 import { TriliumCodeEditor } from './trilium/TriliumCodeEditor';
+import { DesktopOnlyNotice } from './common/DesktopOnlyNotice';
 import {
   Folder,
   FolderOpen,
@@ -791,8 +792,15 @@ export const NotesNotebookPage: React.FC = () => {
   };
 
   return (
-    <div className={`h-screen bg-stone-50 dark:bg-[#0f1013] text-stone-900 dark:text-zinc-100 flex flex-col font-sans overflow-hidden antialiased ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
-      <Seo
+    <DesktopOnlyNotice
+      toolName="Trilium Notes"
+      badgeText="Desktop Knowledge Base"
+      description="dirancang khusus untuk pengalaman layar lebar. Struktur pohon folder tanpa batas, editor visual WYSIWYG, tabel interaktif, multi-tab dokumen, dan editor kode VS Code memerlukan ruang layar desktop agar optimal dan nyaman digunakan."
+      icon={BookOpen}
+      accentColor="rose"
+    >
+      <div className={`h-screen bg-stone-50 dark:bg-[#0f1013] text-stone-900 dark:text-zinc-100 flex flex-col font-sans overflow-hidden antialiased ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+        <Seo
         title={
           language === 'en'
             ? 'Trilium Notes: Hierarchical Personal Knowledge Base & Rich WYSIWYG Editor'
@@ -1885,6 +1893,7 @@ export const NotesNotebookPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </DesktopOnlyNotice>
   );
 };

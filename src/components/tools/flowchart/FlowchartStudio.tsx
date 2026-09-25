@@ -11,6 +11,7 @@ import { MermaidModal } from './MermaidModal';
 import { AiFlowchartModal } from './AiFlowchartModal';
 import { SimulationModal } from './SimulationModal';
 import { usePortfolio } from '../../../context/PortfolioContext';
+import { DesktopOnlyNotice } from '../common/DesktopOnlyNotice';
 import {
   ArrowLeft,
   Sparkles,
@@ -498,8 +499,15 @@ export const FlowchartStudio: React.FC = () => {
   const selectedEdge = edges.find(e => e.id === selectedEdgeId) || null;
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-stone-100 dark:bg-zinc-950 font-sans select-none">
-      {/* Top Professional Studio Navbar */}
+    <DesktopOnlyNotice
+      toolName="Interactive Flowchart Studio"
+      badgeText="Desktop Architecture Studio"
+      description="dirancang khusus untuk pengalaman layar lebar. Kanvas visual drag & drop, penataan simbol node, sinkronisasi dua arah kode Mermaid, dan simulasi logika alur memerlukan ruang layar desktop agar optimal dan leluasa digunakan."
+      icon={Layers}
+      accentColor="purple"
+    >
+      <div className="flex flex-col h-screen w-screen overflow-hidden bg-stone-100 dark:bg-zinc-950 font-sans select-none">
+        {/* Top Professional Studio Navbar */}
       <header className="h-16 border-b border-stone-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md px-4 flex items-center justify-between z-40 shrink-0">
         {/* Left Section: Back, Title, Status */}
         <div className="flex items-center gap-3">
@@ -866,6 +874,7 @@ export const FlowchartStudio: React.FC = () => {
         onHighlightNode={setSimActiveNodeId}
         onHighlightEdge={setSimActiveEdgeId}
       />
-    </div>
+      </div>
+    </DesktopOnlyNotice>
   );
 };
