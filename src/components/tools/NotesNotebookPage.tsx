@@ -75,23 +75,23 @@ import { Placeholder } from '@tiptap/extension-placeholder';
 import { Link as LinkExtension } from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 
-const lowlight = createLowlight(common);
+const lowlightInstance = createLowlight(common);
 
-const CODE_BLOCK_LANGUAGES = [
-  { id: 'typescript', label: 'TypeScript', ext: '.ts' },
-  { id: 'javascript', label: 'JavaScript', ext: '.js' },
-  { id: 'python', label: 'Python', ext: '.py' },
-  { id: 'html', label: 'HTML', ext: '.html' },
-  { id: 'css', label: 'CSS', ext: '.css' },
-  { id: 'sql', label: 'SQL', ext: '.sql' },
-  { id: 'json', label: 'JSON', ext: '.json' },
-  { id: 'rust', label: 'Rust', ext: '.rs' },
-  { id: 'go', label: 'Go', ext: '.go' },
-  { id: 'bash', label: 'Bash', ext: '.sh' },
-  { id: 'markdown', label: 'Markdown', ext: '.md' },
+export const RICH_CODE_LANGUAGES = [
+  { id: 'typescript', name: 'TypeScript', ext: '.ts' },
+  { id: 'javascript', name: 'JavaScript', ext: '.js' },
+  { id: 'python', name: 'Python', ext: '.py' },
+  { id: 'html', name: 'HTML', ext: '.html' },
+  { id: 'css', name: 'CSS', ext: '.css' },
+  { id: 'json', name: 'JSON', ext: '.json' },
+  { id: 'sql', name: 'SQL', ext: '.sql' },
+  { id: 'rust', name: 'Rust', ext: '.rs' },
+  { id: 'go', name: 'Go', ext: '.go' },
+  { id: 'markdown', name: 'Markdown', ext: '.md' },
+  { id: 'bash', name: 'Bash / Shell', ext: '.sh' },
 ];
 
 // Trilium Note Model
@@ -126,17 +126,54 @@ const DEFAULT_TRILIUM_NOTES: TriliumNote[] = [
     parentId: null,
     title: 'Selamat Datang di Trilium Notes',
     type: 'text',
-    content: `<h2>Selamat Datang di Trilium Notes Personal Knowledge Base</h2>
+    content: `<h1>Panduan Personal Knowledge Base & Rekayasa Sistem</h1>
 <p>Trilium Notes adalah sistem pencatatan hierarkis (<em>hierarchical note-taking</em>) yang dirancang untuk mengorganisasi basis pengetahuan pribadi tanpa batas kedalaman folder.</p>
 
-<h3>Fitur Unggulan Siap Pakai:</h3>
+<h2>Hierarki Judul & Tipografi (H1, H2, H3)</h2>
+<p>Sistem tipografi telah disesuaikan dengan hierarki visual yang kontras dan jelas:</p>
+<h3>Sub-Bab Teknis: Fitur Unggulan Siap Pakai</h3>
+
+<p><strong>Contoh Daftar Poin (Bullet List):</strong></p>
+<ul>
+  <li>Hierarki pohon catatan tanpa batas kedalaman (<em>infinite nested tree</em>)</li>
+  <li>Editor visual WYSIWYG murni (teks tebal, garis bawah, stabilo, heading, tabel rapi)</li>
+  <li>Toolbar tabel interaktif: tambah/hapus baris & kolom dengan 1 klik</li>
+  <li>Tipe Catatan Fleksibel: Rich Text, Code Snippet, Checklist Tugas, dan Folder</li>
+</ul>
+
+<p><strong>Contoh Daftar Nomor Berurutan (Ordered List):</strong></p>
+<ol>
+  <li>Langkah pertama: Pilih atau buat catatan baru di panel kiri</li>
+  <li>Langkah kedua: Tulis konten dengan toolbar format (H1, H2, H3, Bold, List, Kode)</li>
+  <li>Langkah ketiga: Sisipkan blok kode dengan syntax highlighting otomatis</li>
+  <li>Langkah keempat: Ekspor atau simpan catatan secara lokal</li>
+</ol>
+
+<h3>Blok Kode dengan Syntax Highlighting & Bahasa Pilihan</h3>
+<p>Anda sekarang dapat menyisipkan cuplikan kode dengan pilihan bahasa di dalam Rich Text:</p>
+
+<pre><code class="language-typescript">import type { Request, Response } from 'express';
+
+export interface ApiResponse&lt;T&gt; {
+  success: boolean;
+  data: T;
+  timestamp: number;
+}
+
+export function createSuccessResponse&lt;T&gt;(data: T): ApiResponse&lt;T&gt; {
+  return {
+    success: true,
+    data,
+    timestamp: Date.now(),
+  };
+}</code></pre>
+
+<h3>Contoh Checklist Tugas Interaktif:</h3>
 <ul data-type="taskList">
-  <li data-type="taskItem" data-checked="true"><div>Hierarki pohon catatan tanpa batas kedalaman (<em>infinite nested tree</em>)</div></li>
-  <li data-type="taskItem" data-checked="true"><div>Editor visual WYSIWYG murni (teks tebal, garis bawah, stabilo, heading, tabel rapi, to-do list)</div></li>
-  <li data-type="taskItem" data-checked="true"><div>Toolbar tabel interaktif: tambah/hapus baris & kolom dengan 1 klik</div></li>
-  <li data-type="taskItem" data-checked="true"><div>Tipe Catatan Fleksibel: Rich Text, Code Snippet, Checklist Tugas, dan Folder</div></li>
-  <li data-type="taskItem" data-checked="true"><div>Sistem Label & Atribut ala Trilium (misal: <code>#status=active</code>, <code>#priority=high</code>)</div></li>
-  <li data-type="taskItem" data-checked="false"><div>Fitur Hoist (fokus pada sub-pohon catatan tertentu sebagai root)</div></li>
+  <li data-type="taskItem" data-checked="true"><div>Hierarki visual H1, H2, H3 dengan pembeda ukuran yang tegas</div></li>
+  <li data-type="taskItem" data-checked="true"><div>Daftar poin (bullet list) & nomor (ordered list) tampil rapi</div></li>
+  <li data-type="taskItem" data-checked="true"><div>Blok kode kaya dengan pemilih bahasa & tema VS Code Dark Modern</div></li>
+  <li data-type="taskItem" data-checked="true"><div>Editor Code Snippet murni tanpa chrome VS Code</div></li>
 </ul>
 
 <h3>Contoh Tabel Data Terstruktur:</h3>
@@ -155,19 +192,19 @@ const DEFAULT_TRILIUM_NOTES: TriliumNote[] = [
       <td>Tanpa perlu mengetik sintaks kode Markdown manual</td>
     </tr>
     <tr>
+      <td><strong>Blok Kode Berbahasa</strong></td>
+      <td><mark>Aktif</mark></td>
+      <td>Syntax highlighting otomatis dengan Lowlight</td>
+    </tr>
+    <tr>
       <td><strong>Tabel Interaktif</strong></td>
       <td><mark>Aktif</mark></td>
       <td>Mendukung manipulasi baris dan kolom instan</td>
     </tr>
-    <tr>
-      <td><strong>Cadangan & Ekspor</strong></td>
-      <td><mark>Siap</mark></td>
-      <td>Unduh cadangan JSON atau ekspor ke HTML & cetak</td>
-    </tr>
   </tbody>
 </table>
 
-<blockquote><p>💡 <strong>Tip Cepat:</strong> Klik tombol <strong>Tabel</strong> di toolbar untuk menyisipkan tabel baru dengan ukuran pilihan, atau gunakan tombol <strong>+</strong> di panel kiri untuk membuat sub-catatan baru.</p></blockquote>`,
+<blockquote><p>💡 <strong>Tip Cepat:</strong> Klik tombol <strong>Kode</strong> di toolbar untuk menyisipkan blok kode baru dengan bahasa favorit Anda (TypeScript, Python, SQL, Rust, Go, dll).</p></blockquote>`,
     attributes: [
       { id: 'attr-1', name: 'status', value: 'active', type: 'label' },
       { id: 'attr-2', name: 'workspace', value: 'knowledge-base', type: 'label' },
@@ -300,7 +337,7 @@ export const NotesNotebookPage: React.FC = () => {
   // State: Notes Tree
   const [notes, setNotes] = useState<TriliumNote[]>(() => {
     try {
-      const saved = localStorage.getItem('trilium_notes_store_v2');
+      const saved = localStorage.getItem('trilium_notes_store_v3');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -333,7 +370,7 @@ export const NotesNotebookPage: React.FC = () => {
   const [isTableMenuOpen, setIsTableMenuOpen] = useState(false);
   const tableMenuRef = useRef<HTMLDivElement>(null);
 
-  // Code Block Language Dropdown
+  // Code Block Language Dropdown Popover
   const [isCodeMenuOpen, setIsCodeMenuOpen] = useState(false);
   const codeMenuRef = useRef<HTMLDivElement>(null);
 
@@ -350,11 +387,11 @@ export const NotesNotebookPage: React.FC = () => {
   // Persist to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('trilium_notes_store_v2', JSON.stringify(notes));
+      localStorage.setItem('trilium_notes_store_v3', JSON.stringify(notes));
     } catch {}
   }, [notes]);
 
-  // Close menus when clicking outside
+  // Close table and code menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (tableMenuRef.current && !tableMenuRef.current.contains(e.target as Node)) {
@@ -377,13 +414,13 @@ export const NotesNotebookPage: React.FC = () => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        codeBlock: false,
         heading: {
           levels: [1, 2, 3],
         },
+        codeBlock: false,
       }),
       CodeBlockLowlight.configure({
-        lowlight,
+        lowlight: lowlightInstance,
         defaultLanguage: 'typescript',
       }),
       Underline,
@@ -929,6 +966,23 @@ export const NotesNotebookPage: React.FC = () => {
             <FileDown size={15} />
           </button>
 
+          {/* Reset Demo Data */}
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm('Kembalikan catatan ke contoh bawaan lengkap (dengan contoh H1-H3, list, dan blok kode)?')) {
+                setNotes(DEFAULT_TRILIUM_NOTES);
+                setActiveNoteId(DEFAULT_TRILIUM_NOTES[0].id);
+                setOpenTabIds(DEFAULT_TRILIUM_NOTES.slice(0, 3).map((n) => n.id));
+                localStorage.setItem('trilium_notes_store_v3', JSON.stringify(DEFAULT_TRILIUM_NOTES));
+              }
+            }}
+            className="p-2 rounded-xl hover:bg-stone-100 dark:hover:bg-zinc-800 border border-stone-200 dark:border-zinc-800 text-stone-600 dark:text-zinc-400 cursor-pointer transition-colors"
+            title="Kembalikan Catatan Contoh Bawaan"
+          >
+            <RotateCcw size={15} />
+          </button>
+
           {/* Print / PDF */}
           <button
             type="button"
@@ -1253,56 +1307,48 @@ export const NotesNotebookPage: React.FC = () => {
               {activeNote.type !== 'code' && editor && (
                 <div className="px-4 py-2 bg-stone-50/80 dark:bg-[#181a1f] border-b border-stone-200 dark:border-zinc-800 flex flex-wrap items-center gap-1 text-stone-700 dark:text-zinc-300 text-xs shrink-0 select-none">
                   
-                  {/* Headings Hierarchy (H1, H2, H3) */}
-                  <div className="flex items-center gap-0.5 border-r border-stone-300 dark:border-zinc-700 pr-1 mr-0.5">
-                    <button
-                      type="button"
-                      onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                      className={`px-2 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
-                        editor.isActive('heading', { level: 1 })
-                          ? 'bg-rose-600 text-white shadow-xs'
-                          : 'hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
-                      }`}
-                      title="Heading 1 (Judul Utama)"
-                    >
-                      <span className="font-extrabold text-[12px]">H1</span>
-                    </button>
+                  {/* Headings */}
+                  <button
+                    type="button"
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
+                      editor.isActive('heading', { level: 1 }) ? 'bg-rose-600 text-white font-bold' : ''
+                    }`}
+                    title="Heading 1"
+                  >
+                    <Heading1 size={15} />
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                      className={`px-2 py-1 rounded-lg text-xs font-bold cursor-pointer transition-colors ${
-                        editor.isActive('heading', { level: 2 })
-                          ? 'bg-rose-600 text-white shadow-xs'
-                          : 'hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
-                      }`}
-                      title="Heading 2 (Subjudul Seksi)"
-                    >
-                      <span className="font-bold text-[12px]">H2</span>
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
+                      editor.isActive('heading', { level: 2 }) ? 'bg-rose-600 text-white font-bold' : ''
+                    }`}
+                    title="Heading 2"
+                  >
+                    <Heading2 size={15} />
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                      className={`px-2 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
-                        editor.isActive('heading', { level: 3 })
-                          ? 'bg-rose-600 text-white shadow-xs'
-                          : 'hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
-                      }`}
-                      title="Heading 3 (Poin Subseksi)"
-                    >
-                      <span className="font-semibold text-[12px]">H3</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
+                      editor.isActive('heading', { level: 3 }) ? 'bg-rose-600 text-white font-bold' : ''
+                    }`}
+                    title="Heading 3"
+                  >
+                    <Heading3 size={15} />
+                  </button>
+
+                  <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
 
                   {/* Bold, Italic, Underline, Strikethrough, Highlight */}
                   <button
                     type="button"
                     onClick={() => editor.chain().focus().toggleBold().run()}
-                    className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                      editor.isActive('bold')
-                        ? 'bg-rose-600 text-white font-bold shadow-xs'
-                        : 'hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
+                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
+                      editor.isActive('bold') ? 'bg-rose-600 text-white' : ''
                     }`}
                     title="Tebal (Ctrl+B)"
                   >
@@ -1312,10 +1358,8 @@ export const NotesNotebookPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => editor.chain().focus().toggleItalic().run()}
-                    className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                      editor.isActive('italic')
-                        ? 'bg-rose-600 text-white shadow-xs'
-                        : 'hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
+                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
+                      editor.isActive('italic') ? 'bg-rose-600 text-white' : ''
                     }`}
                     title="Miring (Ctrl+I)"
                   >
@@ -1325,10 +1369,8 @@ export const NotesNotebookPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => editor.chain().focus().toggleUnderline().run()}
-                    className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                      editor.isActive('underline')
-                        ? 'bg-rose-600 text-white shadow-xs'
-                        : 'hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
+                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
+                      editor.isActive('underline') ? 'bg-rose-600 text-white' : ''
                     }`}
                     title="Garis Bawah (Ctrl+U)"
                   >
@@ -1338,10 +1380,8 @@ export const NotesNotebookPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => editor.chain().focus().toggleStrike().run()}
-                    className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                      editor.isActive('strike')
-                        ? 'bg-rose-600 text-white shadow-xs'
-                        : 'hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
+                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
+                      editor.isActive('strike') ? 'bg-rose-600 text-white' : ''
                     }`}
                     title="Coretan (Strikethrough)"
                   >
@@ -1351,91 +1391,13 @@ export const NotesNotebookPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => editor.chain().focus().toggleHighlight().run()}
-                    className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                      editor.isActive('highlight')
-                        ? 'bg-rose-600 text-white shadow-xs'
-                        : 'hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
+                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
+                      editor.isActive('highlight') ? 'bg-rose-600 text-white' : ''
                     }`}
                     title="Stabilo Sorot (Highlight)"
                   >
                     <Highlighter size={15} />
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleCode().run()}
-                    className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                      editor.isActive('code')
-                        ? 'bg-rose-600 text-white shadow-xs'
-                        : 'hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-300'
-                    }`}
-                    title="Kode Baris (Inline Code)"
-                  >
-                    <Code size={14} />
-                  </button>
-
-                  <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
-
-                  {/* CODE BLOCK WITH LANGUAGE SELECTOR */}
-                  <div className="relative" ref={codeMenuRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsCodeMenuOpen(!isCodeMenuOpen)}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
-                        editor.isActive('codeBlock')
-                          ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800 shadow-xs'
-                          : 'hover:bg-stone-200 dark:hover:bg-zinc-800 border-stone-200 dark:border-zinc-700 text-stone-700 dark:text-zinc-300'
-                      }`}
-                      title="Sisipkan Blok Kode dengan Pilihan Bahasa"
-                    >
-                      <FileCode size={13} className="text-rose-600 dark:text-rose-400" />
-                      <span>
-                        {editor.isActive('codeBlock')
-                          ? `Kode: ${editor.getAttributes('codeBlock').language || 'ts'}`
-                          : 'Kode'}
-                      </span>
-                      <ChevronDown size={11} />
-                    </button>
-
-                    {isCodeMenuOpen && (
-                      <div className="absolute left-0 mt-1 w-48 p-1.5 rounded-xl bg-white dark:bg-[#181a1f] border border-stone-200 dark:border-zinc-800 shadow-xl z-30 text-xs">
-                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-zinc-500 border-b border-stone-100 dark:border-zinc-800/80 mb-1">
-                          Pilih Bahasa Kode
-                        </div>
-                        <div className="max-h-56 overflow-y-auto space-y-0.5">
-                          {CODE_BLOCK_LANGUAGES.map((lang) => {
-                            const isCurrent =
-                              editor.isActive('codeBlock') &&
-                              editor.getAttributes('codeBlock').language === lang.id;
-                            return (
-                              <button
-                                key={lang.id}
-                                type="button"
-                                onClick={() => {
-                                  if (editor.isActive('codeBlock')) {
-                                    editor.chain().focus().updateAttributes('codeBlock', { language: lang.id }).run();
-                                  } else {
-                                    editor.chain().focus().toggleCodeBlock({ language: lang.id }).run();
-                                  }
-                                  setIsCodeMenuOpen(false);
-                                }}
-                                className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors cursor-pointer ${
-                                  isCurrent
-                                    ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300 font-semibold'
-                                    : 'hover:bg-stone-100 dark:hover:bg-zinc-800 text-stone-800 dark:text-zinc-200'
-                                }`}
-                              >
-                                <span>{lang.label}</span>
-                                <span className="text-[10px] text-stone-400 dark:text-zinc-500 font-mono">
-                                  {lang.ext}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
                   <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
 
@@ -1480,7 +1442,7 @@ export const NotesNotebookPage: React.FC = () => {
                     type="button"
                     onClick={() => editor.chain().focus().toggleBulletList().run()}
                     className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('bulletList') ? 'bg-rose-600 text-white font-bold' : ''
+                      editor.isActive('bulletList') ? 'bg-rose-600 text-white' : ''
                     }`}
                     title="Daftar Poin (Bullet List)"
                   >
@@ -1491,7 +1453,7 @@ export const NotesNotebookPage: React.FC = () => {
                     type="button"
                     onClick={() => editor.chain().focus().toggleOrderedList().run()}
                     className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('orderedList') ? 'bg-rose-600 text-white font-bold' : ''
+                      editor.isActive('orderedList') ? 'bg-rose-600 text-white' : ''
                     }`}
                     title="Daftar Nomor (Ordered List)"
                   >
@@ -1522,6 +1484,50 @@ export const NotesNotebookPage: React.FC = () => {
                   >
                     <Quote size={15} />
                   </button>
+
+                  {/* Code Block with Language Selector */}
+                  <div className="relative" ref={codeMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsCodeMenuOpen(!isCodeMenuOpen)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+                        editor.isActive('codeBlock')
+                          ? 'bg-rose-600 text-white border-rose-600'
+                          : 'hover:bg-stone-200 dark:hover:bg-zinc-800 border-stone-200 dark:border-zinc-700'
+                      }`}
+                      title="Sisipkan Blok Kode Berbahasa (Syntax Highlighting)"
+                    >
+                      <Code size={14} className={editor.isActive('codeBlock') ? 'text-white' : 'text-rose-600 dark:text-rose-400'} />
+                      <span>Kode</span>
+                      <ChevronDown size={11} />
+                    </button>
+
+                    {isCodeMenuOpen && (
+                      <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#1a1c21] rounded-xl shadow-xl border border-stone-200 dark:border-zinc-800 p-2 z-40 space-y-1">
+                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                          Pilih Bahasa Kode
+                        </div>
+                        <div className="max-h-56 overflow-y-auto space-y-0.5">
+                          {RICH_CODE_LANGUAGES.map((lang) => (
+                            <button
+                              key={lang.id}
+                              type="button"
+                              onClick={() => {
+                                editor.chain().focus().toggleCodeBlock({ language: lang.id }).run();
+                                setIsCodeMenuOpen(false);
+                              }}
+                              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 hover:text-rose-600 cursor-pointer transition-colors"
+                            >
+                              <span className="font-medium">{lang.name}</span>
+                              <span className="text-[10px] font-mono text-stone-400 dark:text-zinc-500">
+                                {lang.ext}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   <button
                     type="button"
@@ -1742,8 +1748,8 @@ export const NotesNotebookPage: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 sm:p-6">
-                    <EditorContent editor={editor} />
+                  <div className="p-4 sm:p-6 min-h-[500px]">
+                    <EditorContent editor={editor} className="min-h-[450px]" />
                   </div>
                 )}
               </div>

@@ -365,114 +365,134 @@ code, kbd, samp, pre {
 }
 
 /* Headings Hierarchy (Clear distinction for H1, H2, H3) */
-.tiptap-content h1 {
-  font-size: 2rem !important; /* 32px */
-  line-height: 2.35rem !important;
+.tiptap-content h1,
+.tiptap-content.ProseMirror h1,
+.ProseMirror h1 {
+  font-size: 2.25rem !important; /* 36px */
+  line-height: 2.5rem !important;
   font-weight: 800 !important;
   letter-spacing: -0.025em !important;
   margin-top: 1.75rem !important;
   margin-bottom: 0.75rem !important;
-  color: #111827 !important;
-  border-bottom: 1.5px solid rgba(226, 232, 240, 0.8) !important;
-  padding-bottom: 0.4rem !important;
+  color: #0f172a !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  padding-bottom: 0.5rem !important;
+  display: block !important;
 }
-:where(.dark) .tiptap-content h1 {
-  color: #f9fafb !important;
-  border-color: rgba(63, 63, 70, 0.6) !important;
+:where(.dark) .tiptap-content h1,
+:where(.dark) .tiptap-content.ProseMirror h1,
+:where(.dark) .ProseMirror h1 {
+  color: #f8fafc !important;
+  border-bottom-color: #27272a !important;
 }
 
-.tiptap-content h2 {
-  font-size: 1.5rem !important; /* 24px */
-  line-height: 1.95rem !important;
+.tiptap-content h2,
+.tiptap-content.ProseMirror h2,
+.ProseMirror h2 {
+  font-size: 1.65rem !important; /* ~26px */
+  line-height: 2rem !important;
   font-weight: 700 !important;
   letter-spacing: -0.02em !important;
-  margin-top: 1.35rem !important;
-  margin-bottom: 0.55rem !important;
-  color: #1f2937 !important;
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.6rem !important;
+  color: #1e293b !important;
+  display: block !important;
 }
-:where(.dark) .tiptap-content h2 {
-  color: #f3f4f6 !important;
+:where(.dark) .tiptap-content h2,
+:where(.dark) .tiptap-content.ProseMirror h2,
+:where(.dark) .ProseMirror h2 {
+  color: #f1f5f9 !important;
 }
 
-.tiptap-content h3 {
-  font-size: 1.25rem !important; /* 20px */
+.tiptap-content h3,
+.tiptap-content.ProseMirror h3,
+.ProseMirror h3 {
+  font-size: 1.3rem !important; /* ~21px */
   line-height: 1.75rem !important;
   font-weight: 600 !important;
   letter-spacing: -0.015em !important;
-  margin-top: 1.1rem !important;
-  margin-bottom: 0.4rem !important;
-  color: #374151 !important;
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.45rem !important;
+  color: #334155 !important;
+  display: block !important;
 }
-:where(.dark) .tiptap-content h3 {
-  color: #e5e7eb !important;
+:where(.dark) .tiptap-content h3,
+:where(.dark) .tiptap-content.ProseMirror h3,
+:where(.dark) .ProseMirror h3 {
+  color: #e2e8f0 !important;
 }
 
-/* Paragraphs & Inlines */
-.tiptap-content p {
-  margin: 0.55rem 0 !important;
+.tiptap-content p,
+.tiptap-content.ProseMirror p,
+.ProseMirror p {
+  margin: 0.6rem 0 !important;
   line-height: 1.75 !important;
 }
 
 .tiptap-content strong,
-.tiptap-content b {
+.tiptap-content b,
+.tiptap-content.ProseMirror strong,
+.tiptap-content.ProseMirror b {
   font-weight: 700 !important;
   color: inherit !important;
 }
 
-.tiptap-content em,
-.tiptap-content i {
-  font-style: italic !important;
-}
-
-.tiptap-content u {
-  text-decoration: underline !important;
-  text-underline-offset: 3px !important;
-}
-
-.tiptap-content s {
-  text-decoration: line-through !important;
-}
-
-/* Lists with authentic bullets and numbering */
-.tiptap-content ul:not([data-type="taskList"]) {
+/* Authentic Bullet Lists and Ordered Lists */
+.tiptap-content ul:not([data-type="taskList"]),
+.tiptap-content.ProseMirror ul:not([data-type="taskList"]),
+.ProseMirror ul:not([data-type="taskList"]) {
   list-style-type: disc !important;
-  padding-left: 1.75rem !important;
+  padding-left: 2rem !important;
   margin: 0.75rem 0 !important;
 }
 
-.tiptap-content ul:not([data-type="taskList"]) ul {
+.tiptap-content ul:not([data-type="taskList"]) ul,
+.tiptap-content.ProseMirror ul:not([data-type="taskList"]) ul,
+.ProseMirror ul:not([data-type="taskList"]) ul {
   list-style-type: circle !important;
   margin: 0.25rem 0 !important;
 }
 
-.tiptap-content ul:not([data-type="taskList"]) ul ul {
+.tiptap-content ul:not([data-type="taskList"]) ul ul,
+.tiptap-content.ProseMirror ul:not([data-type="taskList"]) ul ul,
+.ProseMirror ul:not([data-type="taskList"]) ul ul {
   list-style-type: square !important;
 }
 
-.tiptap-content ol {
+.tiptap-content ol,
+.tiptap-content.ProseMirror ol,
+.ProseMirror ol {
   list-style-type: decimal !important;
-  padding-left: 1.75rem !important;
+  padding-left: 2rem !important;
   margin: 0.75rem 0 !important;
 }
 
-.tiptap-content ol ol {
+.tiptap-content ol ol,
+.tiptap-content.ProseMirror ol ol,
+.ProseMirror ol ol {
   list-style-type: lower-alpha !important;
   margin: 0.25rem 0 !important;
 }
 
-.tiptap-content ol ol ol {
+.tiptap-content ol ol ol,
+.tiptap-content.ProseMirror ol ol ol,
+.ProseMirror ol ol ol {
   list-style-type: lower-roman !important;
 }
 
-.tiptap-content li {
+.tiptap-content li,
+.tiptap-content.ProseMirror li,
+.ProseMirror li {
   margin: 0.35rem 0 !important;
   line-height: 1.65 !important;
   display: list-item !important;
 }
 
-.tiptap-content li > p {
+.tiptap-content li > p,
+.tiptap-content.ProseMirror li > p,
+.ProseMirror li > p {
   margin: 0 !important;
-  display: inline;
+  display: inline !important;
 }
 
 /* Trilium Tables */
@@ -578,29 +598,35 @@ code, kbd, samp, pre {
 }
 
 /* Code & Blockquote */
-.tiptap-content pre {
+.tiptap-content pre,
+.tiptap-content.ProseMirror pre,
+.ProseMirror pre {
   background: #1e1e1e !important;
   color: #d4d4d4 !important;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-  padding: 1.1rem 1.25rem !important;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Geist Mono', monospace !important;
+  padding: 1.15rem 1.25rem !important;
   border-radius: 0.75rem !important;
   margin: 1.25rem 0 !important;
   overflow-x: auto !important;
   border: 1px solid #333333 !important;
-  font-size: 0.85rem !important;
-  line-height: 1.6 !important;
+  font-size: 0.875rem !important;
+  line-height: 1.65 !important;
+  position: relative;
 }
 
-.tiptap-content pre code {
+.tiptap-content pre code,
+.tiptap-content.ProseMirror pre code,
+.ProseMirror pre code {
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
   color: inherit !important;
   font-size: inherit !important;
   font-family: inherit !important;
+  display: block;
 }
 
-/* TipTap Lowlight / Highlight.js Syntax Highlighting (VS Code Dark Modern Theme) */
+/* Syntax Highlight Colors (VS Code Dark Modern Theme) */
 .tiptap-content .hljs-keyword,
 .tiptap-content .hljs-selector-tag {
   color: #c586c0 !important;
@@ -637,6 +663,21 @@ code, kbd, samp, pre {
 }
 .tiptap-content .hljs-operator {
   color: #d4d4d4 !important;
+}
+
+.tiptap-content :not(pre) > code {
+  background-color: rgba(225, 29, 72, 0.08);
+  color: #e11d48;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.35rem;
+  font-size: 0.85em;
+  font-family: 'JetBrains Mono', 'Geist Mono', monospace;
+  font-weight: 500;
+}
+
+:where(.dark) .tiptap-content :not(pre) > code {
+  background-color: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
 }
 
 .tiptap-content blockquote {

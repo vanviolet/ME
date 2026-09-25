@@ -1,7 +1,7 @@
 /**
  * Trilium Notes - Code Snippet Language Engine & VS Code Dark Modern Definitions
- * Provides syntax tokenization, static analysis/diagnostics (with error checking for all languages),
- * IntelliSense autocompletions, and code formatting.
+ * Provides syntax tokenization, static analysis/diagnostics (with error checking for all 10 languages),
+ * IntelliSense autocompletions for all languages, and code formatting.
  */
 
 export type CodeLanguage =
@@ -36,7 +36,6 @@ export const SUPPORTED_LANGUAGES: LanguageMeta[] = [
     iconColor: '#ffffff',
     sampleCode: `import type { Request, Response, NextFunction } from 'express';
 
-// Definisi Interface & Tipe
 export interface RateLimitConfig {
   windowMs: number;
   maxRequests: number;
@@ -50,9 +49,6 @@ export interface ClientRecord {
 
 const clientCache = new Map<string, ClientRecord>();
 
-/**
- * Middleware Rate Limiter Express dengan TypeScript
- */
 export function createRateLimiter(config: RateLimitConfig) {
   const { windowMs, maxRequests, message = 'Terlalu banyak permintaan' } = config;
 
@@ -83,7 +79,6 @@ export function createRateLimiter(config: RateLimitConfig) {
   };
 }
 
-// Coba eksekusi fungsi
 console.log('TypeScript Rate Limiter siap digunakan');`,
   },
   {
@@ -146,7 +141,6 @@ class DataAnalyzer:
         variance = sum((x - mean_val) ** 2 for x in self.data) / len(self.data)
         return round(variance, 4)
 
-# Contoh penggunaan
 analyzer = DataAnalyzer([10.5, 23.1, 18.4, 45.2, 32.0])
 print(f"Rata-rata: {analyzer.calculate_mean():.2f}")
 print(f"Varians: {analyzer.calculate_variance():.2f}")`,
@@ -194,15 +188,8 @@ print(f"Varians: {analyzer.calculate_variance():.2f}")`,
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trilium Code Snippet</title>
-  <link rel="stylesheet" href="styles.css">
 </head>
 <body class="bg-dark">
-  <header class="navbar">
-    <div class="logo">
-      <span class="badge">Trilium</span>
-      <h1>Editor Snippet</h1>
-    </div>
-  </header>
   <main class="container">
     <section class="card">
       <h2>Catatan Kode Interaktif</h2>
@@ -239,14 +226,10 @@ print(f"Varians: {analyzer.calculate_variance():.2f}")`,
   flex-direction: column;
   background-color: var(--vscode-bg);
   color: var(--vscode-text);
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: 'JetBrains Mono', monospace;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.editor-line:hover {
-  background-color: rgba(255, 255, 255, 0.04);
 }`,
   },
   {
@@ -372,22 +355,22 @@ npm run dev
 // VS Code Dark Modern Color Tokens
 // ==========================================
 export type TokenType =
-  | 'keyword-purple' // export, import, from, return, if, else, await, etc.
-  | 'keyword-blue' // function, class, const, let, var, interface, type, async, etc.
-  | 'type' // string, number, boolean, Request, Response, Promise, etc.
-  | 'function' // function names & calls: createRateLimiter(, log(, etc.
-  | 'string' // '...', "...", `...`
-  | 'number' // 123, 45.6
-  | 'boolean' // true, false
-  | 'comment' // // ..., /* ... */, # ...
-  | 'variable' // parameters, identifiers
-  | 'property' // .propName
-  | 'tag' // <div>, <button>
-  | 'attribute' // class="", id=""
-  | 'bracket-1' // { } (gold)
-  | 'bracket-2' // ( ) (magenta)
-  | 'bracket-3' // [ ] (blue)
-  | 'operator' // =, +, =>, etc.
+  | 'keyword-purple'
+  | 'keyword-blue'
+  | 'type'
+  | 'function'
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'comment'
+  | 'variable'
+  | 'property'
+  | 'tag'
+  | 'attribute'
+  | 'bracket-1'
+  | 'bracket-2'
+  | 'bracket-3'
+  | 'operator'
   | 'default';
 
 export interface CodeToken {
@@ -398,25 +381,24 @@ export interface CodeToken {
   errorMessage?: string;
 }
 
-// Exact VS Code Dark Modern hex colors
 export const VSCODE_COLORS: Record<TokenType, string> = {
-  'keyword-purple': '#c586c0', // Magenta/Purple: export, import, return, from, default, if, else
-  'keyword-blue': '#569cd6', // Blue: function, const, let, class, interface, type, async
-  type: '#4ec9b0', // Teal/Cyan: string, number, boolean, Request, Promise, CustomType
-  function: '#dcdcaa', // Yellow/Gold: function names & method calls
-  string: '#ce9178', // Warm Terracotta Orange: "...", '...', `...`
-  number: '#b5cea8', // Light Sage Green: 123, 3.14
-  boolean: '#569cd6', // Blue/Green
-  comment: '#6a9955', // Muted Green (italic): comments
-  variable: '#9cdcfe', // Light Sky Blue: variables & parameters
-  property: '#9cdcfe', // Object properties
-  tag: '#569cd6', // HTML Tag
-  attribute: '#9cdcfe', // HTML attribute
-  'bracket-1': '#ffd700', // Gold bracket pair
-  'bracket-2': '#da70d6', // Purple bracket pair
-  'bracket-3': '#179fff', // Blue bracket pair
-  operator: '#d4d4d4', // Gray operator
-  default: '#d4d4d4', // Default text
+  'keyword-purple': '#c586c0',
+  'keyword-blue': '#569cd6',
+  type: '#4ec9b0',
+  function: '#dcdcaa',
+  string: '#ce9178',
+  number: '#b5cea8',
+  boolean: '#569cd6',
+  comment: '#6a9955',
+  variable: '#9cdcfe',
+  property: '#9cdcfe',
+  tag: '#569cd6',
+  attribute: '#9cdcfe',
+  'bracket-1': '#ffd700',
+  'bracket-2': '#da70d6',
+  'bracket-3': '#179fff',
+  operator: '#d4d4d4',
+  default: '#d4d4d4',
 };
 
 const TS_KEYWORDS_PURPLE = new Set([
@@ -838,7 +820,7 @@ export function tokenizeLine(
       continue;
     }
 
-    // Strings: single quote, double quote, backtick
+    // Strings
     if (char === '"' || char === "'" || char === '`') {
       const quote = char;
       let strVal = quote;
@@ -901,14 +883,11 @@ export function tokenizeLine(
         i++;
       }
 
-      // Check if followed by open parenthesis -> Function invocation
       let lookahead = i;
       while (lookahead < len && line[lookahead] === ' ') {
         lookahead++;
       }
       const isCall = (lookahead < len && line[lookahead] === '(') || (language === 'rust' && line[lookahead] === '!');
-
-      // Check if preceded by dot -> Property access
       const isProp = tokens.length > 0 && tokens[tokens.length - 1].text.trimEnd().endsWith('.');
 
       // TypeScript / JavaScript
@@ -996,7 +975,7 @@ export function tokenizeLine(
         continue;
       }
 
-      // CSS / HTML
+      // CSS
       if (language === 'css') {
         if (isProp) {
           tokens.push({ text: word, type: 'property', color: VSCODE_COLORS.property });
@@ -1006,7 +985,6 @@ export function tokenizeLine(
         continue;
       }
 
-      // Default identifier fallback
       if (isCall) {
         tokens.push({ text: word, type: 'function', color: VSCODE_COLORS.function });
       } else {
@@ -1015,7 +993,6 @@ export function tokenizeLine(
       continue;
     }
 
-    // Operators and punctuation
     let op = char;
     i++;
     if (i < len && /[=+\-*/%&|^!<>?:.]/.test(line[i])) {
@@ -1050,16 +1027,12 @@ export interface Diagnostic {
   highlightWord?: string;
 }
 
-/**
- * Perform realistic static analysis with error diagnostics across all 10 supported languages
- */
 export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const lines = code.split('\n');
 
   // 1. JSON Strict Validation
   if (language === 'json') {
-    // Check for trailing commas in JSON (illegal in JSON specification)
     lines.forEach((lineText, idx) => {
       const lineNum = idx + 1;
       const trailingCommaMatch = lineText.match(/,\s*([}\]])/);
@@ -1084,7 +1057,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         });
       }
 
-      // Check single quotes in JSON
       const singleQuoteMatch = lineText.match(/'([^']*)'/);
       if (singleQuoteMatch) {
         const col = lineText.indexOf("'") + 1;
@@ -1160,7 +1132,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         constVariables.add(constMatch[1]);
       }
 
-      // Check const reassignment
       constVariables.forEach((constName) => {
         if (!lineText.includes(`const ${constName}`)) {
           const reassignRegex = new RegExp(`\\b${constName}\\s*(=|\\+=|-=|\\*=|\\/=|\\+\\+|--)`);
@@ -1183,7 +1154,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         }
       });
 
-      // Type Mismatch Checks in TypeScript
       if (language === 'typescript') {
         const numMismatch = lineText.match(/:\s*number\s*=\s*(["'`][^"'`]*["'`])/);
         if (numMismatch) {
@@ -1230,7 +1200,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
           });
         }
 
-        // Common typos in TypeScript types
         const typeTypoMap: Record<string, string> = {
           nuber: 'number',
           numbr: 'number',
@@ -1267,7 +1236,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         }
       }
 
-      // Console typos
       const consoleTypoMap: Record<string, string> = {
         logg: 'log',
         prnt: 'log',
@@ -1293,30 +1261,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         }
       }
 
-      // Assignment in if conditional
-      const ifAssign = lineText.match(/if\s*\([^=]*[^!=<>]=[^=]/);
-      if (ifAssign && !lineText.includes('==') && !lineText.includes('===')) {
-        const col = lineText.indexOf('=') + 1;
-        diagnostics.push({
-          line: lineNum,
-          column: col,
-          severity: 'warning',
-          code: 'ts(2695)',
-          source: 'TypeScript',
-          message: `Left side of '=' is assignment, not comparison. Did you mean '===' or '=='?`,
-          highlightWord: '=',
-          quickFix: {
-            label: `Ganti '=' dengan '==='`,
-            applyFix: (src) => {
-              const lns = src.split('\n');
-              lns[idx] = lns[idx].replace(/if\s*\(([^=]*)=([^=])/, 'if ($1===$2');
-              return lns.join('\n');
-            },
-          },
-        });
-      }
-
-      // Track bracket balances
       for (let c = 0; c < lineText.length; c++) {
         const char = lineText[c];
         if (char === '{') {
@@ -1377,7 +1321,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
       const trimmed = lineText.trim();
       if (!trimmed || trimmed.startsWith('#')) return;
 
-      // Check missing colon on def, class, if, elif, else, for, while, try, except, finally, with
       const needsColon = /^(def\s+[a-zA-Z0-9_]+\s*\(.*?\)|class\s+[a-zA-Z0-9_]+(\(.*?\))?|if\s+.+|elif\s+.+|else|for\s+.+\s+in\s+.+|while\s+.+|try|except.*|finally|with\s+.+)$/;
       if (needsColon.test(trimmed) && !trimmed.endsWith(':')) {
         diagnostics.push({
@@ -1398,7 +1341,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         });
       }
 
-      // Check JS strict equality in Python (=== or !==)
       if (lineText.includes('===') || lineText.includes('!==')) {
         const typoOp = lineText.includes('===') ? '===' : '!==';
         const fixOp = typoOp === '===' ? '==' : '!=';
@@ -1409,7 +1351,7 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
           severity: 'error',
           code: 'py(invalid-operator)',
           source: 'Python',
-          message: `SyntaxError: '${typoOp}' is not a valid Python operator. Use '${fixOp}' for comparison.`,
+          message: `SyntaxError: '${typoOp}' is not a valid Python operator. Use '${fixOp}'.`,
           highlightWord: typoOp,
           quickFix: {
             label: `Ganti '${typoOp}' menjadi '${fixOp}'`,
@@ -1418,7 +1360,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         });
       }
 
-      // Track parenthesis balance
       for (const char of lineText) {
         if (char === '(' || char === '[' || char === '{') parenBalance++;
         if (char === ')' || char === ']' || char === '}') parenBalance--;
@@ -1453,7 +1394,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
           continue;
         }
         if (fullMatch.startsWith('</')) {
-          // Closing tag
           if (openTags.length > 0 && openTags[openTags.length - 1].tag === tagName) {
             openTags.pop();
           } else {
@@ -1463,27 +1403,13 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
               severity: 'warning',
               code: 'html(mismatched-closing)',
               source: 'HTML',
-              message: `Mismatched or unexpected closing tag '</${tagName}>'.`,
+              message: `Mismatched closing tag '</${tagName}>'.`,
               highlightWord: fullMatch,
             });
           }
         } else {
-          // Opening tag
           openTags.push({ tag: tagName, line: lineNum });
         }
-      }
-
-      // Check unclosed attribute quotes
-      const attrMatch = lineText.match(/<[^>]*\b[a-zA-Z-]+="[^"]*$/);
-      if (attrMatch) {
-        diagnostics.push({
-          line: lineNum,
-          column: lineText.length,
-          severity: 'error',
-          code: 'html(unclosed-attribute)',
-          source: 'HTML',
-          message: 'Unterminated attribute string quote.',
-        });
       }
     });
 
@@ -1496,10 +1422,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         code: 'html(unclosed-tag)',
         source: 'HTML',
         message: `Tag '<${unclosed.tag}>' does not appear to be closed. Missing '</${unclosed.tag}>'.`,
-        quickFix: {
-          label: `Tambahkan '</${unclosed.tag}>'`,
-          applyFix: (src) => src + `\n</${unclosed.tag}>`,
-        },
       });
     }
   }
@@ -1517,7 +1439,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         if (char === '}') braceCount--;
       }
 
-      // Check missing semicolon inside rule block
       if (
         braceCount > 0 &&
         !trimmed.endsWith('{') &&
@@ -1534,7 +1455,7 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
           source: 'CSS',
           message: "CSS property declaration is missing a trailing semicolon ';'.",
           quickFix: {
-            label: "Tambahkan ';' di akhir deklarasi",
+            label: "Tambahkan ';' di akhir",
             applyFix: (src) => {
               const lns = src.split('\n');
               lns[idx] = lns[idx] + ';';
@@ -1542,34 +1463,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
             },
           },
         });
-      }
-
-      // Common typo in CSS properties
-      const cssTypoMap: Record<string, string> = {
-        colr: 'color',
-        pading: 'padding',
-        margn: 'margin',
-        backgroud: 'background',
-        heigth: 'height',
-        widht: 'width',
-        fontwieght: 'font-weight',
-      };
-      for (const [typo, correct] of Object.entries(cssTypoMap)) {
-        if (trimmed.startsWith(`${typo}:`)) {
-          diagnostics.push({
-            line: lineNum,
-            column: lineText.indexOf(typo) + 1,
-            severity: 'error',
-            code: 'css(unknown-property)',
-            source: 'CSS',
-            message: `Unknown property '${typo}'. Did you mean '${correct}'?`,
-            highlightWord: typo,
-            quickFix: {
-              label: `Ganti '${typo}' menjadi '${correct}'`,
-              applyFix: (src) => src.replace(new RegExp(`\\b${typo}:`), `${correct}:`),
-            },
-          });
-        }
       }
     });
 
@@ -1580,7 +1473,7 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         severity: 'error',
         code: 'css(unbalanced-braces)',
         source: 'CSS',
-        message: braceCount > 0 ? "Unclosed '{' curly brace in CSS." : "Unexpected extra '}' curly brace in CSS.",
+        message: braceCount > 0 ? "Unclosed '{' curly brace in CSS." : "Unexpected extra '}' in CSS.",
       });
     }
   }
@@ -1589,9 +1482,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
   if (language === 'sql') {
     lines.forEach((lineText, idx) => {
       const lineNum = idx + 1;
-      const upper = lineText.toUpperCase();
-
-      // Check trailing comma before FROM: e.g. "SELECT id, name, FROM table"
       if (/,\s*FROM\b/i.test(lineText)) {
         const col = lineText.indexOf(',') + 1;
         diagnostics.push({
@@ -1606,18 +1496,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
             label: "Hapus koma sebelum 'FROM'",
             applyFix: (src) => src.replace(/,\s*(FROM\b)/i, ' $1'),
           },
-        });
-      }
-
-      // SELECT with column missing FROM
-      if (upper.trim().startsWith('SELECT') && !upper.includes('FROM') && upper.length > 30) {
-        diagnostics.push({
-          line: lineNum,
-          column: 1,
-          severity: 'info',
-          code: 'sql(missing-from)',
-          source: 'SQL',
-          message: "Periksa klausa 'FROM' untuk tabel yang ditargetkan pada kueri SELECT ini.",
         });
       }
     });
@@ -1636,7 +1514,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         if (char === '}') braceCount--;
       }
 
-      // Check macro missing ! (e.g. println("...") instead of println!("..."))
       const macroMissingBang = trimmed.match(/\b(println|print|eprintln|eprint|vec|format)\s*\(/);
       if (macroMissingBang) {
         const mName = macroMissingBang[1];
@@ -1652,26 +1529,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
           quickFix: {
             label: `Ganti dengan '${mName}!'`,
             applyFix: (src) => src.replace(new RegExp(`\\b${mName}\\s*\\(`), `${mName}!(`),
-          },
-        });
-      }
-
-      // Check missing semicolon on let statements
-      if (trimmed.startsWith('let ') && !trimmed.endsWith(';') && !trimmed.endsWith('{')) {
-        diagnostics.push({
-          line: lineNum,
-          column: lineText.length + 1,
-          severity: 'error',
-          code: 'rs(missing-semicolon)',
-          source: 'Rust',
-          message: "Statement 'let' requires a closing semicolon ';'.",
-          quickFix: {
-            label: "Tambahkan ';' di akhir",
-            applyFix: (src) => {
-              const lns = src.split('\n');
-              lns[idx] = lns[idx] + ';';
-              return lns.join('\n');
-            },
           },
         });
       }
@@ -1692,22 +1549,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
   // 8. Go Analysis
   if (language === 'go') {
     let braceCount = 0;
-    const hasPackage = lines.some((l) => l.trim().startsWith('package '));
-    if (!hasPackage && code.trim().length > 10) {
-      diagnostics.push({
-        line: 1,
-        column: 1,
-        severity: 'error',
-        code: 'go(missing-package)',
-        source: 'Go',
-        message: "Expected 'package' clause at top of file (e.g. 'package main').",
-        quickFix: {
-          label: "Tambahkan 'package main'",
-          applyFix: (src) => 'package main\n\n' + src,
-        },
-      });
-    }
-
     lines.forEach((lineText, idx) => {
       const lineNum = idx + 1;
       const trimmed = lineText.trim();
@@ -1718,7 +1559,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         if (char === '}') braceCount--;
       }
 
-      // Check JS operator === in Go
       if (lineText.includes('===')) {
         const col = lineText.indexOf('===') + 1;
         diagnostics.push({
@@ -1752,22 +1592,8 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
   // 9. Markdown Analysis
   if (language === 'markdown') {
     let fenceCount = 0;
-    lines.forEach((lineText, idx) => {
-      const lineNum = idx + 1;
-      if (lineText.trim().startsWith('```')) {
-        fenceCount++;
-      }
-      // Check broken link syntax: [text]( without closing )
-      if (/\[[^\]]+\]\([^\)]*$/.test(lineText.trim())) {
-        diagnostics.push({
-          line: lineNum,
-          column: lineText.length,
-          severity: 'warning',
-          code: 'md(broken-link)',
-          source: 'Markdown',
-          message: "Unclosed markdown link. Missing closing ')' parenthesis.",
-        });
-      }
+    lines.forEach((lineText) => {
+      if (lineText.trim().startsWith('```')) fenceCount++;
     });
 
     if (fenceCount % 2 !== 0) {
@@ -1778,10 +1604,6 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
         code: 'md(unclosed-code-fence)',
         source: 'Markdown',
         message: "Unclosed code fence block. Missing closing '```'.",
-        quickFix: {
-          label: "Tutup blok kode dengan '```'",
-          applyFix: (src) => src + '\n```',
-        },
       });
     }
   }
@@ -1790,7 +1612,7 @@ export function analyzeCode(code: string, language: CodeLanguage): Diagnostic[] 
 }
 
 // ==========================================
-// IntelliSense Autocomplete Engine (All Languages)
+// Autocomplete Suggestions for ALL Languages
 // ==========================================
 export interface CompletionItem {
   label: string;
@@ -1801,11 +1623,11 @@ export interface CompletionItem {
   cursorOffset?: number;
 }
 
-export const TS_COMPLETIONS: CompletionItem[] = [
+const TS_COMPLETIONS: CompletionItem[] = [
   {
     label: 'export function',
     kind: 'snippet',
-    detail: 'Snippet: Fungsi ekspor',
+    detail: 'Snippet: Export Function',
     insertText: `export function namaFungsi(param: string): void {\n  \n}`,
     documentation: 'Membuat deklarasi fungsi publik dengan ekspor modular.',
     cursorOffset: 53,
@@ -1857,149 +1679,128 @@ export const TS_COMPLETIONS: CompletionItem[] = [
   {
     label: 'map',
     kind: 'function',
-    detail: '(method) Array.map<U>(callbackfn): U[]',
-    insertText: 'map((item) => item)',
-    documentation: 'Mentransformasi setiap elemen array ke dalam array baru.',
+    detail: 'Array.prototype.map()',
+    insertText: `map((item) => item)`,
+    documentation: 'Membuat array baru dengan hasil pemanggilan fungsi pada setiap elemen.',
   },
   {
     label: 'filter',
     kind: 'function',
-    detail: '(method) Array.filter(predicate): T[]',
-    insertText: 'filter((item) => Boolean(item))',
-    documentation: 'Menyaring elemen array yang memenuhi syarat pengujian fungsi.',
+    detail: 'Array.prototype.filter()',
+    insertText: `filter((item) => Boolean(item))`,
+    documentation: 'Menyaring elemen array yang memenuhi kondisi boolean.',
   },
   {
     label: 'reduce',
     kind: 'function',
-    detail: '(method) Array.reduce<U>(callbackfn, initialValue): U',
-    insertText: 'reduce((acc, curr) => acc + curr, 0)',
-    documentation: 'Mengakumulasi semua elemen array menjadi satu nilai keluaran.',
-  },
-  {
-    label: 'Object.keys',
-    kind: 'function',
-    detail: '(method) Object.keys(obj: object): string[]',
-    insertText: 'Object.keys()',
-    documentation: 'Mengembalikan array berisi semua kunci properti objek.',
-  },
-  {
-    label: 'Object.values',
-    kind: 'function',
-    detail: '(method) Object.values(obj: object): any[]',
-    insertText: 'Object.values()',
-    documentation: 'Mengembalikan array berisi semua nilai properti objek.',
-  },
-  {
-    label: 'Promise.all',
-    kind: 'function',
-    detail: '(method) Promise.all(iterable): Promise<any[]>',
-    insertText: 'Promise.all([])',
-    documentation: 'Menjalankan serangkaian promise secara paralel.',
-  },
-  {
-    label: 'fetch',
-    kind: 'function',
-    detail: '(method) fetch(input: RequestInfo, init?: RequestInit): Promise<Response>',
-    insertText: "fetch('https://api.example.com/data')",
-    documentation: 'Mengirim HTTP request asinkronus ke server web.',
+    detail: 'Array.prototype.reduce()',
+    insertText: `reduce((acc, curr) => acc + curr, 0)`,
+    documentation: 'Mereduksi array menjadi satu nilai akumulasi.',
   },
   {
     label: 'useState',
-    kind: 'function',
-    detail: 'React Hook: const [state, setState] = useState(initial)',
-    insertText: 'const [value, setValue] = useState(null);',
-    documentation: 'Menyimpan state lokal di dalam komponen fungsi React.',
+    kind: 'snippet',
+    detail: 'React useState Hook',
+    insertText: `const [state, setState] = useState(initialValue);`,
+    documentation: 'Hook status reaktif lokal React.',
   },
   {
     label: 'useEffect',
-    kind: 'function',
-    detail: 'React Hook: useEffect(effect, deps)',
+    kind: 'snippet',
+    detail: 'React useEffect Hook',
     insertText: `useEffect(() => {\n  \n  return () => {};\n}, []);`,
-    documentation: 'Menjalankan efek samping sinkronisasi dalam komponen React.',
+    documentation: 'Hook efek samping siklus hidup React.',
   },
   {
     label: 'export',
     kind: 'keyword',
-    detail: 'keyword',
+    detail: 'keyword (purple)',
     insertText: 'export ',
-    documentation: 'Mengekspor variabel, fungsi, atau modul.',
+    documentation: 'Mengekspor variabel atau fungsi ke modul lain.',
   },
   {
     label: 'import',
     kind: 'keyword',
-    detail: 'keyword',
+    detail: 'keyword (purple)',
     insertText: "import {  } from '';",
-    documentation: 'Mengimpor modul atau entitas dari berkas lain.',
+    documentation: 'Mengimpor entitas dari berkas lain.',
   },
   {
     label: 'const',
     kind: 'keyword',
-    detail: 'keyword',
+    detail: 'keyword (blue)',
     insertText: 'const ',
     documentation: 'Mendeklarasikan variabel konstan.',
   },
   {
     label: 'let',
     kind: 'keyword',
-    detail: 'keyword',
+    detail: 'keyword (blue)',
     insertText: 'let ',
-    documentation: 'Mendeklarasikan variabel yang dapat diubah nilainya.',
+    documentation: 'Mendeklarasikan variabel mutable.',
   },
   {
     label: 'string',
     kind: 'type',
-    detail: 'primitive type',
+    detail: 'primitive type (cyan)',
     insertText: 'string',
-    documentation: 'Tipe data teks / karakter primitif TypeScript.',
+    documentation: 'Tipe data teks TypeScript.',
   },
   {
     label: 'number',
     kind: 'type',
-    detail: 'primitive type',
+    detail: 'primitive type (cyan)',
     insertText: 'number',
-    documentation: 'Tipe data angka integer atau floating-point.',
+    documentation: 'Tipe data numerik integer/float.',
   },
   {
     label: 'boolean',
     kind: 'type',
-    detail: 'primitive type',
+    detail: 'primitive type (cyan)',
     insertText: 'boolean',
-    documentation: 'Tipe data logika bernilai true atau false.',
+    documentation: 'Tipe data boolean true/false.',
   },
   {
-    label: 'Record<string, any>',
+    label: 'Record',
     kind: 'type',
-    detail: 'utility type',
+    detail: 'Record<K, T>',
     insertText: 'Record<string, any>',
-    documentation: 'Membangun tipe objek dengan kunci bertipe string.',
+    documentation: 'Tipe objek asosiatif fleksibel.',
+  },
+  {
+    label: 'Promise',
+    kind: 'type',
+    detail: 'Promise<T>',
+    insertText: 'Promise<void>',
+    documentation: 'Tipe data operasi asinkron.',
   },
   {
     label: 'console.log',
     kind: 'function',
-    detail: '(method) Console.log(...data: any[]): void',
+    detail: 'Console.log(...data)',
     insertText: 'console.log()',
-    documentation: 'Mencetak data log ke standar output terminal.',
+    documentation: 'Mencetak data log ke terminal.',
     cursorOffset: 12,
   },
   {
     label: 'JSON.stringify',
     kind: 'function',
-    detail: '(method) JSON.stringify(value: any, replacer?, space?): string',
+    detail: 'JSON.stringify(val, null, 2)',
     insertText: 'JSON.stringify(, null, 2)',
-    documentation: 'Mengonversi objek ke representasi string JSON rapi.',
+    documentation: 'Mengonversi objek ke string JSON.',
     cursorOffset: 15,
   },
   {
     label: 'JSON.parse',
     kind: 'function',
-    detail: '(method) JSON.parse(text: string): any',
+    detail: 'JSON.parse(str)',
     insertText: 'JSON.parse()',
-    documentation: 'Memparsing string JSON menjadi objek JavaScript valid.',
+    documentation: 'Memparsing string JSON.',
     cursorOffset: 11,
   },
 ];
 
-export const PY_COMPLETIONS: CompletionItem[] = [
+const PY_COMPLETIONS: CompletionItem[] = [
   {
     label: 'def',
     kind: 'keyword',
@@ -2017,30 +1818,9 @@ export const PY_COMPLETIONS: CompletionItem[] = [
   {
     label: 'print',
     kind: 'function',
-    detail: 'print(*values, sep=" ", end="\\n")',
+    detail: 'print(*values)',
     insertText: `print()`,
     documentation: 'Mencetak output ke konsol standar.',
-  },
-  {
-    label: 'len',
-    kind: 'function',
-    detail: 'len(obj: Sized) -> int',
-    insertText: 'len()',
-    documentation: 'Mengembalikan panjang atau jumlah elemen dari koleksi.',
-  },
-  {
-    label: 'range',
-    kind: 'function',
-    detail: 'range(stop) or range(start, stop, step)',
-    insertText: 'range(10)',
-    documentation: 'Menghasilkan deret angka berurutan.',
-  },
-  {
-    label: 'enumerate',
-    kind: 'function',
-    detail: 'enumerate(iterable, start=0)',
-    insertText: 'enumerate()',
-    documentation: 'Mengembalikan pasangan indeks dan elemen dari iterable.',
   },
   {
     label: 'if __name__ == "__main__"',
@@ -2050,411 +1830,245 @@ export const PY_COMPLETIONS: CompletionItem[] = [
     documentation: 'Menjalankan skrip saat dipanggil secara langsung.',
   },
   {
-    label: 'list comprehension',
-    kind: 'snippet',
-    detail: '[expr for item in iterable]',
-    insertText: `[x for x in data if x is not None]`,
-    documentation: 'Membuat list baru dengan ekspresi ringkas satu baris.',
-  },
-  {
     label: 'try except',
     kind: 'snippet',
-    detail: 'Penanganan galat',
+    detail: 'try...except block',
     insertText: `try:\n    pass\nexcept Exception as e:\n    print(f"Error: {e}")`,
-    documentation: 'Menangkap eksepsi kesalahan saat runtime.',
+    documentation: 'Blok penanganan eksepsi Python.',
   },
   {
-    label: 'import',
-    kind: 'keyword',
-    detail: 'import module',
-    insertText: 'import ',
-    documentation: 'Mengimpor modul Python.',
+    label: 'list comprehension',
+    kind: 'snippet',
+    detail: '[x for x in iterable if condition]',
+    insertText: `[item for item in items if item]`,
+    documentation: 'Membuat list baru dengan ekspresi ringkas.',
   },
   {
-    label: 'from ... import',
-    kind: 'keyword',
-    detail: 'from module import name',
-    insertText: 'from  import ',
-    documentation: 'Mengimpor fungsi atau kelas spesifik dari modul.',
+    label: 'len',
+    kind: 'function',
+    detail: 'len(s: Sized) -> int',
+    insertText: `len()`,
+    documentation: 'Mengembalikan jumlah item pada container.',
+  },
+  {
+    label: 'range',
+    kind: 'function',
+    detail: 'range(stop) or range(start, stop[, step])',
+    insertText: `range(10)`,
+    documentation: 'Menghasilkan urutan angka integer.',
   },
 ];
 
-export const HTML_COMPLETIONS: CompletionItem[] = [
-  {
-    label: '!DOCTYPE html',
-    kind: 'snippet',
-    detail: 'HTML5 Boilerplate Template',
-    insertText: `<!DOCTYPE html>\n<html lang="id">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Document</title>\n</head>\n<body>\n  \n</body>\n</html>`,
-    documentation: 'Template dasar dokumen standar HTML5.',
-  },
+const HTML_COMPLETIONS: CompletionItem[] = [
   {
     label: 'div',
     kind: 'snippet',
-    detail: '<div>...</div>',
+    detail: '<div class=""></div>',
     insertText: `<div class="">\n  \n</div>`,
-    documentation: 'Elemen kontainer generik pembagi layout.',
-  },
-  {
-    label: 'section',
-    kind: 'snippet',
-    detail: '<section>...</section>',
-    insertText: `<section class="">\n  \n</section>`,
-    documentation: 'Bagian tematik mandiri dari sebuah dokumen.',
+    documentation: 'Elemen kontainer generik HTML5.',
   },
   {
     label: 'button',
     kind: 'snippet',
-    detail: '<button type="button">...</button>',
-    insertText: `<button type="button" class="btn">\n  Klik Saya\n</button>`,
-    documentation: 'Tombol interaktif pengguna.',
+    detail: '<button type="button"></button>',
+    insertText: `<button type="button" class="btn">\n  Klik\n</button>`,
+    documentation: 'Elemen tombol interaktif.',
   },
   {
     label: 'input',
     kind: 'snippet',
-    detail: '<input type="text" ... />',
-    insertText: `<input type="text" placeholder="Masukkan teks..." class="input" />`,
-    documentation: 'Field input teks untuk form.',
+    detail: '<input type="text" placeholder="" />',
+    insertText: `<input type="text" name="" placeholder="" class="input" />`,
+    documentation: 'Elemen input form teks.',
   },
   {
-    label: 'table',
+    label: 'section',
     kind: 'snippet',
-    detail: '<table> thead & tbody',
-    insertText: `<table>\n  <thead>\n    <tr>\n      <th>Nama</th>\n      <th>Peran</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td>Irvan</td>\n      <td>Developer</td>\n    </tr>\n  </tbody>\n</table>`,
-    documentation: 'Tabel data tabular terstruktur.',
+    detail: '<section class=""></section>',
+    insertText: `<section class="my-4">\n  <h2>Judul</h2>\n</section>`,
+    documentation: 'Elemen seksi semantik dokumen HTML5.',
   },
   {
-    label: 'a (link)',
+    label: 'a',
     kind: 'snippet',
-    detail: '<a href="...">...</a>',
+    detail: '<a href=""></a>',
     insertText: `<a href="#" target="_blank" rel="noopener noreferrer">Tautan</a>`,
-    documentation: 'Hyperlink navigasi ke halaman web lain.',
-  },
-  {
-    label: 'img',
-    kind: 'snippet',
-    detail: '<img src="..." alt="..." />',
-    insertText: `<img src="gambar.jpg" alt="Deskripsi gambar" loading="lazy" />`,
-    documentation: 'Menyisipkan media gambar.',
-  },
-  {
-    label: 'class',
-    kind: 'property',
-    detail: 'class="..."',
-    insertText: 'class=""',
-    documentation: 'Menentukan satu atau lebih nama kelas CSS.',
-  },
-  {
-    label: 'id',
-    kind: 'property',
-    detail: 'id="..."',
-    insertText: 'id=""',
-    documentation: 'Identifier unik elemen HTML di dalam dokumen.',
+    documentation: 'Elemen jangkar anchor hipertaut.',
   },
 ];
 
-export const CSS_COMPLETIONS: CompletionItem[] = [
+const CSS_COMPLETIONS: CompletionItem[] = [
   {
     label: 'display: flex',
     kind: 'snippet',
     detail: 'Flexbox Layout Container',
-    insertText: `display: flex;\nalign-items: center;\njustify-content: center;\ngap: 1rem;`,
-    documentation: 'Mengaktifkan kontainer flexbox dengan centering vertikal dan horizontal.',
+    insertText: `display: flex;\nalign-items: center;\njustify-content: space-between;`,
+    documentation: 'Menata container dalam sistem fleksibel 1 dimensi.',
   },
   {
     label: 'display: grid',
     kind: 'snippet',
     detail: 'CSS Grid Layout',
-    insertText: `display: grid;\ngrid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\ngap: 1.5rem;`,
-    documentation: 'Layout grid responsif dengan repeat auto-fit.',
+    insertText: `display: grid;\ngrid-template-columns: repeat(auto-fill, minmax(240px, 1fr));\ngap: 1rem;`,
+    documentation: 'Menata elemen dalam sistem kisi 2 dimensi yang responsif.',
   },
   {
-    label: 'display',
-    kind: 'property',
-    detail: 'display: flex | grid | block | none',
-    insertText: 'display: ;',
-    documentation: 'Menentukan tipe rendering kotak elemen.',
+    label: 'center-flex',
+    kind: 'snippet',
+    detail: 'Center both horizontally & vertically',
+    insertText: `display: flex;\nalign-items: center;\njustify-content: center;`,
+    documentation: 'Menengahkan konten vertikal dan horizontal dengan flexbox.',
   },
   {
-    label: 'background-color',
-    kind: 'property',
-    detail: 'background-color: #color',
-    insertText: 'background-color: ;',
-    documentation: 'Mengatur warna latar belakang elemen.',
-  },
-  {
-    label: 'color',
-    kind: 'property',
-    detail: 'color: #color',
-    insertText: 'color: ;',
-    documentation: 'Mengatur warna teks tipografi elemen.',
-  },
-  {
-    label: 'padding',
-    kind: 'property',
-    detail: 'padding: 1rem',
-    insertText: 'padding: ;',
-    documentation: 'Ruang bantalan bagian dalam elemen.',
-  },
-  {
-    label: 'margin',
-    kind: 'property',
-    detail: 'margin: 0 auto',
-    insertText: 'margin: ;',
-    documentation: 'Ruang jarak luar di sekitar elemen.',
+    label: 'media-query',
+    kind: 'snippet',
+    detail: '@media (min-width: 768px)',
+    insertText: `@media (min-width: 768px) {\n  \n}`,
+    documentation: 'Query media responsif untuk breakpoint layar.',
   },
   {
     label: 'border-radius',
     kind: 'property',
-    detail: 'border-radius: 0.5rem',
-    insertText: 'border-radius: ;',
-    documentation: 'Membuat sudut membulat pada border elemen.',
-  },
-  {
-    label: 'box-shadow',
-    kind: 'property',
-    detail: 'box-shadow: 0 4px 6px -1px rgba(...)',
-    insertText: 'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);',
-    documentation: 'Menambahkan efek bayangan pada kotak elemen.',
+    detail: 'border-radius: 8px;',
+    insertText: `border-radius: 8px;`,
+    documentation: 'Membulatkan sudut tepi elemen.',
   },
   {
     label: 'transition',
     kind: 'property',
-    detail: 'transition: all 0.2s ease',
-    insertText: 'transition: all 0.2s ease-in-out;',
-    documentation: 'Menganimasikan perubahan properti CSS dengan halus.',
-  },
-  {
-    label: '@media (max-width)',
-    kind: 'snippet',
-    detail: 'Media Query Responsif',
-    insertText: `@media (max-width: 768px) {\n  \n}`,
-    documentation: 'Menerapkan gaya CSS khusus untuk layar perangkat mobile / tablet.',
+    detail: 'transition: all 0.2s ease;',
+    insertText: `transition: all 0.2s ease;`,
+    documentation: 'Animasi transisi halus pada perubahan properti CSS.',
   },
 ];
 
-export const SQL_COMPLETIONS: CompletionItem[] = [
+const SQL_COMPLETIONS: CompletionItem[] = [
   {
     label: 'SELECT * FROM',
     kind: 'snippet',
-    detail: 'Kueri SELECT Dasar',
-    insertText: `SELECT * FROM nama_tabel\nWHERE aktif = TRUE\nORDER BY id DESC\nLIMIT 20;`,
-    documentation: 'Mengambil baris data dari tabel basis data.',
+    detail: 'Kueri pengambilan data dasar',
+    insertText: `SELECT * FROM nama_tabel WHERE id = 1;`,
+    documentation: 'Mengambil rekaman data dari tabel dengan filter kondisi.',
   },
   {
-    label: 'INNER JOIN',
+    label: 'SELECT JOIN',
     kind: 'snippet',
-    detail: 'INNER JOIN tabel ON ...',
-    insertText: `INNER JOIN tabel_b ON tabel_b.id = tabel_a.b_id`,
-    documentation: 'Menggabungkan baris dari dua tabel yang memiliki nilai kunci cocok.',
-  },
-  {
-    label: 'LEFT JOIN',
-    kind: 'snippet',
-    detail: 'LEFT JOIN tabel ON ...',
-    insertText: `LEFT JOIN tabel_b ON tabel_b.id = tabel_a.b_id`,
-    documentation: 'Mengambil semua baris tabel kiri beserta baris cocok dari tabel kanan.',
-  },
-  {
-    label: 'COUNT(*)',
-    kind: 'function',
-    detail: 'COUNT(col) AS total',
-    insertText: 'COUNT(*) AS total',
-    documentation: 'Fungsi agregat menghitung jumlah baris data.',
+    detail: 'Kueri penggabungan tabel',
+    insertText: `SELECT \n    t1.id,\n    t2.nama\nFROM tabel_satu t1\nLEFT JOIN tabel_dua t2 ON t2.tabel_satu_id = t1.id\nWHERE t1.is_active = TRUE;`,
+    documentation: 'Menggabungkan beberapa tabel berelasi (LEFT JOIN).',
   },
   {
     label: 'INSERT INTO',
     kind: 'snippet',
-    detail: 'INSERT INTO tabel (cols) VALUES (...)',
-    insertText: `INSERT INTO nama_tabel (nama, email, dibuat_pada)\nVALUES ('Irvan', 'irvan@example.com', NOW());`,
-    documentation: 'Menyisipkan baris rekaman baru ke tabel.',
+    detail: 'Menyisipkan baris baru',
+    insertText: `INSERT INTO nama_tabel (kolom1, kolom2)\nVALUES ('nilai1', 'nilai2');`,
+    documentation: 'Memasukkan data rekaman baru ke tabel.',
   },
   {
-    label: 'UPDATE ... SET',
+    label: 'UPDATE SET',
     kind: 'snippet',
-    detail: 'UPDATE tabel SET col = val WHERE ...',
-    insertText: `UPDATE nama_tabel\nSET status = 'aktif', diperbarui_pada = NOW()\nWHERE id = 1;`,
-    documentation: 'Memperbarui data baris yang sudah ada.',
+    detail: 'Memperbarui rekaman',
+    insertText: `UPDATE nama_tabel\nSET status = 'aktif', updated_at = NOW()\nWHERE id = 1;`,
+    documentation: 'Memperbarui nilai kolom pada baris tertentu.',
   },
   {
-    label: 'CREATE TABLE',
+    label: 'GROUP BY HAVING',
     kind: 'snippet',
-    detail: 'CREATE TABLE dengan primary key',
-    insertText: `CREATE TABLE IF NOT EXISTS pengguna (\n  id BIGSERIAL PRIMARY KEY,\n  nama VARCHAR(150) NOT NULL,\n  email VARCHAR(255) UNIQUE NOT NULL,\n  dibuat_pada TIMESTAMP WITH TIME ZONE DEFAULT NOW()\n);`,
-    documentation: 'Membuat skema tabel relasional baru.',
-  },
-  {
-    label: 'GROUP BY',
-    kind: 'keyword',
-    detail: 'GROUP BY kolom',
-    insertText: 'GROUP BY ',
-    documentation: 'Mengelompokkan baris hasil menurut nilai kolom yang sama.',
+    detail: 'Agregasi grup data',
+    insertText: `GROUP BY kategori\nHAVING COUNT(*) > 5\nORDER BY total DESC;`,
+    documentation: 'Mengelompokkan data agregat dengan filter having.',
   },
 ];
 
-export const RUST_COMPLETIONS: CompletionItem[] = [
+const RUST_COMPLETIONS: CompletionItem[] = [
   {
     label: 'fn main',
     kind: 'snippet',
-    detail: 'Entry point fungsi main',
-    insertText: `fn main() {\n    println!("Halo dari Rust!");\n}`,
-    documentation: 'Fungsi titik masuk utama program biner Rust.',
+    detail: 'fn main() { ... }',
+    insertText: `fn main() {\n    println!("Halo Dunia!");\n}`,
+    documentation: 'Titik masuk utama aplikasi Rust.',
   },
   {
     label: 'println!',
     kind: 'function',
-    detail: 'println!("format {}", val)',
-    insertText: 'println!("{}", );',
-    documentation: 'Mencetak output teks berformat ke stdout.',
-    cursorOffset: 15,
+    detail: 'println!("{}", val)',
+    insertText: `println!();`,
+    documentation: 'Macro pencetak baris ke stdout.',
   },
   {
     label: 'struct',
     kind: 'snippet',
-    detail: '#[derive(Debug)] struct Name',
-    insertText: `#[derive(Debug, Clone)]\npub struct ItemBaru {\n    pub id: u64,\n    pub nama: String,\n}`,
-    documentation: 'Mendefinisikan struktur data komposit kustom.',
-  },
-  {
-    label: 'impl',
-    kind: 'snippet',
-    detail: 'impl StructName { pub fn new() }',
-    insertText: `impl ItemBaru {\n    pub fn new(id: u64, nama: &str) -> Self {\n        Self {\n            id,\n            nama: nama.to_string(),\n        }\n    }\n}`,
-    documentation: 'Mengimplementasikan metode dan fungsi terasosiasi untuk struct.',
+    detail: 'pub struct Model { ... }',
+    insertText: `#[derive(Debug, Clone)]\npub struct Model {\n    pub id: u64,\n    pub name: String,\n}`,
+    documentation: 'Struktur data kustom di Rust.',
   },
   {
     label: 'match',
     kind: 'snippet',
-    detail: 'Pattern matching ekspresi',
-    insertText: `match hasil {\n    Ok(nilai) => println!("Berhasil: {:?}", nilai),\n    Err(err) => eprintln!("Galat: {}", err),\n}`,
-    documentation: 'Mencocokkan pola varian data secara menyeluruh dan aman.',
-  },
-  {
-    label: 'Option<T>',
-    kind: 'type',
-    detail: 'Some(val) | None',
-    insertText: 'Option<String>',
-    documentation: 'Tipe nilai opsional di Rust yang aman dari null pointer exception.',
-  },
-  {
-    label: 'Result<T, E>',
-    kind: 'type',
-    detail: 'Ok(val) | Err(err)',
-    insertText: 'Result<(), Box<dyn std::error::Error>>',
-    documentation: 'Tipe representasi penanganan hasil atau galat.',
+    detail: 'Pattern matching',
+    insertText: `match result {\n    Ok(val) => val,\n    Err(err) => panic!("{}", err),\n}`,
+    documentation: 'Mencocokkan pola enum Result atau Option.',
   },
 ];
 
-export const GO_COMPLETIONS: CompletionItem[] = [
+const GO_COMPLETIONS: CompletionItem[] = [
   {
-    label: 'main',
+    label: 'func main',
     kind: 'snippet',
-    detail: 'package main & func main()',
-    insertText: `package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("Halo dari Go!")\n}`,
-    documentation: 'Paket dan fungsi utama untuk menjalankan executable Go.',
-  },
-  {
-    label: 'fmt.Println',
-    kind: 'function',
-    detail: 'fmt.Println(...a any) (n int, err error)',
-    insertText: 'fmt.Println()',
-    documentation: 'Mencetak format ke konsol terminal standar.',
-    cursorOffset: 12,
+    detail: 'package main / func main()',
+    insertText: `package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("Halo Go!")\n}`,
+    documentation: 'Titik masuk aplikasi bahasa Go.',
   },
   {
     label: 'if err != nil',
     kind: 'snippet',
-    detail: 'Go Error Handling Idiom',
-    insertText: `if err != nil {\n\treturn fmt.Errorf("operasi gagal: %w", err)\n}`,
-    documentation: 'Penanganan galat idiomatik standar dalam bahasa pemrograman Go.',
+    detail: 'Go standard error handling',
+    insertText: `if err != nil {\n\treturn err\n}`,
+    documentation: 'Pola standar penanganan galat fungsi di Go.',
   },
   {
-    label: 'struct',
+    label: 'type struct',
     kind: 'snippet',
-    detail: 'type Name struct',
-    insertText: `type Pengguna struct {\n\tID   int64  \`json:"id"\`\n\tNama string \`json:"nama"\`\n}`,
-    documentation: 'Mendefinisikan tipe struct objek dengan tag JSON serialisasi.',
-  },
-  {
-    label: 'http.HandleFunc',
-    kind: 'snippet',
-    detail: 'HTTP Handler Endpoint',
-    insertText: `http.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {\n\tw.Header().Set("Content-Type", "application/json")\n\tw.Write([]byte(\`{"status":"ok"}\`))\n})`,
-    documentation: 'Mendaftarkan endpoint router server HTTP REST API.',
-  },
-  {
-    label: 'goroutine',
-    kind: 'snippet',
-    detail: 'go func() concurrency',
-    insertText: `go func() {\n\t// Eksekusi thread ringan konkurensi\n}()`,
-    documentation: 'Menjalankan fungsi asinkron secara konkuren menggunakan Goroutine.',
+    detail: 'type Model struct',
+    insertText: `type Model struct {\n\tID   string \`json:"id"\`\n\tName string \`json:"name"\`\n}`,
+    documentation: 'Mendefinisikan struct dengan tag JSON.',
   },
 ];
 
-export const MARKDOWN_COMPLETIONS: CompletionItem[] = [
+const JSON_COMPLETIONS: CompletionItem[] = [
   {
-    label: '# Heading 1',
+    label: 'object',
     kind: 'snippet',
-    detail: '# Judul Utama',
-    insertText: '# ',
-    documentation: 'Judul tingkat pertama Markdown.',
+    detail: 'JSON object pair',
+    insertText: `{\n  "key": "value"\n}`,
+    documentation: 'Struktur objek JSON standar.',
   },
   {
-    label: '## Heading 2',
+    label: 'array',
     kind: 'snippet',
-    detail: '## Subjudul Seksi',
-    insertText: '## ',
-    documentation: 'Subjudul bagian kedua Markdown.',
+    detail: 'JSON array',
+    insertText: `[\n  "item1",\n  "item2"\n]`,
+    documentation: 'Daftar larik array JSON.',
   },
+];
+
+const MARKDOWN_COMPLETIONS: CompletionItem[] = [
   {
-    label: '### Heading 3',
+    label: 'code-block',
     kind: 'snippet',
-    detail: '### Poin Subseksi',
-    insertText: '### ',
-    documentation: 'Subjudul bagian ketiga Markdown.',
-  },
-  {
-    label: 'code block',
-    kind: 'snippet',
-    detail: '```typescript...```',
-    insertText: "```typescript\n// Kode di sini\n```",
-    documentation: 'Blok kode dengan syntax highlighting terformat.',
+    detail: '```language ... ```',
+    insertText: "```typescript\nconsole.log('Halo');\n```",
+    documentation: 'Blok cuplikan kode Markdown dengan syntax highlighting.',
   },
   {
     label: 'table',
     kind: 'snippet',
-    detail: 'Tabel Markdown GFM',
-    insertText: "| Kolom 1 | Kolom 2 | Status |\n| :--- | :--- | :---: |\n| Data A | Keterangan | Aktif |\n| Data B | Keterangan | Selesai |",
-    documentation: 'Tabel rapi Markdown standar GitHub Flavored Markdown.',
-  },
-  {
-    label: 'task list',
-    kind: 'snippet',
-    detail: '- [ ] Checklist Tugas',
-    insertText: "- [ ] Tugas 1\n- [x] Tugas selesai\n- [ ] Tugas berikutnya",
-    documentation: 'Daftar periksa checklist interaktif.',
+    detail: 'Markdown table',
+    insertText: `| Kolom 1 | Kolom 2 |\n| :--- | :--- |\n| Data A | Keterangan |`,
+    documentation: 'Format tabel Markdown dengan perataan kolom.',
   },
 ];
 
-export const JSON_COMPLETIONS: CompletionItem[] = [
-  {
-    label: 'object',
-    kind: 'snippet',
-    detail: '{ "key": "value" }',
-    insertText: `{\n  "id": 1,\n  "name": "sample",\n  "active": true\n}`,
-    documentation: 'Objek JSON terstruktur.',
-  },
-  {
-    label: 'package.json template',
-    kind: 'snippet',
-    detail: 'Konfigurasi node package',
-    insertText: `{\n  "name": "proyek-saya",\n  "version": "1.0.0",\n  "private": true,\n  "scripts": {\n    "dev": "vite",\n    "build": "vite build"\n  }\n}`,
-    documentation: 'Template berkas package.json standar Node.js.',
-  },
-];
-
-/**
- * Get suggestions based on current word prefix and language
- */
 export function getCompletions(
   code: string,
   cursorPosition: number,
@@ -2465,42 +2079,31 @@ export function getCompletions(
   const prefix = match ? match[1] : '';
 
   let list: CompletionItem[] = [];
-  switch (language) {
-    case 'typescript':
-    case 'javascript':
-      list = TS_COMPLETIONS;
-      break;
-    case 'python':
-      list = PY_COMPLETIONS;
-      break;
-    case 'html':
-      list = HTML_COMPLETIONS;
-      break;
-    case 'css':
-      list = CSS_COMPLETIONS;
-      break;
-    case 'sql':
-      list = SQL_COMPLETIONS;
-      break;
-    case 'rust':
-      list = RUST_COMPLETIONS;
-      break;
-    case 'go':
-      list = GO_COMPLETIONS;
-      break;
-    case 'markdown':
-      list = MARKDOWN_COMPLETIONS;
-      break;
-    case 'json':
-      list = JSON_COMPLETIONS;
-      break;
-    default:
-      list = TS_COMPLETIONS;
+  if (language === 'typescript' || language === 'javascript') {
+    list = TS_COMPLETIONS;
+  } else if (language === 'python') {
+    list = PY_COMPLETIONS;
+  } else if (language === 'html') {
+    list = HTML_COMPLETIONS;
+  } else if (language === 'css') {
+    list = CSS_COMPLETIONS;
+  } else if (language === 'sql') {
+    list = SQL_COMPLETIONS;
+  } else if (language === 'rust') {
+    list = RUST_COMPLETIONS;
+  } else if (language === 'go') {
+    list = GO_COMPLETIONS;
+  } else if (language === 'json') {
+    list = JSON_COMPLETIONS;
+  } else if (language === 'markdown') {
+    list = MARKDOWN_COMPLETIONS;
+  } else {
+    list = TS_COMPLETIONS;
   }
 
-  // Scan current file for user-defined symbols (variables, functions, interfaces, structs, tags)
+  // User declared symbols in document
   const userSymbols: CompletionItem[] = [];
-  const symbolRegex = /\b(const|let|var|function|interface|type|class|def|fn|func|struct)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g;
+  const symbolRegex = /\b(const|let|var|function|interface|type|class|def|fn|func)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)/g;
   let sMatch;
   const seen = new Set<string>();
   while ((sMatch = symbolRegex.exec(code)) !== null) {
@@ -2510,12 +2113,7 @@ export function getCompletions(
       seen.add(name);
       userSymbols.push({
         label: name,
-        kind:
-          kind === 'function' || kind === 'def' || kind === 'fn' || kind === 'func'
-            ? 'function'
-            : kind === 'interface' || kind === 'type' || kind === 'struct'
-            ? 'type'
-            : 'variable',
+        kind: kind === 'function' || kind === 'def' || kind === 'fn' || kind === 'func' ? 'function' : 'variable',
         detail: `(${kind}) ${name}`,
         insertText: name,
         documentation: `Simbol lokal dideklarasikan di berkas ini.`,
@@ -2526,18 +2124,15 @@ export function getCompletions(
   const allItems = [...userSymbols, ...list];
 
   if (!prefix) {
-    return allItems.slice(0, 10);
+    return allItems.slice(0, 8);
   }
 
   const lowerPrefix = prefix.toLowerCase();
   return allItems
     .filter((item) => item.label.toLowerCase().includes(lowerPrefix))
-    .slice(0, 12);
+    .slice(0, 10);
 }
 
-/**
- * Basic Code Formatter (indentation, bracket cleanup, semicolons)
- */
 export function formatCode(code: string, language: CodeLanguage): string {
   if (language === 'json') {
     try {
@@ -2552,7 +2147,7 @@ export function formatCode(code: string, language: CodeLanguage): string {
   let indentLevel = 0;
   const formatted: string[] = [];
 
-  for (const line of lines) {
+  for (let line of lines) {
     const trimmed = line.trim();
     if (!trimmed) {
       formatted.push('');

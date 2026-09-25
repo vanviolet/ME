@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   CodeLanguage,
   SUPPORTED_LANGUAGES,
@@ -10,18 +10,16 @@ import {
   CompletionItem,
 } from './codeLanguageSupport';
 import {
-  Play,
-  RotateCcw,
   Copy,
   Check,
   Wrench,
-  AlertTriangle,
   XCircle,
-  Terminal,
+  AlertTriangle,
+  Play,
+  RotateCcw,
   Sparkles,
-  CheckCircle2,
+  ChevronDown,
   X,
-  FileCode,
 } from 'lucide-react';
 import { ShadcnSelect } from '../../ui/select';
 
@@ -51,12 +49,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
   const [activeCol, setActiveCol] = useState<number>(1);
   const [cursorIndex, setCursorIndex] = useState<number>(0);
 
-  // Bottom drawer state (only appears when Run or Issues badge is clicked)
-  const [activeDrawerTab, setActiveDrawerTab] = useState<'problems' | 'terminal' | null>(null);
-  const [terminalLogs, setTerminalLogs] = useState<
-    { id: string; type: 'log' | 'warn' | 'error' | 'info'; text: string; time: string }[]
-  >([]);
-
   // Diagnostics & Hover
   const [hoveredIssue, setHoveredIssue] = useState<Diagnostic | null>(null);
   const [hoverWidgetPos, setHoverWidgetPos] = useState<{ top: number; left: number } | null>(null);
@@ -66,22 +58,16 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
   const [selectedCompletionIndex, setSelectedCompletionIndex] = useState<number>(0);
   const [completionPos, setCompletionPos] = useState<{ top: number; left: number }>({ top: 40, left: 80 });
 
-  // Get active language meta
+  // Terminal / Run Output Drawer (clean drawer only when run)
+  const [showConsole, setShowConsole] = useState(false);
+  const [consoleLogs, setConsoleLogs] = useState<{ type: 'log' | 'warn' | 'error' | 'info'; text: string; time: string }[]>([]);
+
+  // Active language meta
   const langMeta = useMemo(() => {
     return SUPPORTED_LANGUAGES.find((l) => l.id === currentLang) || SUPPORTED_LANGUAGES[0];
   }, [currentLang]);
 
-  // Derived file name
-  const fileName = useMemo(() => {
-    const sanitized = (noteTitle || 'snippet')
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]/g, '_')
-      .replace(/_+/g, '_')
-      .replace(/^_|_$/g, '');
-    return (sanitized || 'snippet') + langMeta.extension;
-  }, [noteTitle, langMeta]);
-
-  // Real-time static analysis & error diagnostics for current language
+  // Real-time static analysis & error diagnostics across all supported languages
   const diagnostics = useMemo(() => {
     return analyzeCode(content, currentLang);
   }, [content, currentLang]);
@@ -119,7 +105,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
     setActiveLine(lineNum);
     setActiveCol(colNum);
 
-    // Compute visual top/left for autocomplete
     const top = Math.min((lineNum - 1) * 24 + 32, 380);
     const left = Math.min(colNum * 8 + 60, 420);
     setCompletionPos({ top, left });
@@ -131,10 +116,10 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
     onChangeContent(val);
     updateCursorPosition(e.target);
 
-    // Auto-trigger completion on typing alphanumeric characters, dot or colon
+    // Auto-trigger completion on typing letters or dot
     const pos = e.target.selectionStart;
     const charBefore = val[pos - 1];
-    if (charBefore && /[a-zA-Z0-9_$.:-]/.test(charBefore)) {
+    if (charBefore && /[a-zA-Z0-9_$.:]/.test(charBefore)) {
       setShowCompletion(true);
       setSelectedCompletionIndex(0);
     } else {
@@ -191,7 +176,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
       const end = target.selectionEnd;
 
       if (e.shiftKey) {
-        // Shift+Tab: Unindent current line
         const before = content.slice(0, start);
         const lineStart = before.lastIndexOf('\n') + 1;
         if (content.slice(lineStart, lineStart + 2) === '  ') {
@@ -202,7 +186,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
           }, 0);
         }
       } else {
-        // Tab: Insert 2 spaces
         const newCode = content.substring(0, start) + '  ' + content.substring(end);
         onChangeContent(newCode);
         setTimeout(() => {
@@ -230,7 +213,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
       const closing = pairs[e.key];
 
       if (start !== end) {
-        // Wrap selected text
         e.preventDefault();
         const selected = content.slice(start, end);
         const newCode = content.slice(0, start) + e.key + selected + closing + content.slice(end);
@@ -239,50 +221,57 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
           target.selectionStart = start + 1;
           target.selectionEnd = end + 1;
         }, 0);
+        return;
       }
     }
   };
 
-  // Apply selected completion item
+  // Apply chosen autocomplete item
   const applyCompletion = (item: CompletionItem) => {
     if (!textareaRef.current) return;
-    const pos = cursorIndex;
-    const before = content.slice(0, pos);
-    const after = content.slice(pos);
+    const textBefore = content.slice(0, cursorIndex);
+    const match = textBefore.match(/([a-zA-Z0-9_$.:-]+)$/);
+    const replaceLen = match ? match[1].length : 0;
+    const start = cursorIndex - replaceLen;
 
-    // Find current word prefix to replace
-    const match = before.match(/([a-zA-Z0-9_$.:-]+)$/);
-    const prefixLen = match ? match[1].length : 0;
-    const cleanBefore = before.slice(0, before.length - prefixLen);
-
-    const newCode = cleanBefore + item.insertText + after;
+    const newCode = content.slice(0, start) + item.insertText + content.slice(cursorIndex);
     onChangeContent(newCode);
     setShowCompletion(false);
 
+    const newCursor = start + item.insertText.length;
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        const newPos = cleanBefore.length + (item.cursorOffset ?? item.insertText.length);
-        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newPos;
+        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newCursor;
         updateCursorPosition(textareaRef.current);
       }
     }, 0);
   };
 
-  // Copy code with feedback
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Format code
+  // Quick Format
   const handleFormatCode = () => {
     const formatted = formatCode(content, currentLang);
     onChangeContent(formatted);
   };
 
-  // Reset to sample snippet
+  // Copy code to clipboard
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = content;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   const handleResetSnippet = () => {
     if (confirm(`Kembalikan kode ke contoh bawaan ${langMeta.name}?`)) {
       onChangeContent(langMeta.sampleCode);
@@ -291,8 +280,8 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
 
   // Safe run code in sandboxed context
   const handleRunCode = () => {
-    setActiveDrawerTab('terminal');
-    const logs: { id: string; type: 'log' | 'warn' | 'error' | 'info'; text: string; time: string }[] = [];
+    setShowConsole(true);
+    const logs: { type: 'log' | 'warn' | 'error' | 'info'; text: string; time: string }[] = [];
 
     const getTime = () => {
       const now = new Date();
@@ -300,20 +289,18 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
     };
 
     logs.push({
-      id: 'init-' + Date.now(),
       type: 'info',
-      text: `▶ Menjalankan ${fileName} (${langMeta.name})...`,
+      text: `▶ Menjalankan kode (${langMeta.name})...`,
       time: getTime(),
     });
 
     if (currentLang !== 'typescript' && currentLang !== 'javascript') {
       logs.push({
-        id: 'warn-' + Date.now(),
         type: 'warn',
-        text: `Bahasa ${langMeta.name} membutuhkan runtime compiler/server eksternal. Sintaks dan diagnostik kode telah divalidasi.`,
+        text: `Bahasa ${langMeta.name} membutuhkan runtime compiler eksternal. Sintaks & diagnostik telah divalidasi.`,
         time: getTime(),
       });
-      setTerminalLogs(logs);
+      setConsoleLogs(logs);
       return;
     }
 
@@ -331,7 +318,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
       const customConsole = {
         log: (...args: any[]) => {
           logs.push({
-            id: 'log-' + Math.random(),
             type: 'log',
             text: args.map((a) => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' '),
             time: getTime(),
@@ -339,7 +325,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
         },
         warn: (...args: any[]) => {
           logs.push({
-            id: 'warn-' + Math.random(),
             type: 'warn',
             text: args.map((a) => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' '),
             time: getTime(),
@@ -347,7 +332,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
         },
         error: (...args: any[]) => {
           logs.push({
-            id: 'error-' + Math.random(),
             type: 'error',
             text: args.map((a) => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' '),
             time: getTime(),
@@ -355,7 +339,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
         },
         info: (...args: any[]) => {
           logs.push({
-            id: 'info-' + Math.random(),
             type: 'info',
             text: args.map((a) => (typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a))).join(' '),
             time: getTime(),
@@ -367,21 +350,19 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
       runner(customConsole);
 
       logs.push({
-        id: 'done-' + Date.now(),
         type: 'info',
-        text: `✔ Program selesai dieksekusi dengan kode keluar 0.`,
+        text: `✔ Program selesai dieksekusi tanpa error.`,
         time: getTime(),
       });
     } catch (err: any) {
       logs.push({
-        id: 'err-' + Date.now(),
         type: 'error',
         text: `Eksepsi Runtime: ${err.message || String(err)}`,
         time: getTime(),
       });
     }
 
-    setTerminalLogs(logs);
+    setConsoleLogs(logs);
   };
 
   // Jump cursor to diagnostic line
@@ -405,122 +386,114 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#1e1e1e] text-[#d4d4d4] rounded-2xl overflow-hidden border border-stone-300 dark:border-zinc-800 shadow-xl font-mono select-none">
-      {/* 1. CLEAN TOP TOOLBAR (NO VS CODE WINDOW CHROME) */}
-      <div className="bg-[#181818] border-b border-[#2d2d2d] px-4 py-2.5 flex items-center justify-between text-xs gap-3">
-        {/* Left: Language Badge & Selector + Diagnostics Summary */}
+    <div className="flex flex-col flex-1 h-full min-h-[500px] bg-[#1e1e1e] text-[#d4d4d4] rounded-2xl overflow-hidden border border-zinc-800 shadow-xl font-mono select-none">
+      
+      {/* MINIMAL EDITOR TOOLBAR (Clean: only Language selector, Diagnostics badge & Quick Actions) */}
+      <div className="bg-[#252526] px-4 py-2 border-b border-[#333333] flex flex-wrap items-center justify-between gap-3 text-xs shrink-0 select-none">
+        
+        {/* Left: Language Selection & Status */}
         <div className="flex items-center gap-3">
-          {/* File Name & Language Icon */}
           <div className="flex items-center gap-2">
             <span
-              className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold shrink-0 shadow-xs"
+              className="w-4 h-4 rounded flex items-center justify-center text-[10px] font-bold shrink-0"
               style={{ backgroundColor: langMeta.iconBg, color: langMeta.iconColor }}
             >
               {langMeta.iconText}
             </span>
-            <span className="font-semibold text-white text-xs">{fileName}</span>
+            <div className="w-40">
+              <ShadcnSelect
+                value={currentLang}
+                onChange={(val) => {
+                  onChangeLanguage(String(val));
+                  if (content.trim().length <= 35) {
+                    const nextMeta = SUPPORTED_LANGUAGES.find((l) => l.id === val);
+                    if (nextMeta) onChangeContent(nextMeta.sampleCode);
+                  }
+                }}
+                size="sm"
+                options={SUPPORTED_LANGUAGES.map((l) => ({
+                  value: l.id,
+                  label: `${l.name} (${l.extension})`,
+                  badge: l.iconText,
+                }))}
+              />
+            </div>
           </div>
 
-          <div className="h-4 w-px bg-[#333333]" />
-
-          {/* Language Selector */}
-          <div className="w-36 sm:w-40">
-            <ShadcnSelect
-              value={currentLang}
-              onChange={(val) => {
-                onChangeLanguage(String(val));
-                if (content.trim().length <= 35) {
-                  const nextMeta = SUPPORTED_LANGUAGES.find((l) => l.id === val);
-                  if (nextMeta) onChangeContent(nextMeta.sampleCode);
-                }
+          {/* Diagnostic Indicator Pill */}
+          {diagnostics.length > 0 ? (
+            <div
+              onClick={() => {
+                if (diagnostics[0]) handleJumpToIssue(diagnostics[0]);
               }}
-              size="sm"
-              options={SUPPORTED_LANGUAGES.map((l) => ({
-                value: l.id,
-                label: `${l.name} (${l.extension})`,
-                badge: l.iconText,
-              }))}
-            />
-          </div>
-
-          {/* Diagnostics Pill (Clickable to open/close issues) */}
-          <button
-            type="button"
-            onClick={() => setActiveDrawerTab(activeDrawerTab === 'problems' ? null : 'problems')}
-            className={`hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] cursor-pointer transition-colors ${
-              errorCount > 0
-                ? 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
-                : warnCount > 0
-                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
-                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
-            }`}
-            title="Klik untuk membuka daftar masalah sintaks/tipe"
-          >
-            {errorCount > 0 ? (
-              <XCircle size={12} className="text-rose-500" />
-            ) : warnCount > 0 ? (
-              <AlertTriangle size={12} className="text-amber-400" />
-            ) : (
-              <CheckCircle2 size={12} className="text-emerald-400" />
-            )}
-            <span>
-              {diagnostics.length === 0
-                ? '0 Masalah'
-                : `${diagnostics.length} Masalah`}
-            </span>
-          </button>
+              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[11px] font-sans font-medium cursor-pointer hover:bg-rose-500/25 transition-colors"
+              title="Klik untuk melompat ke baris yang bermasalah"
+            >
+              <AlertTriangle size={12} className="text-rose-400 shrink-0" />
+              <span>
+                {errorCount} error{errorCount !== 1 ? 's' : ''}
+                {warnCount > 0 ? `, ${warnCount} warning${warnCount !== 1 ? 's' : ''}` : ''}
+              </span>
+            </div>
+          ) : (
+            <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-sans">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Sintaks Valid</span>
+            </div>
+          )}
         </div>
 
-        {/* Right: Actions (Format, Run, Copy, Reset) */}
-        <div className="flex items-center gap-2 ml-auto">
-          {/* Action: Format */}
+        {/* Right: Quick Action Buttons (Format, Run, Copy, Reset) */}
+        <div className="flex items-center gap-2">
+          {/* Format */}
           <button
             type="button"
             onClick={handleFormatCode}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#252526] hover:bg-[#323233] text-[#cccccc] hover:text-white border border-[#3c3c3c] text-[11px] cursor-pointer transition-colors"
-            title="Rapikan Format Kode (Auto-Indent)"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#2d2d2d] hover:bg-[#383838] text-[#cccccc] hover:text-white border border-[#404040] text-xs cursor-pointer transition-colors"
+            title="Rapikan Indentasi Kode"
           >
             <Wrench size={12} />
-            <span className="hidden sm:inline">Format</span>
+            <span>Format</span>
           </button>
 
-          {/* Action: Run */}
+          {/* Run */}
           <button
             type="button"
             onClick={handleRunCode}
-            className="flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[11px] cursor-pointer shadow-xs transition-colors"
-            title="Jalankan Kode & Buka Output Terminal (Ctrl+Enter)"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-medium text-xs cursor-pointer transition-colors shadow-xs"
+            title="Jalankan kode (Ctrl+Enter)"
           >
             <Play size={12} className="fill-current" />
             <span>Run</span>
           </button>
 
-          {/* Action: Copy */}
+          {/* Copy */}
           <button
             type="button"
             onClick={handleCopyCode}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#252526] hover:bg-[#323233] text-[#cccccc] hover:text-white border border-[#3c3c3c] text-[11px] cursor-pointer transition-colors"
-            title="Salin Kode ke Clipboard"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#2d2d2d] hover:bg-[#383838] text-[#cccccc] hover:text-white border border-[#404040] text-xs cursor-pointer transition-colors"
+            title="Salin seluruh kode"
           >
             {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-            <span className="hidden sm:inline">{copied ? 'Tersalin' : 'Salin'}</span>
+            <span>{copied ? 'Tersalin' : 'Salin'}</span>
           </button>
 
-          {/* Action: Reset */}
+          {/* Reset Template */}
           <button
             type="button"
             onClick={handleResetSnippet}
-            className="p-1.5 rounded-lg hover:bg-[#323233] text-[#858585] hover:text-[#cccccc] cursor-pointer transition-colors"
-            title="Kembalikan Contoh Bawaan"
+            className="p-1.5 rounded-lg hover:bg-[#383838] text-[#858585] hover:text-[#cccccc] cursor-pointer transition-colors"
+            title="Kembalikan ke template awal bahasa"
           >
             <RotateCcw size={13} />
           </button>
         </div>
       </div>
 
-      {/* 2. MAIN EDITOR CANVAS (Clean: Gutter + Highlighted Code + Live Textarea) */}
-      <div className="flex-1 flex min-h-[440px] relative overflow-hidden bg-[#1e1e1e]">
-        {/* Gutter: Line Numbers & Error Glyphs */}
+      {/* PURE EDITOR CANVAS (Gutter + Syntax Highlighting Underlay + Editable Textarea) */}
+      <div className="flex-1 flex overflow-hidden relative bg-[#1e1e1e]">
+        
+        {/* Gutter Line Numbers */}
         <div className="w-12 sm:w-14 bg-[#1e1e1e] text-[#858585] py-3 select-none text-right pr-2.5 border-r border-[#2d2d2d] flex flex-col text-xs leading-[24px] font-mono shrink-0">
           {codeLines.map((_, idx) => {
             const lineNum = idx + 1;
@@ -538,13 +511,13 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
                 {hasError ? (
                   <span
                     onClick={() => handleJumpToIssue(lineIssues[0])}
-                    className="w-2.5 h-2.5 rounded-full bg-rose-500 hover:scale-125 inline-block shrink-0 cursor-pointer shadow-xs"
+                    className="w-2 h-2 rounded-full bg-rose-500 hover:scale-125 inline-block shrink-0 cursor-pointer shadow-xs"
                     title={lineIssues[0]?.message}
                   />
                 ) : hasWarn ? (
                   <span
                     onClick={() => handleJumpToIssue(lineIssues[0])}
-                    className="w-2.5 h-2.5 rounded-full bg-amber-400 hover:scale-125 inline-block shrink-0 cursor-pointer shadow-xs"
+                    className="w-2 h-2 rounded-full bg-amber-400 hover:scale-125 inline-block shrink-0 cursor-pointer shadow-xs"
                     title={lineIssues[0]?.message}
                   />
                 ) : null}
@@ -556,18 +529,19 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
           })}
         </div>
 
-        {/* Code Canvas Area */}
+        {/* Code Writing Surface */}
         <div className="flex-1 relative overflow-auto bg-[#1e1e1e]">
+          
           {/* Active Line Highlight Band */}
           <div
-            className="absolute left-0 right-0 pointer-events-none bg-[#282828] border-y border-[#333333]/50 transition-all duration-75"
+            className="absolute left-0 right-0 pointer-events-none bg-[#282828] border-y border-[#333333]/40 transition-all duration-75"
             style={{
               top: `${(activeLine - 1) * 24 + 12}px`,
               height: '24px',
             }}
           />
 
-          {/* Layer 1: Synchronized Syntax Highlighted Underlay (VS Code Theme Colors) */}
+          {/* Layer 1: Synchronized Syntax Highlighted Underlay */}
           <pre
             ref={preRef}
             aria-hidden="true"
@@ -600,7 +574,7 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
                             isErrToken
                               ? 'border-b-2 border-rose-500 border-dashed pb-[1px] font-bold'
                               : token.type === 'comment'
-                              ? 'italic opacity-80'
+                              ? 'italic'
                               : ''
                           }
                         >
@@ -617,7 +591,7 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
             </code>
           </pre>
 
-          {/* Layer 2: Live Editable Textarea (Transparent text with authentic caret) */}
+          {/* Layer 2: Live Editable Textarea (Transparent text overlay) */}
           <textarea
             ref={textareaRef}
             value={content}
@@ -634,11 +608,11 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
             style={{
               tabSize: 2,
               fontFamily: `'JetBrains Mono', 'Fira Code', 'Consolas', monospace`,
-              minHeight: `${Math.max(codeLines.length * 24 + 100, 420)}px`,
+              minHeight: `${Math.max(codeLines.length * 24 + 100, 400)}px`,
             }}
           />
 
-          {/* 3. Diagnostic Hover Popup */}
+          {/* Diagnostic Hover Popup */}
           {hoveredIssue && hoverWidgetPos && (
             <div
               className="absolute z-30 bg-[#252526] text-[#cccccc] border border-[#454545] rounded-xl shadow-2xl p-3 space-y-2 max-w-md animate-in fade-in"
@@ -679,17 +653,17 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
                     className="px-2.5 py-1 bg-[#007acc] hover:bg-[#0062a3] text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 shadow-xs cursor-pointer"
                   >
                     <Wrench size={12} />
-                    <span>Quick Fix: {hoveredIssue.quickFix.label}</span>
+                    <span>Perbaiki: {hoveredIssue.quickFix.label}</span>
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* 4. IntelliSense Autocomplete Popover */}
+          {/* Autocomplete IntelliSense Popup */}
           {showCompletion && completionItems.length > 0 && (
             <div
-              className="absolute z-40 bg-[#252526] border border-[#454545] rounded-xl shadow-2xl overflow-hidden flex flex-col w-80 text-xs animate-in fade-in"
+              className="absolute z-40 bg-[#252526] border border-[#454545] rounded-xl shadow-2xl overflow-hidden flex flex-col w-80 text-xs animate-in fade-in font-mono"
               style={{
                 top: `${completionPos.top}px`,
                 left: `${completionPos.left}px`,
@@ -706,7 +680,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
                 </button>
               </div>
 
-              {/* Suggestions List */}
               <div className="max-h-48 overflow-y-auto divide-y divide-[#303030]">
                 {completionItems.map((item, idx) => {
                   const isSelected = idx === selectedCompletionIndex;
@@ -748,7 +721,6 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
                 })}
               </div>
 
-              {/* Documentation Drawer */}
               {completionItems[selectedCompletionIndex] && (
                 <div className="p-2.5 bg-[#1f1f1f] border-t border-[#333333] text-[11px] text-[#a0a0a0] leading-relaxed">
                   <div className="font-bold text-[#4ec9b0] mb-0.5">
@@ -756,7 +728,7 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
                   </div>
                   <p>{completionItems[selectedCompletionIndex].documentation}</p>
                   <div className="mt-1 text-[10px] text-[#666666] flex items-center justify-between">
-                    <span>Tab / Enter untuk menyisipkan</span>
+                    <span>Tekan Tab / Enter untuk menyisipkan</span>
                     <span>Esc untuk tutup</span>
                   </div>
                 </div>
@@ -766,148 +738,66 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
         </div>
       </div>
 
-      {/* 5. COLLAPSIBLE BOTTOM OUTPUT / PROBLEMS PANEL */}
-      {activeDrawerTab && (
-        <div className="h-44 bg-[#181818] border-t border-[#2d2d2d] flex flex-col shrink-0">
-          <div className="flex items-center justify-between px-3 bg-[#1e1e1e] border-b border-[#2d2d2d] text-xs">
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setActiveDrawerTab('problems')}
-                className={`px-3 py-1.5 flex items-center gap-1.5 border-b-2 font-semibold cursor-pointer ${
-                  activeDrawerTab === 'problems'
-                    ? 'border-rose-500 text-white'
-                    : 'border-transparent text-[#858585] hover:text-[#cccccc]'
-                }`}
-              >
-                <span>PROBLEMS</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                    errorCount > 0
-                      ? 'bg-rose-500 text-white'
-                      : 'bg-[#333333] text-[#aaaaaa]'
-                  }`}
-                >
-                  {diagnostics.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveDrawerTab('terminal')}
-                className={`px-3 py-1.5 flex items-center gap-1.5 border-b-2 font-semibold cursor-pointer ${
-                  activeDrawerTab === 'terminal'
-                    ? 'border-emerald-500 text-white'
-                    : 'border-transparent text-[#858585] hover:text-[#cccccc]'
-                }`}
-              >
-                <Terminal size={12} />
-                <span>TERMINAL OUTPUT</span>
-              </button>
-            </div>
-
+      {/* Output Console (Collapsible, shown when Run is pressed) */}
+      {showConsole && (
+        <div className="h-44 bg-[#181818] border-t border-[#333333] flex flex-col shrink-0">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-[#222222] border-b border-[#333333] text-xs">
+            <span className="font-semibold text-zinc-300">Terminal / Hasil Eksekusi</span>
             <div className="flex items-center gap-2">
-              {activeDrawerTab === 'terminal' && (
-                <button
-                  type="button"
-                  onClick={() => setTerminalLogs([])}
-                  className="text-[11px] text-[#858585] hover:text-white cursor-pointer"
-                >
-                  Bersihkan
-                </button>
-              )}
               <button
                 type="button"
-                onClick={() => setActiveDrawerTab(null)}
+                onClick={() => setConsoleLogs([])}
+                className="text-[11px] text-[#858585] hover:text-white cursor-pointer"
+              >
+                Bersihkan
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowConsole(false)}
                 className="p-1 hover:text-white text-[#858585] cursor-pointer"
-                title="Tutup Panel"
               >
                 <X size={14} />
               </button>
             </div>
           </div>
-
-          <div className="flex-1 p-2.5 overflow-y-auto text-xs font-mono">
-            {activeDrawerTab === 'problems' ? (
-              diagnostics.length === 0 ? (
-                <div className="flex items-center gap-2 text-emerald-400 py-3 px-2">
-                  <CheckCircle2 size={16} />
-                  <span>Tidak ada masalah sintaks atau tipe pada berkas {fileName}.</span>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {diagnostics.map((diag, i) => (
-                    <div
-                      key={i}
-                      onClick={() => handleJumpToIssue(diag)}
-                      className="flex items-center justify-between p-1.5 rounded-lg hover:bg-[#252526] cursor-pointer text-[#cccccc] group"
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        {diag.severity === 'error' ? (
-                          <XCircle size={14} className="text-rose-500 shrink-0" />
-                        ) : (
-                          <AlertTriangle size={14} className="text-amber-400 shrink-0" />
-                        )}
-                        <span className="text-[#ffffff] font-semibold">
-                          {diag.message}
-                        </span>
-                        <span className="text-[10px] text-[#858585]">
-                          [{diag.source} {diag.code}]
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-[#858585] group-hover:text-rose-400 shrink-0 ml-3">
-                        Baris {diag.line}, Kolom {diag.column}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : terminalLogs.length === 0 ? (
-              <div className="text-[#666666] py-3 px-2">
-                Klik tombol "Run" di atas untuk menjalankan kode dan melihat keluaran console.log.
+          <div className="flex-1 p-2.5 overflow-y-auto text-xs font-mono space-y-1">
+            {consoleLogs.map((log, i) => (
+              <div key={i} className="flex items-start gap-2 leading-relaxed">
+                <span className="text-[#666666] text-[10px] shrink-0 select-none">
+                  [{log.time}]
+                </span>
+                <span
+                  className={
+                    log.type === 'error'
+                      ? 'text-rose-400 font-bold'
+                      : log.type === 'warn'
+                      ? 'text-amber-300'
+                      : log.type === 'info'
+                      ? 'text-sky-400'
+                      : 'text-[#d4d4d4]'
+                  }
+                >
+                  {log.text}
+                </span>
               </div>
-            ) : (
-              <div className="space-y-1">
-                {terminalLogs.map((log) => (
-                  <div key={log.id} className="flex items-start gap-2 leading-relaxed">
-                    <span className="text-[#666666] text-[10px] shrink-0 select-none">
-                      [{log.time}]
-                    </span>
-                    <span
-                      className={
-                        log.type === 'error'
-                          ? 'text-rose-400 font-bold'
-                          : log.type === 'warn'
-                          ? 'text-amber-300'
-                          : log.type === 'info'
-                          ? 'text-[#007acc]'
-                          : 'text-[#d4d4d4]'
-                      }
-                    >
-                      {log.text}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
         </div>
       )}
 
-      {/* 6. MINIMALIST FOOTER (NO BLUE VS CODE BAR) */}
-      <div className="bg-[#181818] border-t border-[#2d2d2d] px-3 py-1 flex items-center justify-between text-[11px] text-[#858585] select-none shrink-0">
-        <div className="flex items-center gap-2">
+      {/* Minimal Footer: Line, Col, and Language indicator */}
+      <div className="bg-[#181818] text-[#858585] px-4 py-1.5 flex items-center justify-between text-xs border-t border-[#2d2d2d] select-none shrink-0">
+        <div className="flex items-center gap-3">
           <span>Baris {activeLine}, Kolom {activeCol}</span>
           <span>•</span>
-          <span>{content.length} karakter</span>
+          <span>Tab: 2 spasi</span>
         </div>
-
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline">Ctrl+Space untuk saran</span>
-          <span>•</span>
-          <span className="text-[#cccccc] font-medium">{langMeta.name}</span>
+          <span>{langMeta.name}</span>
+          <span className="text-[11px] text-zinc-500 hidden sm:inline">(Ctrl+Space Autocomplete)</span>
         </div>
       </div>
+
     </div>
   );
 };
