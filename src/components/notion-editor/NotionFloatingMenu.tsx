@@ -132,6 +132,21 @@ const formatAiResponse = (raw: string): string => {
   return trimmed;
 };
 
+// Helper to wrap content with distinct AI Preview styling before it is permanently applied
+const wrapWithAiPreview = (htmlOrText: string, isTyping: boolean = false): string => {
+  if (!htmlOrText) return isTyping ? '<span class="ai-typewriter-cursor"></span>' : '';
+  const cursorHtml = isTyping ? '<span class="ai-typewriter-cursor"></span>' : '';
+
+  // Check if content has block level tags (paragraphs, headings, lists, tables, pre, blockquotes)
+  const isBlock = /<(p|h1|h2|h3|ul|ol|li|blockquote|pre|table|div)/i.test(htmlOrText);
+
+  if (isBlock) {
+    return `<div class="ai-generated-preview" data-ai-preview="true" style="color: #7c3aed; background-color: rgba(139, 92, 246, 0.1); border-left: 3px solid #8b5cf6; padding: 6px 12px; border-radius: 8px; margin: 6px 0;">${htmlOrText}${cursorHtml}</div>`;
+  }
+
+  return `<span class="ai-generated-preview" data-ai-preview="true" style="color: #7c3aed; background-color: rgba(139, 92, 246, 0.12); padding: 2px 6px; border-radius: 4px; font-weight: 500;">${htmlOrText}${cursorHtml}</span>`;
+};
+
 export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }) => {
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const [reviewCoords, setReviewCoords] = useState<{ top: number; left: number } | null>(null);
@@ -145,6 +160,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   
   // AI States
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isTypingAnimation, setIsTypingAnimation] = useState(false);
   const [aiThinkingText, setAiThinkingText] = useState('AI sedang menganalisis & menyempurnakan tulisan...');
   const [customAiPrompt, setCustomAiPrompt] = useState('');
   const [showCustomPromptInput, setShowCustomPromptInput] = useState(false);
@@ -154,6 +170,8 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   const menuRef = useRef<HTMLDivElement>(null);
   const reviewBarRef = useRef<HTMLDivElement>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typewriterTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isTypingRef = useRef<boolean>(false);
   const selectedRangeRef = useRef<{ from: number; to: number; text: string } | null>(null);
 
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
@@ -163,6 +181,14 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
       setToast(null);
     }, 4000);
   };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      if (typewriterTimerRef.current) clearTimeout(typewriterTimerRef.current);
+    };
+  }, []);
 
   // Position update and active selection tracking
   useEffect(() => {
@@ -368,68 +394,162 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
 
       setIsAiLoading(false);
 
-      // Apply the formatted content directly into editor selection range
-      editor
-        .chain()
-        .focus()
-        .insertContentAt({ from, to }, formattedHtml || cleanResult)
-        .run();
+      // Stop any active typewriter timer
+      if (typewriterTimerRef.current) {
+        clearTimeout(typewriterTimerRef.current);
+        typewriterTimerRef.current = null;
+      }
 
-      const appliedEnd = editor.state.selection.to || (from + cleanResult.length);
+      // Split into word tokens & whitespace for typewriter effect
+      const tokens = cleanResult.match(/\S+|\s+/g) || [cleanResult];
+      const totalTokens = tokens.length;
 
-      // Set Notion Review state for Apply, Insert below, Try again, Discard
-      setAiReviewState({
-        originalFrom: from,
-        originalTo: to,
-        originalText: selectedText,
-        generatedText: cleanResult,
-        generatedHtml: formattedHtml,
-        actionType,
-        detail,
-        appliedFrom: from,
-        appliedTo: appliedEnd,
-      });
+      // Dynamic pacing: ~20-35 steps, completing between 400ms and 1400ms
+      const totalSteps = Math.min(totalTokens, 32);
+      const stepInterval = Math.max(16, Math.floor(1000 / Math.max(1, totalSteps)));
+      const tokensPerStep = Math.max(1, Math.ceil(totalTokens / totalSteps));
 
-      showToast('success', '✨ Hasil AI siap ditinjau!');
+      let currentTokenIdx = 0;
+      let currentAppliedFrom = from;
+      let currentAppliedTo = to;
+
+      isTypingRef.current = true;
+      setIsTypingAnimation(true);
+
+      const typeStep = () => {
+        if (!editor || editor.isDestroyed) {
+          isTypingRef.current = false;
+          setIsTypingAnimation(false);
+          return;
+        }
+
+        currentTokenIdx = Math.min(totalTokens, currentTokenIdx + tokensPerStep);
+        const partialRaw = tokens.slice(0, currentTokenIdx).join('');
+        const isFinished = currentTokenIdx >= totalTokens;
+
+        const partialFormatted = formatAiResponse(partialRaw);
+        const previewHtml = wrapWithAiPreview(partialFormatted || partialRaw, !isFinished);
+
+        const docSizeBefore = editor.state.doc.content.size;
+        editor
+          .chain()
+          .focus()
+          .insertContentAt({ from: currentAppliedFrom, to: currentAppliedTo }, previewHtml)
+          .run();
+        const docSizeAfter = editor.state.doc.content.size;
+        currentAppliedTo = currentAppliedTo + (docSizeAfter - docSizeBefore);
+
+        // Keep review coordinates anchored
+        try {
+          const { view } = editor;
+          const endPos = Math.min(currentAppliedTo, editor.state.doc.content.size);
+          const endCoords = view.coordsAtPos(endPos);
+          setReviewCoords({
+            top: Math.max(10, endCoords.bottom + 12),
+            left: Math.max(16, Math.min(window.innerWidth - 380, endCoords.left)),
+          });
+        } catch {
+          // Keep previous reviewCoords if available
+        }
+
+        if (!isFinished) {
+          typewriterTimerRef.current = setTimeout(typeStep, stepInterval);
+        } else {
+          isTypingRef.current = false;
+          setIsTypingAnimation(false);
+          typewriterTimerRef.current = null;
+
+          // Set Notion Review state for Replace, Insert below, Try again, Discard
+          setAiReviewState({
+            originalFrom: from,
+            originalTo: to,
+            originalText: selectedText,
+            generatedText: cleanResult,
+            generatedHtml: formattedHtml,
+            actionType,
+            detail,
+            appliedFrom: currentAppliedFrom,
+            appliedTo: currentAppliedTo,
+          });
+
+          showToast('success', '✨ Hasil AI siap ditinjau!');
+        }
+      };
+
+      // Launch typewriter streaming
+      typeStep();
     } catch (err: any) {
       console.error('AI Assist error:', err);
       const errMsg = err?.message || 'Terjadi kesalahan saat menghubungi AI.';
       showToast('error', errMsg);
       setIsAiLoading(false);
+      setIsTypingAnimation(false);
+      isTypingRef.current = false;
     }
   };
 
   // NOTION REVIEW BAR HANDLERS
-  // 1. Done / Replace Selection (Apply)
+  // 1. Done / Replace Selection (Apply) -> Clears preview styling and applies clean standard content
   const handleApplyReplace = () => {
+    if (typewriterTimerRef.current) {
+      clearTimeout(typewriterTimerRef.current);
+      typewriterTimerRef.current = null;
+    }
+    isTypingRef.current = false;
+    setIsTypingAnimation(false);
+
+    if (!editor || !aiReviewState) return;
+    const { appliedFrom, appliedTo, generatedHtml, generatedText } = aiReviewState;
+
+    // Apply the clean formatted content without temporary preview wrapper
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from: appliedFrom, to: appliedTo }, generatedHtml || generatedText)
+      .run();
+
     setAiReviewState(null);
     setReviewCoords(null);
     showToast('success', '✨ Perubahan AI berhasil diterapkan!');
   };
 
-  // 2. Insert Below original text
+  // 2. Insert Below original text -> Restores original text and appends AI content below
   const handleInsertBelow = () => {
-    if (!editor || !aiReviewState) return;
-    const { originalFrom, originalText, generatedHtml, appliedFrom, appliedTo } = aiReviewState;
+    if (typewriterTimerRef.current) {
+      clearTimeout(typewriterTimerRef.current);
+      typewriterTimerRef.current = null;
+    }
+    isTypingRef.current = false;
+    setIsTypingAnimation(false);
 
-    // Restore original text first
+    if (!editor || !aiReviewState) return;
+    const { originalFrom, originalText, generatedHtml, generatedText, appliedFrom, appliedTo } = aiReviewState;
+
+    // Restore original text first (removes preview)
     editor
       .chain()
       .focus()
       .insertContentAt({ from: appliedFrom, to: appliedTo }, originalText)
       .run();
 
-    // Insert generated text in a new block right below
+    // Insert clean generated text in a new block right below
     const insertPos = originalFrom + originalText.length;
-    editor.chain().focus().insertContentAt(insertPos, `\n\n${generatedHtml}`).run();
+    editor.chain().focus().insertContentAt(insertPos, `\n\n${generatedHtml || generatedText}`).run();
 
     setAiReviewState(null);
     setReviewCoords(null);
     showToast('success', '✨ Teks disisipkan di bawah teks asli!');
   };
 
-  // 3. Try Again
+  // 3. Try Again -> Reverts and re-runs AI action
   const handleTryAgain = () => {
+    if (typewriterTimerRef.current) {
+      clearTimeout(typewriterTimerRef.current);
+      typewriterTimerRef.current = null;
+    }
+    isTypingRef.current = false;
+    setIsTypingAnimation(false);
+
     if (!editor || !aiReviewState) return;
     const { originalFrom, originalText, appliedFrom, appliedTo, actionType, detail } = aiReviewState;
 
@@ -444,13 +564,21 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     const reselectedTo = originalFrom + originalText.length;
     editor.chain().focus().setTextSelection({ from: originalFrom, to: reselectedTo }).run();
     setAiReviewState(null);
+    setReviewCoords(null);
 
     // Re-run
     executeAiAction(actionType, detail);
   };
 
-  // 4. Discard / Revert
+  // 4. Discard / Revert -> Cancels preview and restores original text
   const handleDiscard = () => {
+    if (typewriterTimerRef.current) {
+      clearTimeout(typewriterTimerRef.current);
+      typewriterTimerRef.current = null;
+    }
+    isTypingRef.current = false;
+    setIsTypingAnimation(false);
+
     if (!editor || !aiReviewState) return;
     const { originalFrom, originalText, appliedFrom, appliedTo } = aiReviewState;
 
@@ -558,8 +686,23 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         </div>
       )}
 
-      {/* 2. MAIN SELECTION BUBBLE MENU (When not reviewing) */}
-      {!aiReviewState && coords && (
+      {/* TYPING STREAMING STATUS */}
+      {isTypingAnimation && activePosition && !aiReviewState && (
+        <div
+          className="fixed z-50 -translate-x-1/2 flex items-center gap-2 bg-white/95 dark:bg-[#1a1d24]/95 backdrop-blur-md text-purple-700 dark:text-purple-300 rounded-xl shadow-2xl border border-purple-300 dark:border-purple-800/80 px-3 py-1.5 text-xs select-none animate-in fade-in"
+          style={{
+            top: `${Math.max(12, activePosition.top - 12)}px`,
+            left: `${activePosition.left}px`,
+          }}
+        >
+          <Sparkles size={13} className="text-purple-600 dark:text-purple-400 animate-spin" />
+          <span className="font-semibold text-[11px]">AI sedang mengetik...</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping ml-1" />
+        </div>
+      )}
+
+      {/* 2. MAIN SELECTION BUBBLE MENU (When not reviewing and not typing) */}
+      {!aiReviewState && !isTypingAnimation && coords && (
         <div
           ref={menuRef}
           className="fixed z-50 -translate-x-1/2 flex items-center bg-white dark:bg-[#1f2228] text-stone-800 dark:text-zinc-100 rounded-xl shadow-2xl border border-stone-200 dark:border-zinc-700/80 p-1 text-xs select-none transition-all duration-75 animate-in fade-in zoom-in-95"
