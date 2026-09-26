@@ -49,6 +49,7 @@ import {
   handleCodeBlockContainerClick,
   ConsoleLogEntry,
 } from '../utils/codeRunner';
+import { NotionEditor } from './notion-editor/NotionEditor';
 
 interface RichEditorProps {
   value: string;
@@ -90,7 +91,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
     { slug: 'neural-networks', title: 'Neural Networks' },
   ],
 }) => {
-  const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'split'>('edit');
+  const [viewMode, setViewMode] = useState<'notion' | 'markdown' | 'split' | 'preview'>('notion');
   const [showVanpediaPicker, setShowVanpediaPicker] = useState(false);
   const [showCodeLangPicker, setShowCodeLangPicker] = useState(false);
   const [vanpediaSearch, setVanpediaSearch] = useState('');
@@ -466,30 +467,37 @@ export const RichEditor: React.FC<RichEditorProps> = ({
         {/* View Mode Controls & Fullscreen */}
         <div className="flex items-center gap-1.5 ml-auto">
           <div className="flex items-center gap-0.5 bg-stone-200/70 dark:bg-zinc-800/80 p-0.5 rounded-lg text-xs">
+            {/* Notion Mode */}
             <button
               type="button"
-              onClick={() => setViewMode('edit')}
+              onClick={() => setViewMode('notion')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-all cursor-pointer ${
+                viewMode === 'notion'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold shadow-xs'
+                  : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+              }`}
+              title="Editor Visual seperti Notion dengan Drag & Drop, AI Improve, dan Slash Menu"
+            >
+              <Sparkles size={12} className={viewMode === 'notion' ? 'text-amber-200' : 'text-purple-500'} />
+              <span>Notion AI</span>
+            </button>
+
+            {/* Markdown Mode */}
+            <button
+              type="button"
+              onClick={() => setViewMode('markdown')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                viewMode === 'edit'
+                viewMode === 'markdown'
                   ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-zinc-100 font-semibold shadow-xs'
                   : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
               }`}
+              title="Editor Kode Markdown mentah"
             >
-              <Edit3 size={12} />
-              <span>Tulis</span>
+              <FileCode size={12} />
+              <span>Markdown</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('preview')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                viewMode === 'preview'
-                  ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-zinc-100 font-semibold shadow-xs'
-                  : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
-              }`}
-            >
-              <Eye size={12} />
-              <span>Pratinjau</span>
-            </button>
+
+            {/* Split Mode */}
             <button
               type="button"
               onClick={() => setViewMode('split')}
@@ -498,9 +506,25 @@ export const RichEditor: React.FC<RichEditorProps> = ({
                   ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-zinc-100 font-semibold shadow-xs'
                   : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
               }`}
+              title="Tampilkan Markdown & Pratinjau berdampingan"
             >
               <Columns size={12} />
               <span>Split</span>
+            </button>
+
+            {/* Preview Mode */}
+            <button
+              type="button"
+              onClick={() => setViewMode('preview')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                viewMode === 'preview'
+                  ? 'bg-white dark:bg-zinc-700 text-stone-900 dark:text-zinc-100 font-semibold shadow-xs'
+                  : 'text-stone-600 dark:text-zinc-400 hover:text-stone-900 dark:hover:text-zinc-200'
+              }`}
+              title="Pratinjau Hasil Render Lengkap"
+            >
+              <Eye size={12} />
+              <span>Pratinjau</span>
             </button>
           </div>
 
@@ -515,8 +539,24 @@ export const RichEditor: React.FC<RichEditorProps> = ({
         </div>
       </div>
 
-      {/* Formatting Toolbar */}
-      {viewMode !== 'preview' && (
+      {/* Notion Mode Helpful Feature Guidance Banner */}
+      {viewMode === 'notion' && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-1.5 bg-purple-50/70 dark:bg-purple-950/20 border-b border-purple-200/50 dark:border-purple-900/30 text-xs text-purple-900 dark:text-purple-300 shrink-0 select-none">
+          <div className="flex items-center gap-2">
+            <Sparkles size={13} className="text-purple-600 dark:text-purple-400 animate-pulse shrink-0" />
+            <span className="font-semibold">Notion-Style Editor Aktif:</span>
+            <span className="text-[11px] text-purple-700 dark:text-purple-400 hidden sm:inline">
+              Blok teks untuk menu <strong>✨ Improve (AI)</strong> • Ketik <kbd className="px-1 py-0.5 rounded bg-white dark:bg-zinc-800 border border-purple-300 dark:border-purple-800 text-[10px]"> / </kbd> untuk perintah blok • Hover ke kiri untuk <strong>Drag & Drop</strong> (:::)
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px] text-purple-600 dark:text-purple-400 font-mono">
+            <span>Markdown Auto-Sync</span>
+          </div>
+        </div>
+      )}
+
+      {/* Formatting Toolbar - Show when in markdown or split mode */}
+      {(viewMode === 'markdown' || viewMode === 'split') && (
         <div className="flex flex-wrap items-center gap-1 px-3.5 py-2 bg-stone-100/60 dark:bg-[#16181d] border-b border-stone-200 dark:border-zinc-800 text-stone-700 dark:text-zinc-300 text-xs shrink-0 select-none">
           {/* Headings Hierarchy (H1, H2, H3) */}
           <div className="flex items-center gap-0.5 border-r border-stone-300 dark:border-zinc-700 pr-1.5 mr-0.5">
@@ -909,7 +949,18 @@ export const RichEditor: React.FC<RichEditorProps> = ({
           </div>
         )}
 
-        {viewMode === 'split' ? (
+        {viewMode === 'notion' ? (
+          <NotionEditor
+            value={value}
+            onChange={(newMarkdown) => {
+              pushHistory(newMarkdown);
+              onChange(newMarkdown);
+            }}
+            placeholder={placeholder}
+            minHeight={minHeight}
+            vanpediaTerms={vanpediaTerms}
+          />
+        ) : viewMode === 'split' ? (
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-200 dark:divide-zinc-800 min-h-0">
             <textarea
               ref={textareaRef}
