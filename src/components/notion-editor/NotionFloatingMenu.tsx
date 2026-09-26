@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Editor } from '@tiptap/react';
-import { marked } from 'marked';
 import {
   Sparkles,
   ChevronDown,
@@ -48,7 +47,6 @@ interface AiReviewState {
   originalTo: number;
   originalText: string;
   generatedText: string;
-  generatedHtml: string;
   actionType: string;
   detail?: string;
   appliedFrom: number;
@@ -100,21 +98,21 @@ const COLOR_HIGHLIGHTS = [
   { label: 'Purple / Violet', color: '#7c3aed', bg: 'rgba(139, 92, 246, 0.15)' },
 ];
 
-// Helper to format AI response into clean HTML matching editor structures
-const formatAiResponse = (raw: string): string => {
+// Helper to clean raw LLM output into clean markdown/text
+const cleanAiOutput = (raw: string): string => {
   if (!raw) return '';
-  const trimmed = raw.trim();
-  // Check if content has markdown elements (headings, lists, quotes, bold, code, table, breaks)
-  const hasMarkdown = /(^#{1,6}\s|^\s*[-*+]\s|^\s*\d+\.\s|^\s*>\s|```|[*_`~]|\||\n)/m.test(trimmed);
-  if (hasMarkdown) {
-    try {
-      const parsed = marked.parse(trimmed, { async: false, gfm: true, breaks: true }) as string;
-      return parsed.trim();
-    } catch {
-      return trimmed;
-    }
-  }
-  return trimmed;
+  let cleaned = raw.trim();
+
+  // Strip wrapping markdown codeblocks e.g. ```markdown ... ``` or ``` ... ```
+  cleaned = cleaned.replace(/^```(?:markdown|html|text)?\s*\n?([\s\S]*?)\n?```$/i, '$1').trim();
+
+  // Strip conversational preambles
+  cleaned = cleaned.replace(/^(?:Tentu,?\s*(?:berikut|ini)?|Berikut\s*(?:adalah)?|Here\s*is\s*(?:the)?|Sure,?\s*here\s*is)\s*[^:\n]*:\s*\n?/i, '').trim();
+
+  // Strip outer quotes if enclosed
+  cleaned = cleaned.replace(/^["'«“]|["'»”]$/g, '').trim();
+
+  return cleaned;
 };
 
 export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }) => {
@@ -155,7 +153,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     if (!editor) return;
 
     const updateMenuPosition = () => {
-      // If currently in review state or typing, keep reviewCoords
+      // If currently in review state or typing, keep reviewCoords intact
       if (aiReviewState || isTypingEffect) return;
 
       const { from, to, empty } = editor.state.selection;
@@ -241,47 +239,50 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     from: number,
     to: number,
     targetText: string,
-    formattedHtml: string,
-    onComplete: (appliedTo: number) => void
+    onComplete: (appliedFrom: number, appliedTo: number) => void
   ) => {
-    if (!editor) {
-      onComplete(to);
-      return;
-    }
+    if (!editor) return;
 
     setIsTypingEffect(true);
 
-    // Split text into words/tokens for smooth typing effect
-    const tokens = targetText.split(/(\s+)/);
-    let index = 0;
-    let accumulated = '';
+    // 1. Delete initial selection once
+    editor.chain().focus().setTextSelection({ from, to }).deleteSelection().run();
+    const startPos = editor.state.selection.from;
 
-    // Step size: ~25-30 frames total
-    const tokenStep = Math.max(1, Math.ceil(tokens.length / 28));
+    // 2. Tokenize by words with spaces
+    const words = targetText.match(/\S+\s*/g) || [targetText];
+    let currentIndex = 0;
+    const batchSize = Math.max(1, Math.ceil(words.length / 22));
 
     if (typingTimerRef.current) clearInterval(typingTimerRef.current);
 
     typingTimerRef.current = setInterval(() => {
-      if (index >= tokens.length || !editor) {
+      if (currentIndex >= words.length || !editor) {
         if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-        
-        // Final render with full rich formatting (headings, lists, bold, tables, code)
-        const currentEnd = from + accumulated.length;
-        editor.chain().focus().insertContentAt({ from, to: currentEnd }, formattedHtml).run();
+
+        const currentEndPos = editor.state.selection.to;
+
+        // Finalize with clean Markdown parsing so headings, lists, bold, tables format cleanly
+        editor
+          .chain()
+          .focus()
+          .setTextSelection({ from: startPos, to: currentEndPos })
+          .deleteSelection()
+          .insertContent(targetText)
+          .run();
+
         setIsTypingEffect(false);
-        
-        const finalEnd = editor.state.selection.to || (from + targetText.length);
-        onComplete(finalEnd);
+        const finalTo = editor.state.selection.to;
+        onComplete(startPos, finalTo);
         return;
       }
 
-      const nextChunk = tokens.slice(index, index + tokenStep).join('');
-      index += tokenStep;
-      accumulated += nextChunk;
+      const chunk = words.slice(currentIndex, currentIndex + batchSize).join('');
+      currentIndex += batchSize;
 
-      const currentEnd = from + (accumulated.length - nextChunk.length);
-      editor.chain().focus().insertContentAt({ from, to: currentEnd }, accumulated).run();
-    }, 30);
+      // Type chunk forward at active cursor
+      editor.chain().focus().insertContent(chunk).run();
+    }, 32);
   };
 
   // Execute AI action on selected text
@@ -318,16 +319,16 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     let prompt = '';
     switch (actionType) {
       case 'improve':
-        prompt = `Sempurnakan dan tingkatkan kualitas penulisan teks berikut agar lebih elegan, padat, dan jelas. Format output sesuai kebutuhan konten (gunakan markdown formatting jika relevan seperti bold, list, atau headings). Keluarkan HANYA teks hasil yang telah disempurnakan tanpa pembuka/penutup:\n\n"${selectedText}"`;
+        prompt = `Sempurnakan dan tingkatkan kualitas penulisan teks berikut agar lebih elegan, padat, dan jelas. Format tulisan agar menyatu alami dengan paragraf editor. Keluarkan HANYA teks hasil yang telah disempurnakan tanpa pembuka/penutup:\n\n"${selectedText}"`;
         break;
       case 'tone':
-        prompt = `Tulis ulang teks berikut dengan nada bicara (tone) "${detail}". Pastikan inti pesan tetap utuh dan format tulisan rapi. Keluarkan HANYA teks hasil akhir:\n\n"${selectedText}"`;
+        prompt = `Tulis ulang teks berikut dengan nada bicara (tone) "${detail}". Pastikan pesan tetap utuh dan gaya penulisan rapi. Keluarkan HANYA teks hasil akhir:\n\n"${selectedText}"`;
         break;
       case 'grammar':
-        prompt = `Perbaiki segala kesalahan ejaan (spelling), tata bahasa (grammar), tanda baca, dan typo pada teks berikut tanpa merusak format. Keluarkan HANYA teks hasil yang sudah diperbaiki:\n\n"${selectedText}"`;
+        prompt = `Perbaiki segala kesalahan ejaan (spelling), tata bahasa (grammar), tanda baca, dan typo pada teks berikut. Keluarkan HANYA teks hasil yang sudah diperbaiki:\n\n"${selectedText}"`;
         break;
       case 'extend':
-        prompt = `Kembangkan dan elaborasikan teks berikut menjadi penjelasan yang lebih lengkap, jelas, dan kaya konteks dengan poin-poin atau paragraf terstruktur. Keluarkan HANYA teks hasil pengembangannya:\n\n"${selectedText}"`;
+        prompt = `Kembangkan dan elaborasikan teks berikut menjadi penjelasan yang lebih lengkap, jelas, dan kaya konteks. Keluarkan HANYA teks hasil pengembangannya:\n\n"${selectedText}"`;
         break;
       case 'reduce':
         prompt = `Ringkas teks berikut menjadi kalimat yang lebih ringkas, padat, dan esensial tanpa membuang makna utama. Keluarkan HANYA teks hasil ringkasannya:\n\n"${selectedText}"`;
@@ -342,13 +343,13 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         prompt = `Lengkapi kalimat atau paragraf berikut secara alami, logis, dan koheren. Keluarkan teks yang sudah lengkap:\n\n"${selectedText}"`;
         break;
       case 'summarize':
-        prompt = `Buat ringkasan ringkas dari teks berikut dalam format poin terstruktur atau paragraf padat. Keluarkan HANYA ringkasannya:\n\n"${selectedText}"`;
+        prompt = `Buat ringkasan ringkas dari teks berikut dalam format terstruktur atau poin padat. Keluarkan HANYA ringkasannya:\n\n"${selectedText}"`;
         break;
       case 'translate':
-        prompt = `Terjemahkan teks berikut ke dalam bahasa ${detail} dengan akurat, fasih, dan alami. Pertahankan format struktur teks. Keluarkan HANYA teks terjemahannya:\n\n"${selectedText}"`;
+        prompt = `Terjemahkan teks berikut ke dalam bahasa ${detail} dengan akurat, fasih, dan alami. Keluarkan HANYA teks terjemahannya:\n\n"${selectedText}"`;
         break;
       case 'custom':
-        prompt = `Instruksi: "${detail}". Terapkan instruksi ini pada teks berikut: "${selectedText}". Format hasil tulisan dengan rapi. Keluarkan HANYA teks hasil akhir:`;
+        prompt = `Instruksi: "${detail}". Terapkan instruksi ini pada teks berikut: "${selectedText}". Keluarkan HANYA teks hasil akhir:`;
         break;
       default:
         prompt = `Perbaiki dan tingkatkan teks berikut:\n\n"${selectedText}"`;
@@ -376,25 +377,21 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         throw new Error('Hasil AI kosong.');
       }
 
-      // Clean wrapping outer quotes if LLM enclosed the whole output
-      const cleanResult = rawResultText.replace(/^"|"$/g, '').trim();
-      const formattedHtml = formatAiResponse(cleanResult);
-
+      const cleanResult = cleanAiOutput(rawResultText);
       setIsAiLoading(false);
 
       // Run Typewriter effect in editor!
-      runTypewriterAnimation(from, to, cleanResult, formattedHtml, (finalAppliedTo) => {
+      runTypewriterAnimation(from, to, cleanResult, (appliedStart, appliedEnd) => {
         // Set Notion Review state for Apply, Insert below, Try again, Discard
         setAiReviewState({
-          originalFrom: from,
-          originalTo: to,
+          originalFrom: appliedStart,
+          originalTo: appliedStart + selectedText.length,
           originalText: selectedText,
           generatedText: cleanResult,
-          generatedHtml: formattedHtml,
           actionType,
           detail,
-          appliedFrom: from,
-          appliedTo: finalAppliedTo,
+          appliedFrom: appliedStart,
+          appliedTo: appliedEnd,
         });
       });
     } catch (err: any) {
@@ -417,14 +414,19 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   // 2. Insert Below original text
   const handleInsertBelow = () => {
     if (!editor || !aiReviewState) return;
-    const { originalFrom, originalText, generatedHtml, appliedTo } = aiReviewState;
+    const { originalFrom, originalText, generatedText, appliedFrom, appliedTo } = aiReviewState;
 
-    // Restore original text first
-    editor.chain().focus().insertContentAt({ from: originalFrom, to: appliedTo }, originalText).run();
+    // Delete generated text and restore original text
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: appliedFrom, to: appliedTo })
+      .deleteSelection()
+      .insertContent(originalText)
+      .run();
 
-    // Insert generated text in a new paragraph right below
-    const insertPos = originalFrom + originalText.length;
-    editor.chain().focus().insertContentAt(insertPos, `\n${generatedHtml}`).run();
+    // Insert generated text in a new block right below
+    editor.chain().focus().insertContent(`\n\n${generatedText}`).run();
 
     setAiReviewState(null);
     setReviewCoords(null);
@@ -434,12 +436,20 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   // 3. Try Again
   const handleTryAgain = () => {
     if (!editor || !aiReviewState) return;
-    const { originalFrom, originalTo, originalText, actionType, detail } = aiReviewState;
+    const { originalFrom, originalText, appliedFrom, appliedTo, actionType, detail } = aiReviewState;
 
-    // Restore original text
-    editor.chain().focus().insertContentAt({ from: originalFrom, to: aiReviewState.appliedTo }, originalText).run();
-    // Reselect
-    editor.chain().focus().setTextSelection({ from: originalFrom, to: originalTo }).run();
+    // Revert generated content to original text
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: appliedFrom, to: appliedTo })
+      .deleteSelection()
+      .insertContent(originalText)
+      .run();
+
+    // Reselect original text
+    const reselectedTo = originalFrom + originalText.length;
+    editor.chain().focus().setTextSelection({ from: originalFrom, to: reselectedTo }).run();
     setAiReviewState(null);
 
     // Re-run
@@ -449,12 +459,20 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   // 4. Discard / Revert
   const handleDiscard = () => {
     if (!editor || !aiReviewState) return;
-    const { originalFrom, originalTo, originalText, appliedTo } = aiReviewState;
+    const { originalFrom, originalText, appliedFrom, appliedTo } = aiReviewState;
 
-    // Revert modified range back to original text
-    editor.chain().focus().insertContentAt({ from: originalFrom, to: appliedTo }, originalText).run();
-    // Reselect
-    editor.chain().focus().setTextSelection({ from: originalFrom, to: originalTo }).run();
+    // Revert generated content to original text
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: appliedFrom, to: appliedTo })
+      .deleteSelection()
+      .insertContent(originalText)
+      .run();
+
+    // Reselect original text
+    const reselectedTo = originalFrom + originalText.length;
+    editor.chain().focus().setTextSelection({ from: originalFrom, to: reselectedTo }).run();
 
     setAiReviewState(null);
     setReviewCoords(null);

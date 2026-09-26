@@ -15,6 +15,7 @@ import { TextAlign } from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
+import { Markdown } from 'tiptap-markdown';
 import { common, createLowlight } from 'lowlight';
 import { NotionFloatingMenu } from '../../notion-editor/NotionFloatingMenu';
 import { NotionBlockGutter } from '../../notion-editor/NotionBlockGutter';
@@ -101,6 +102,12 @@ export const TriliumNotionEditor: React.FC<TriliumNotionEditorProps> = ({
       }),
       Placeholder.configure({
         placeholder,
+      }),
+      Markdown.configure({
+        html: true,
+        tightLists: true,
+        transformPastedText: true,
+        transformCopiedText: true,
       }),
     ],
     content: content || '<p></p>',
