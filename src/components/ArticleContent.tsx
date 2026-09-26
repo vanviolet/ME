@@ -4,6 +4,7 @@ import { usePortfolio } from '../context/PortfolioContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen } from 'lucide-react';
 import { renderMarkdownWithMath } from '../lib/renderMath';
+import { handleCodeBlockContainerClick } from '../utils/codeRunner';
 
 interface ArticleContentProps {
   content: string;
@@ -44,8 +45,10 @@ export const ArticleContent: React.FC<ArticleContentProps> = ({ content, vanpedi
     });
   }, [content, language]);
 
-  // Event delegation to capture clicks on Vanpedia links inside the rendered HTML and route smoothly
+  // Event delegation to capture clicks on Vanpedia links and Code Snippet runner inside rendered HTML
   const handleContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    handleCodeBlockContainerClick(e);
+
     const target = (e.target as HTMLElement).closest('a[data-vp-link="true"]');
     if (target) {
       const href = target.getAttribute('href');

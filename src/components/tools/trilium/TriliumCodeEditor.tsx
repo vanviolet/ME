@@ -40,14 +40,17 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
   onChangeLanguage,
 }) => {
   const currentLang = (language as CodeLanguage) || 'typescript';
+  const isRunnable = currentLang === 'javascript' || currentLang === 'typescript';
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
 
   // States
   const [copied, setCopied] = useState(false);
   const [activeLine, setActiveLine] = useState<number>(1);
   const [activeCol, setActiveCol] = useState<number>(1);
   const [cursorIndex, setCursorIndex] = useState<number>(0);
+  const [scrollTop, setScrollTop] = useState<number>(0);
 
   // Diagnostics & Hover
   const [hoveredIssue, setHoveredIssue] = useState<Diagnostic | null>(null);
@@ -86,12 +89,17 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
     return getCompletions(content, cursorIndex, currentLang);
   }, [showCompletion, content, cursorIndex, currentLang]);
 
-  // Synchronize textarea & pre scroll
+  // Synchronize textarea, pre & gutter scroll
   const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    const target = e.currentTarget;
     if (preRef.current) {
-      preRef.current.scrollTop = e.currentTarget.scrollTop;
-      preRef.current.scrollLeft = e.currentTarget.scrollLeft;
+      preRef.current.scrollTop = target.scrollTop;
+      preRef.current.scrollLeft = target.scrollLeft;
     }
+    if (gutterRef.current) {
+      gutterRef.current.scrollTop = target.scrollTop;
+    }
+    setScrollTop(target.scrollTop);
   };
 
   // Cursor position tracking
@@ -105,7 +113,7 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
     setActiveLine(lineNum);
     setActiveCol(colNum);
 
-    const top = Math.min((lineNum - 1) * 24 + 32, 380);
+    const top = Math.min(Math.max(10, (lineNum - 1) * 24 + 32 - target.scrollTop), 380);
     const left = Math.min(colNum * 8 + 60, 420);
     setCompletionPos({ top, left });
   };
@@ -161,11 +169,13 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
       return;
     }
 
-    // Run code shortcut: Ctrl+Enter
+    // Run code shortcut: Ctrl+Enter (only if language is runnable)
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      handleRunCode();
-      return;
+      if (isRunnable) {
+        e.preventDefault();
+        handleRunCode();
+        return;
+      }
     }
 
     // Handle Tab key (indent 2 spaces)
@@ -456,16 +466,18 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
             <span>Format</span>
           </button>
 
-          {/* Run */}
-          <button
-            type="button"
-            onClick={handleRunCode}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-medium text-xs cursor-pointer transition-colors shadow-xs"
-            title="Jalankan kode (Ctrl+Enter)"
-          >
-            <Play size={12} className="fill-current" />
-            <span>Run</span>
-          </button>
+          {/* Run - Only displayed for languages that can be executed (JS/TS) */}
+          {isRunnable && (
+            <button
+              type="button"
+              onClick={handleRunCode}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-medium text-xs cursor-pointer transition-colors shadow-xs"
+              title="Jalankan kode (Ctrl+Enter)"
+            >
+              <Play size={12} className="fill-current" />
+              <span>Run</span>
+            </button>
+          )}
 
           {/* Copy */}
           <button
@@ -493,8 +505,11 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
       {/* PURE EDITOR CANVAS (Gutter + Syntax Highlighting Underlay + Editable Textarea) */}
       <div className="flex-1 flex overflow-hidden relative bg-[#1e1e1e]">
         
-        {/* Gutter Line Numbers */}
-        <div className="w-12 sm:w-14 bg-[#1e1e1e] text-[#858585] py-3 select-none text-right pr-2.5 border-r border-[#2d2d2d] flex flex-col text-xs leading-[24px] font-mono shrink-0">
+        {/* Gutter Line Numbers - Synchronized with scroll */}
+        <div
+          ref={gutterRef}
+          className="w-12 sm:w-14 bg-[#1e1e1e] text-[#858585] py-3 select-none text-right pr-2.5 border-r border-[#2d2d2d] flex flex-col text-xs leading-[24px] font-mono shrink-0 overflow-hidden pointer-events-none"
+        >
           {codeLines.map((_, idx) => {
             const lineNum = idx + 1;
             const lineIssues = diagnostics.filter((d) => d.line === lineNum);
@@ -504,7 +519,7 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
             return (
               <div
                 key={lineNum}
-                className={`h-[24px] flex items-center justify-end gap-1.5 relative ${
+                className={`h-[24px] min-h-[24px] max-h-[24px] flex items-center justify-end gap-1.5 relative pointer-events-auto ${
                   activeLine === lineNum ? 'text-[#ffffff] font-bold' : ''
                 }`}
               >
@@ -530,13 +545,13 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
         </div>
 
         {/* Code Writing Surface */}
-        <div className="flex-1 relative overflow-auto bg-[#1e1e1e]">
+        <div className="flex-1 relative overflow-hidden bg-[#1e1e1e]">
           
-          {/* Active Line Highlight Band */}
+          {/* Active Line Highlight Band (moves synchronously with vertical scroll) */}
           <div
             className="absolute left-0 right-0 pointer-events-none bg-[#282828] border-y border-[#333333]/40 transition-all duration-75"
             style={{
-              top: `${(activeLine - 1) * 24 + 12}px`,
+              top: `${(activeLine - 1) * 24 + 12 - scrollTop}px`,
               height: '24px',
             }}
           />
@@ -591,7 +606,7 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
             </code>
           </pre>
 
-          {/* Layer 2: Live Editable Textarea (Transparent text overlay) */}
+          {/* Layer 2: Live Editable Textarea (Transparent text overlay, handles native scrolling) */}
           <textarea
             ref={textareaRef}
             value={content}
@@ -604,11 +619,10 @@ export const TriliumCodeEditor: React.FC<TriliumCodeEditorProps> = ({
             autoCapitalize="off"
             autoComplete="off"
             autoCorrect="off"
-            className="absolute inset-0 w-full h-full p-3 pt-3 m-0 bg-transparent text-transparent caret-[#ffffff] font-mono text-[13px] leading-[24px] whitespace-pre resize-none focus:outline-hidden selection:bg-[#264f78] selection:text-white"
+            className="absolute inset-0 w-full h-full p-3 pt-3 m-0 bg-transparent text-transparent caret-[#ffffff] font-mono text-[13px] leading-[24px] whitespace-pre resize-none focus:outline-hidden selection:bg-[#264f78] selection:text-white overflow-auto"
             style={{
               tabSize: 2,
               fontFamily: `'JetBrains Mono', 'Fira Code', 'Consolas', monospace`,
-              minHeight: `${Math.max(codeLines.length * 24 + 100, 400)}px`,
             }}
           />
 

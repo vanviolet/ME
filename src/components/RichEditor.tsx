@@ -31,8 +31,24 @@ import {
   FileCode,
   Minus,
   Search,
+  Terminal,
+  Play,
+  X,
 } from 'lucide-react';
 import { renderInlineFormula, renderTextWithMath } from '../lib/renderMath';
+import {
+  CodeLanguage,
+  getCompletions,
+  CompletionItem,
+} from './tools/trilium/codeLanguageSupport';
+import {
+  findCodeBlockAtCursor,
+  isRunnableLanguage,
+  executeJavaScriptCode,
+  renderRichCodeCardHtml,
+  handleCodeBlockContainerClick,
+  ConsoleLogEntry,
+} from '../utils/codeRunner';
 
 interface RichEditorProps {
   value: string;
@@ -84,6 +100,22 @@ export const RichEditor: React.FC<RichEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const codeMenuRef = useRef<HTMLDivElement>(null);
   const vanpediaMenuRef = useRef<HTMLDivElement>(null);
+
+  // Active Code Block & Autocomplete states
+  const [cursorPos, setCursorPos] = useState<number>(0);
+  const [showCompletion, setShowCompletion] = useState<boolean>(false);
+  const [completionItems, setCompletionItems] = useState<CompletionItem[]>([]);
+  const [selectedCompletionIndex, setSelectedCompletionIndex] = useState<number>(0);
+  const [completionPos, setCompletionPos] = useState<{ top: number; left: number }>({ top: 40, left: 60 });
+
+  // Console Drawer states for running JavaScript
+  const [showConsoleDrawer, setShowConsoleDrawer] = useState<boolean>(false);
+  const [consoleLogs, setConsoleLogs] = useState<ConsoleLogEntry[]>([]);
+
+  // Detect active code block at cursor
+  const activeCodeBlock = useMemo(() => {
+    return findCodeBlockAtCursor(value, cursorPos);
+  }, [value, cursorPos]);
 
   // Undo/Redo history stack
   const historyRef = useRef<string[]>([value]);
@@ -254,7 +286,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
     setShowCodeLangPicker(false);
   };
 
-  // Parse markdown with KaTeX math and distinct Vanpedia badges for preview
+  // Parse markdown with KaTeX math, distinct Vanpedia badges, and interactive code blocks for preview
   const previewHtml = useMemo(() => {
     try {
       let preprocessed = value;
@@ -272,11 +304,122 @@ export const RichEditor: React.FC<RichEditorProps> = ({
       });
       preprocessed = renderTextWithMath(preprocessed);
 
+      // Render fenced code blocks as interactive code cards
+      preprocessed = preprocessed.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_m, lang, code) => {
+        return `\n\n` + renderRichCodeCardHtml(code, lang) + `\n\n`;
+      });
+
       return marked.parse(preprocessed, { gfm: true, breaks: true, async: false }) as string;
     } catch {
       return '<p class="text-stone-500 italic">Gagal merender pratinjau markdown.</p>';
     }
   }, [value]);
+
+  // Trigger IntelliSense autocomplete popup
+  const triggerAutocomplete = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const pos = textarea.selectionStart || 0;
+    const block = findCodeBlockAtCursor(value, pos);
+    const lang = (block?.lang || 'javascript') as CodeLanguage;
+    const code = block ? block.code : value;
+    const offset = block ? block.relativeCursor : pos;
+
+    const items = getCompletions(code, offset, lang);
+    if (items && items.length > 0) {
+      setCompletionItems(items);
+      setSelectedCompletionIndex(0);
+      setShowCompletion(true);
+
+      const before = value.slice(0, pos);
+      const lines = before.split('\n');
+      const lineNum = lines.length;
+      const colNum = lines[lines.length - 1].length;
+
+      const top = Math.min(Math.max(20, lineNum * 22 + 40 - textarea.scrollTop), 340);
+      const left = Math.min(Math.max(20, colNum * 8 + 40), 400);
+      setCompletionPos({ top, left });
+    }
+  };
+
+  // Apply chosen autocomplete completion
+  const applyCompletion = (item: CompletionItem) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const pos = textarea.selectionStart || 0;
+    const before = value.slice(0, pos);
+    const match = before.match(/([a-zA-Z0-9_$.:-]+)$/);
+    const replaceLen = match ? match[1].length : 0;
+    const start = pos - replaceLen;
+
+    const newValue = value.slice(0, start) + item.insertText + value.slice(pos);
+    pushHistory(newValue);
+    onChange(newValue);
+    setShowCompletion(false);
+
+    const newPos = start + item.insertText.length;
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newPos, newPos);
+        setCursorPos(newPos);
+      }
+    }, 10);
+  };
+
+  // Editor keyboard events (IntelliSense navigation, Ctrl+Space, Ctrl+Enter)
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showCompletion && completionItems.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedCompletionIndex((prev) => (prev + 1) % completionItems.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedCompletionIndex((prev) => (prev - 1 + completionItems.length) % completionItems.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        applyCompletion(completionItems[selectedCompletionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowCompletion(false);
+        return;
+      }
+    }
+
+    // Ctrl+Space triggers Autocomplete
+    if (e.key === ' ' && e.ctrlKey) {
+      e.preventDefault();
+      triggerAutocomplete();
+      return;
+    }
+
+    // Ctrl+Enter runs JavaScript if within a runnable code block
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      if (activeCodeBlock && isRunnableLanguage(activeCodeBlock.lang)) {
+        e.preventDefault();
+        handleRunJsSnippet(activeCodeBlock.code);
+        return;
+      }
+    }
+  };
+
+  // Run JavaScript code snippet safely
+  const handleRunJsSnippet = (code: string) => {
+    const logs = executeJavaScriptCode(code);
+    setConsoleLogs(logs);
+    setShowConsoleDrawer(true);
+  };
+
+  // Preview container click handler for running and copying code
+  const handlePreviewClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    handleCodeBlockContainerClick(e);
+  };
 
   // Statistics
   const stats = useMemo(() => {
@@ -661,8 +804,111 @@ export const RichEditor: React.FC<RichEditorProps> = ({
         </div>
       )}
 
+      {/* Active Code Block Information & Run Bar */}
+      {activeCodeBlock && viewMode !== 'preview' && (
+        <div className="flex items-center justify-between px-4 py-1.5 bg-[#181a1f] text-zinc-300 border-b border-[#2d3139] text-xs font-mono select-none animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <span
+              className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                isRunnableLanguage(activeCodeBlock.lang)
+                  ? 'bg-amber-400 text-black'
+                  : 'bg-zinc-700 text-zinc-200'
+              }`}
+            >
+              {activeCodeBlock.lang}
+            </span>
+            <span className="font-semibold text-zinc-200 text-xs">
+              Blok Kode
+            </span>
+            <span className="text-zinc-400 text-[11px] hidden sm:inline">
+              • Tekan <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px]">Ctrl+Space</kbd> untuk Autocomplete
+            </span>
+            {isRunnableLanguage(activeCodeBlock.lang) && (
+              <span className="text-zinc-400 text-[11px] hidden md:inline">
+                • <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px]">Ctrl+Enter</kbd> untuk Run
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {isRunnableLanguage(activeCodeBlock.lang) && (
+              <button
+                type="button"
+                onClick={() => handleRunJsSnippet(activeCodeBlock.code)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white font-medium text-xs cursor-pointer transition-colors shadow-xs"
+                title="Jalankan kode JavaScript (Ctrl+Enter)"
+              >
+                <Play size={11} className="fill-current" />
+                <span>Run JS</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(activeCodeBlock.code);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-[#2d2d2d] hover:bg-[#383838] text-zinc-300 hover:text-white border border-[#404040] text-xs cursor-pointer transition-colors"
+              title="Salin isi blok kode"
+            >
+              <Copy size={11} />
+              <span>{copied ? 'Tersalin' : 'Salin'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Editor & Preview Panes */}
       <div className="flex-1 relative flex flex-col min-h-0">
+        {/* Autocomplete Popup */}
+        {showCompletion && completionItems.length > 0 && (
+          <div
+            className="absolute z-50 bg-[#252526] text-[#cccccc] border border-[#454545] rounded-xl shadow-2xl overflow-hidden w-72 max-w-sm animate-in fade-in zoom-in-95 font-mono text-xs select-none"
+            style={{
+              top: `${completionPos.top}px`,
+              left: `${completionPos.left}px`,
+            }}
+          >
+            <div className="px-3 py-1.5 bg-[#1e1e1e] border-b border-[#333333] flex items-center justify-between text-[10px] text-zinc-400 font-sans">
+              <span className="font-semibold uppercase tracking-wider text-rose-400">IntelliSense</span>
+              <span>Tab / Enter untuk memilih</span>
+            </div>
+            <div className="max-h-56 overflow-y-auto py-1">
+              {completionItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => applyCompletion(item)}
+                  className={`px-3 py-1.5 flex items-center justify-between cursor-pointer transition-colors ${
+                    selectedCompletionIndex === idx
+                      ? 'bg-[#094771] text-white font-medium'
+                      : 'hover:bg-[#2a2d2e] text-[#cccccc]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span
+                      className={`w-3.5 h-3.5 rounded text-[9px] flex items-center justify-center font-bold ${
+                        item.kind === 'snippet'
+                          ? 'bg-rose-500/20 text-rose-400'
+                          : item.kind === 'function'
+                          ? 'bg-purple-500/20 text-purple-400'
+                          : item.kind === 'keyword'
+                          ? 'bg-blue-500/20 text-blue-400'
+                          : 'bg-emerald-500/20 text-emerald-400'
+                      }`}
+                    >
+                      {item.kind[0].toUpperCase()}
+                    </span>
+                    <span className="truncate">{item.label}</span>
+                  </div>
+                  <span className="text-[10px] opacity-60 font-sans truncate ml-2">
+                    {item.detail}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {viewMode === 'split' ? (
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-stone-200 dark:divide-zinc-800 min-h-0">
             <textarea
@@ -672,10 +918,21 @@ export const RichEditor: React.FC<RichEditorProps> = ({
               onChange={(e) => {
                 pushHistory(e.target.value);
                 onChange(e.target.value);
+                setCursorPos(e.target.selectionStart || 0);
               }}
-              onSelect={checkSelectionFormatting}
-              onKeyUp={checkSelectionFormatting}
-              onMouseUp={checkSelectionFormatting}
+              onKeyDown={handleEditorKeyDown}
+              onClick={(e) => {
+                checkSelectionFormatting();
+                setCursorPos(e.currentTarget.selectionStart || 0);
+              }}
+              onKeyUp={(e) => {
+                checkSelectionFormatting();
+                setCursorPos(e.currentTarget.selectionStart || 0);
+              }}
+              onSelect={(e) => {
+                checkSelectionFormatting();
+                setCursorPos(e.currentTarget.selectionStart || 0);
+              }}
               placeholder={placeholder}
               style={{ minHeight }}
               className="w-full h-full p-4 sm:p-6 bg-stone-50/40 dark:bg-[#141518] text-stone-900 dark:text-zinc-100 font-mono text-sm leading-relaxed focus:outline-none resize-none overflow-y-auto"
@@ -683,6 +940,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
             <div
               style={{ minHeight }}
               data-article-content
+              onClick={handlePreviewClick}
               className="p-4 sm:p-6 bg-white dark:bg-[#15171b] overflow-y-auto text-stone-800 dark:text-zinc-200 text-sm sm:text-base leading-relaxed"
               dangerouslySetInnerHTML={{
                 __html: previewHtml || '<p class="text-stone-400 italic">Pratinjau kosong...</p>',
@@ -693,6 +951,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
           <div
             style={{ minHeight }}
             data-article-content
+            onClick={handlePreviewClick}
             className="flex-1 p-6 sm:p-8 bg-white dark:bg-[#15171b] overflow-y-auto text-stone-800 dark:text-zinc-200 text-sm sm:text-base leading-relaxed"
             dangerouslySetInnerHTML={{
               __html:
@@ -707,16 +966,78 @@ export const RichEditor: React.FC<RichEditorProps> = ({
             onChange={(e) => {
               pushHistory(e.target.value);
               onChange(e.target.value);
+              setCursorPos(e.target.selectionStart || 0);
             }}
-            onSelect={checkSelectionFormatting}
-            onKeyUp={checkSelectionFormatting}
-            onMouseUp={checkSelectionFormatting}
+            onKeyDown={handleEditorKeyDown}
+            onClick={(e) => {
+              checkSelectionFormatting();
+              setCursorPos(e.currentTarget.selectionStart || 0);
+            }}
+            onKeyUp={(e) => {
+              checkSelectionFormatting();
+              setCursorPos(e.currentTarget.selectionStart || 0);
+            }}
+            onSelect={(e) => {
+              checkSelectionFormatting();
+              setCursorPos(e.currentTarget.selectionStart || 0);
+            }}
             placeholder={placeholder}
             style={{ minHeight }}
             className="w-full flex-1 p-4 sm:p-6 bg-stone-50/40 dark:bg-[#141518] text-stone-900 dark:text-zinc-100 font-sans text-sm sm:text-base leading-relaxed focus:outline-none resize-y"
           />
         )}
       </div>
+
+      {/* Console Drawer for JavaScript Run Output */}
+      {showConsoleDrawer && (
+        <div className="border-t border-stone-200 dark:border-zinc-800 bg-[#181a1f] text-[#d4d4d4] font-mono text-xs select-none animate-in slide-in-from-bottom duration-150 shrink-0">
+          <div className="flex items-center justify-between px-4 py-2 bg-[#21242b] border-b border-[#2d3139]">
+            <div className="flex items-center gap-2">
+              <Terminal size={14} className="text-emerald-400" />
+              <span className="font-semibold text-zinc-200">Terminal Konsol JavaScript</span>
+              <span className="text-[11px] text-zinc-400">({consoleLogs.length} output)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setConsoleLogs([])}
+                className="px-2 py-0.5 rounded text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+              >
+                Bersihkan
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowConsoleDrawer(false)}
+                className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Tutup Konsol"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+          <div className="p-3 max-h-52 overflow-y-auto space-y-1 font-mono text-xs">
+            {consoleLogs.map((log, idx) => {
+              const color =
+                log.type === 'error'
+                  ? 'text-rose-400 bg-rose-500/10'
+                  : log.type === 'warn'
+                  ? 'text-amber-300 bg-amber-500/10'
+                  : log.type === 'info'
+                  ? 'text-emerald-400'
+                  : 'text-zinc-200';
+              return (
+                <div key={idx} className={`flex items-start gap-2 p-1 rounded ${color}`}>
+                  <span className="text-[10px] text-zinc-500 font-mono shrink-0">{log.time}</span>
+                  <pre className="whitespace-pre-wrap font-mono text-xs m-0 flex-1">{log.text}</pre>
+                </div>
+              );
+            })}
+            {consoleLogs.length === 0 && (
+              <div className="text-zinc-500 italic py-2 text-center text-xs">Konsol kosong.</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Bottom Status Bar */}
       <div className="px-4 py-2 bg-stone-50 dark:bg-[#181a1f] border-t border-stone-200 dark:border-zinc-800 flex flex-wrap items-center justify-between text-[11px] text-stone-500 dark:text-zinc-400 shrink-0 select-none">

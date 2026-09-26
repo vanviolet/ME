@@ -1,5 +1,6 @@
 import katex from 'katex';
 import { marked } from 'marked';
+import { renderRichCodeCardHtml } from '../utils/codeRunner';
 
 /**
  * Parses LaTeX math formulas into KaTeX HTML strings.
@@ -231,10 +232,17 @@ export function renderMarkdownWithMath(markdownContent: string, options?: Render
     }
   });
 
-  // 6. Restore protected code blocks before markdown parsing
+  // 6. Restore and render protected code blocks into interactive code cards
   processed = processed.replace(/<!--CODE_BLOCK_SLOT_(\d+)-->/g, (_match, index: string) => {
     const idx = parseInt(index, 10);
-    return codeBlocks[idx] !== undefined ? codeBlocks[idx] : _match;
+    const raw = codeBlocks[idx];
+    if (raw === undefined) return _match;
+
+    const fencedMatch = raw.match(/^```([a-zA-Z0-9_-]*)\n([\s\S]*?)```$/);
+    if (fencedMatch) {
+      return `\n\n` + renderRichCodeCardHtml(fencedMatch[2], fencedMatch[1]) + `\n\n`;
+    }
+    return raw;
   });
 
   // 7. Parse markdown via marked
