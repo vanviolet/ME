@@ -1,5 +1,4 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { marked } from 'marked';
 import {
   Bold,
   Italic,
@@ -25,8 +24,13 @@ import {
   Maximize2,
   Minimize2,
   Minus,
+  Wand2,
+  ChevronDown,
+  Sparkles,
 } from 'lucide-react';
-import { renderInlineFormula, renderTextWithMath } from '../lib/renderMath';
+import { renderMarkdownWithMath } from '../lib/renderMath';
+import { handleCodeBlockContainerClick } from '../utils/codeRunner';
+import { formatCodeWithPrettier } from '../utils/codeFormatter';
 
 interface RichEditorProps {
   value: string;
@@ -51,8 +55,13 @@ export const RichEditor: React.FC<RichEditorProps> = ({
   const [viewMode, setViewMode] = useState<'edit' | 'split' | 'preview'>('edit');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showVanpediaPicker, setShowVanpediaPicker] = useState(false);
+  const [showCodeSnippetsMenu, setShowCodeSnippetsMenu] = useState(false);
+  const [isFormattingDoc, setIsFormattingDoc] = useState(false);
+  const [formatDocSuccess, setFormatDocSuccess] = useState(false);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const vanpediaMenuRef = useRef<HTMLDivElement>(null);
+  const codeMenuRef = useRef<HTMLDivElement>(null);
 
   // Undo/Redo history stack
   const historyRef = useRef<string[]>([value]);
@@ -114,7 +123,23 @@ export const RichEditor: React.FC<RichEditorProps> = ({
     }, 10);
   };
 
-  // Simple keydown shortcuts (Ctrl+B, Ctrl+I, Tab)
+  // Format the entire Markdown document or code blocks with Prettier
+  const handleFormatAllWithPrettier = async () => {
+    setIsFormattingDoc(true);
+    try {
+      const res = await formatCodeWithPrettier(value, 'markdown');
+      if (res.code) {
+        pushHistory(res.code);
+        onChange(res.code);
+        setFormatDocSuccess(true);
+        setTimeout(() => setFormatDocSuccess(false), 2000);
+      }
+    } finally {
+      setIsFormattingDoc(false);
+    }
+  };
+
+  // Simple keydown shortcuts (Ctrl+B, Ctrl+I, Tab, Prettier)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
       e.preventDefault();
@@ -140,6 +165,11 @@ export const RichEditor: React.FC<RichEditorProps> = ({
       handleRedo();
       return;
     }
+    if (e.shiftKey && (e.altKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      handleFormatAllWithPrettier();
+      return;
+    }
     if (e.key === 'Tab') {
       e.preventDefault();
       insertText('  ', '', '');
@@ -155,37 +185,29 @@ export const RichEditor: React.FC<RichEditorProps> = ({
     return { words, chars, readTimeMin };
   }, [value]);
 
-  // Markdown to HTML preview renderer
+  // Markdown to HTML preview renderer with KaTeX math & rich interactive code blocks
   const previewHtml = useMemo(() => {
     if (!value.trim()) return '';
     try {
-      marked.setOptions({
-        gfm: true,
-        breaks: true,
+      return renderMarkdownWithMath(value, {
+        getTerm: (s) => {
+          const item = vanpediaTerms.find((t) => t.slug === s);
+          return item ? { title: item.title } : undefined;
+        },
       });
-
-      let parsed = marked.parse(value) as string;
-
-      // Handle Math formulas ($...$ and $$...$$)
-      parsed = renderTextWithMath(parsed);
-
-      // Handle Wiki Links [[slug]]
-      parsed = parsed.replace(/\[\[([a-zA-Z0-9-_]+)\]\]/g, (match, slug) => {
-        return `<a href="#vanpedia-${slug}" class="wiki-link inline-flex items-center gap-1 font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-900/50 hover:underline">📚 ${slug}</a>`;
-      });
-
-      return parsed;
     } catch {
       return '<p class="text-rose-500">Gagal memproses Markdown.</p>';
     }
-  }, [value]);
+  }, [value, vanpediaTerms]);
+
+  const handlePreviewClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    handleCodeBlockContainerClick(e);
+  };
 
   return (
     <div
       className={`flex flex-col bg-white dark:bg-[#15171b] border border-stone-200 dark:border-zinc-800 rounded-2xl overflow-hidden transition-all shadow-2xs ${
-        isFullscreen
-          ? 'fixed inset-0 z-50 rounded-none border-none h-screen'
-          : 'relative'
+        isFullscreen ? 'fixed inset-0 z-50 rounded-none border-none h-screen' : 'relative'
       }`}
     >
       {/* HEADER BAR */}
@@ -203,6 +225,22 @@ export const RichEditor: React.FC<RichEditorProps> = ({
 
         {/* View Mode Switcher & Fullscreen */}
         <div className="flex items-center gap-1.5 ml-auto">
+          {/* Prettier Format All Button */}
+          <button
+            type="button"
+            onClick={handleFormatAllWithPrettier}
+            disabled={isFormattingDoc}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+              formatDocSuccess
+                ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/30'
+                : 'bg-stone-200/60 dark:bg-zinc-800/80 hover:bg-stone-300 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-300 border-stone-300 dark:border-zinc-700'
+            }`}
+            title="Rapikan seluruh dokumen dengan Prettier (Shift+Alt+F)"
+          >
+            <Wand2 size={12} className={isFormattingDoc ? 'animate-spin' : 'text-amber-500'} />
+            <span className="hidden sm:inline">{formatDocSuccess ? 'Diformat ✨' : 'Prettier'}</span>
+          </button>
+
           <div className="flex items-center gap-0.5 bg-stone-200/70 dark:bg-zinc-800/80 p-0.5 rounded-lg text-xs">
             <button
               type="button"
@@ -255,7 +293,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
         </div>
       </div>
 
-      {/* SIMPLE MARKDOWN TOOLBAR */}
+      {/* MARKDOWN & CODE SNIPPET TOOLBAR */}
       {viewMode !== 'preview' && (
         <div className="flex flex-wrap items-center gap-1 px-3.5 py-2 bg-stone-100/60 dark:bg-[#16181d] border-b border-stone-200 dark:border-zinc-800 text-stone-700 dark:text-zinc-300 text-xs shrink-0 select-none">
           {/* Headings */}
@@ -342,7 +380,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
 
           <div className="h-4 w-px bg-stone-300 dark:bg-zinc-700 mx-1" />
 
-          {/* Quote & Code */}
+          {/* Quote & Inline Code */}
           <button
             type="button"
             onClick={() => insertText('\n> ', '\n', 'Kutipan penting...')}
@@ -359,14 +397,92 @@ export const RichEditor: React.FC<RichEditorProps> = ({
           >
             <Code size={14} />
           </button>
-          <button
-            type="button"
-            onClick={() => insertText('\n```\n', '\n```\n', '// Tulis kode di sini')}
-            className="px-2 py-1 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer font-mono text-[11px] font-semibold text-rose-600 dark:text-rose-400"
-            title="Blok Kode Markdown (```)"
-          >
-            ```
-          </button>
+
+          {/* CODE SNIPPET INSERT MENU (Interactive Code Blocks) */}
+          <div className="relative" ref={codeMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowCodeSnippetsMenu(!showCodeSnippetsMenu)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-200/70 dark:bg-zinc-800 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer font-mono text-[11px] font-semibold text-rose-600 dark:text-rose-400 transition-colors"
+              title="Sisipkan Blok Kode Snippet dengan Error Lens & Runner"
+            >
+              <span>Code Snippet</span>
+              <ChevronDown size={11} />
+            </button>
+
+            {showCodeSnippetsMenu && (
+              <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#1a1c21] rounded-xl shadow-xl border border-stone-200 dark:border-zinc-800 p-1.5 z-50 space-y-0.5">
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400 border-b border-stone-100 dark:border-zinc-800">
+                  Pilih Bahasa Snippet
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertText(
+                      '\n```javascript\n// JavaScript Snippet (Runnable & Error Lens)\nfunction calculateTotal(items) {\n  return items.reduce((sum, item) => sum + item.price, 0);\n}\n\nconsole.log("Total:", calculateTotal([{ price: 100 }, { price: 250 }]));\n```\n'
+                    );
+                    setShowCodeSnippetsMenu(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 flex items-center justify-between cursor-pointer"
+                >
+                  <span className="font-semibold text-amber-500">JavaScript</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1 py-0.5 rounded">Run</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertText(
+                      '\n```typescript\n// TypeScript Snippet\ninterface UserProfile {\n  id: string;\n  name: string;\n  role: "admin" | "member";\n}\n\nconst user: UserProfile = {\n  id: "u1",\n  name: "Van Violet",\n  role: "admin",\n};\n```\n'
+                    );
+                    setShowCodeSnippetsMenu(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 flex items-center justify-between cursor-pointer"
+                >
+                  <span className="font-semibold text-blue-400">TypeScript</span>
+                  <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1 py-0.5 rounded">Types</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertText(
+                      '\n```json\n{\n  "title": "Dokumentasi API",\n  "version": "2.0.0",\n  "status": "active"\n}\n```\n'
+                    );
+                    setShowCodeSnippetsMenu(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 flex items-center justify-between cursor-pointer"
+                >
+                  <span className="font-semibold text-emerald-400">JSON</span>
+                  <span className="text-[10px] bg-zinc-700 text-zinc-300 px-1 py-0.5 rounded">Prettier</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertText(
+                      '\n```python\n# Python Snippet\ndef greet(name: str) -> str:\n    return f"Halo {name}, selamat datang!"\n\nprint(greet("Van"))\n```\n'
+                    );
+                    setShowCodeSnippetsMenu(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 flex items-center justify-between cursor-pointer"
+                >
+                  <span className="font-semibold text-sky-400">Python</span>
+                  <span className="text-[10px] bg-zinc-700 text-zinc-300 px-1 py-0.5 rounded">PEP8</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    insertText(
+                      '\n```html\n<div class="card p-4 rounded-xl shadow-md">\n  <h2 class="text-lg font-bold">Judul Kartu</h2>\n  <p>Deskripsi komponen antarmuka</p>\n</div>\n```\n'
+                    );
+                    setShowCodeSnippetsMenu(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 flex items-center justify-between cursor-pointer"
+                >
+                  <span className="font-semibold text-orange-400">HTML / XML</span>
+                  <span className="text-[10px] bg-zinc-700 text-zinc-300 px-1 py-0.5 rounded">DOM</span>
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="h-4 w-px bg-stone-300 dark:bg-zinc-700 mx-1" />
 
@@ -501,6 +617,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
             <div
               style={{ minHeight }}
               data-article-content
+              onClick={handlePreviewClick}
               className="p-4 sm:p-6 bg-white dark:bg-[#15171b] overflow-y-auto text-stone-800 dark:text-zinc-200 text-sm sm:text-base leading-relaxed"
               dangerouslySetInnerHTML={{
                 __html: previewHtml || '<p class="text-stone-400 italic">Pratinjau kosong...</p>',
@@ -511,6 +628,7 @@ export const RichEditor: React.FC<RichEditorProps> = ({
           <div
             style={{ minHeight }}
             data-article-content
+            onClick={handlePreviewClick}
             className="flex-1 p-6 sm:p-8 bg-white dark:bg-[#15171b] overflow-y-auto text-stone-800 dark:text-zinc-200 text-sm sm:text-base leading-relaxed"
             dangerouslySetInnerHTML={{
               __html:

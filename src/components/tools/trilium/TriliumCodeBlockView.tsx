@@ -33,7 +33,7 @@ export const TriliumCodeBlockView: React.FC<NodeViewProps> = ({
         return;
       }
       const output = executeJavaScriptCode(code);
-      setLogs(output);
+      setLogs(output.logs);
     } catch (err: any) {
       setLogs([
         {

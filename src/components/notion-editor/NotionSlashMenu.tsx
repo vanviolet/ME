@@ -92,9 +92,49 @@ export const NotionSlashMenu: React.FC<NotionSlashMenuProps> = ({
     {
       id: 'code',
       title: 'Blok Kode (Code Block)',
-      description: 'Blok kode dengan syntax highlight & runtime',
+      description: 'Blok kode dengan syntax highlight, Error Lens & Prettier',
       icon: Code2,
       action: () => editor?.chain().focus().toggleCodeBlock().run(),
+    },
+    {
+      id: 'code-js',
+      title: 'JavaScript Code Snippet',
+      description: 'Blok kode JS interaktif dengan runner & Error Lens',
+      icon: Code2,
+      action: () =>
+        editor
+          ?.chain()
+          .focus()
+          .insertContent(
+            '```javascript\n// JavaScript Snippet\nfunction main() {\n  console.log("Hello from code runner!");\n}\nmain();\n```\n'
+          )
+          .run(),
+    },
+    {
+      id: 'code-ts',
+      title: 'TypeScript Code Snippet',
+      description: 'Blok kode TS dengan type annotations & Error Lens',
+      icon: Code2,
+      action: () =>
+        editor
+          ?.chain()
+          .focus()
+          .insertContent(
+            '```typescript\ninterface Config {\n  appName: string;\n  version: number;\n}\nconst appConfig: Config = {\n  appName: "Van Studio",\n  version: 2.0,\n};\n```\n'
+          )
+          .run(),
+    },
+    {
+      id: 'code-json',
+      title: 'JSON Data Snippet',
+      description: 'Struktur JSON dengan validasi sintaks & formatting',
+      icon: Code2,
+      action: () =>
+        editor
+          ?.chain()
+          .focus()
+          .insertContent('```json\n{\n  "name": "data",\n  "status": "active"\n}\n```\n')
+          .run(),
     },
     {
       id: 'table',
