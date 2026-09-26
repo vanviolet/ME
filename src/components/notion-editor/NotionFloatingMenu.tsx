@@ -27,7 +27,6 @@ import {
   Heading1,
   Heading2,
   Heading3,
-  CornerDownLeft,
   X,
   Loader2,
   AlertCircle,
@@ -35,7 +34,6 @@ import {
   RotateCcw,
   ArrowDownToLine,
   CheckCheck,
-  Zap,
   Trash2,
 } from 'lucide-react';
 
@@ -117,7 +115,7 @@ const cleanAiOutput = (raw: string): string => {
   return cleaned;
 };
 
-// Helper to format AI response into rich HTML for TipTap
+// Helper to format AI response into clean HTML/Markdown for TipTap
 const formatAiResponse = (raw: string): string => {
   if (!raw) return '';
   const trimmed = raw.trim();
@@ -147,7 +145,6 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   
   // AI States
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [isTypingEffect, setIsTypingEffect] = useState(false);
   const [aiThinkingText, setAiThinkingText] = useState('AI sedang menganalisis & menyempurnakan tulisan...');
   const [customAiPrompt, setCustomAiPrompt] = useState('');
   const [showCustomPromptInput, setShowCustomPromptInput] = useState(false);
@@ -157,7 +154,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   const menuRef = useRef<HTMLDivElement>(null);
   const reviewBarRef = useRef<HTMLDivElement>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const selectedRangeRef = useRef<{ from: number; to: number; text: string } | null>(null);
 
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -167,13 +164,13 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     }, 4000);
   };
 
-  // Position update when text is selected in TipTap
+  // Position update and active selection tracking
   useEffect(() => {
     if (!editor) return;
 
     const updateMenuPosition = () => {
-      // If currently in review state or typing, keep reviewCoords intact
-      if (aiReviewState || isTypingEffect) return;
+      // If currently in review state, maintain reviewCoords
+      if (aiReviewState) return;
 
       const { from, to, empty } = editor.state.selection;
       if (empty || from === to) {
@@ -184,12 +181,15 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         return;
       }
 
-      // Check active selection length
+      // Check active selection text
       const text = editor.state.doc.textBetween(from, to, ' ').trim();
       if (!text) {
         setCoords(null);
         return;
       }
+
+      // Save valid selection range
+      selectedRangeRef.current = { from, to, text };
 
       try {
         const { view } = editor;
@@ -210,7 +210,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     editor.on('blur', () => {
       setTimeout(() => {
         if (!menuRef.current?.matches(':hover') && !reviewBarRef.current?.matches(':hover')) {
-          if (!aiReviewState && !isTypingEffect) {
+          if (!aiReviewState) {
             setCoords(null);
           }
         }
@@ -219,9 +219,8 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
 
     return () => {
       editor.off('selectionUpdate', updateMenuPosition);
-      if (typingTimerRef.current) clearInterval(typingTimerRef.current);
     };
-  }, [editor, aiReviewState, isTypingEffect]);
+  }, [editor, aiReviewState]);
 
   // Click outside listener for submenus
   useEffect(() => {
@@ -253,74 +252,19 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     return 'Text';
   };
 
-  // Safe and Smooth Typewriter Animation
-  const runTypewriterAnimation = (
-    from: number,
-    to: number,
-    targetText: string,
-    formattedHtml: string,
-    onComplete: (appliedFrom: number, appliedTo: number) => void
-  ) => {
-    if (!editor) return;
-
-    setIsTypingEffect(true);
-
-    const totalLength = targetText.length;
-    // Calculate 15 to 25 slices for realistic progressive typing
-    const totalSteps = Math.min(25, Math.max(6, Math.floor(totalLength / 8)));
-    let currentStep = 0;
-    let currentSpan = (to - from);
-
-    if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-
-    typingTimerRef.current = setInterval(() => {
-      currentStep++;
-
-      if (currentStep >= totalSteps || !editor) {
-        if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-
-        try {
-          const currentEnd = from + currentSpan;
-          // Apply final rich formatted HTML
-          editor
-            .chain()
-            .focus()
-            .insertContentAt({ from, to: currentEnd }, formattedHtml || targetText)
-            .run();
-        } catch (e) {
-          console.warn('Final rich insert fallback:', e);
-          editor?.commands.insertContent(targetText);
-        }
-
-        setIsTypingEffect(false);
-        const finalEnd = editor?.state.selection.to || (from + targetText.length);
-        onComplete(from, finalEnd);
-        return;
-      }
-
-      const ratio = currentStep / totalSteps;
-      const charCount = Math.floor(totalLength * ratio);
-      const partial = targetText.slice(0, charCount);
-
-      try {
-        const currentEnd = from + currentSpan;
-        editor
-          .chain()
-          .focus()
-          .insertContentAt({ from, to: currentEnd }, partial)
-          .run();
-        currentSpan = partial.length;
-      } catch (err) {
-        console.warn('Typewriter frame skip:', err);
-      }
-    }, 38);
-  };
-
   // Execute AI action on selected text
   const executeAiAction = async (actionType: string, detail?: string) => {
     if (!editor) return;
-    const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to, ' ').trim();
+
+    // Use saved valid selection or current selection
+    const activeRange = selectedRangeRef.current || {
+      from: editor.state.selection.from,
+      to: editor.state.selection.to,
+      text: editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ').trim(),
+    };
+
+    const { from, to, text: selectedText } = activeRange;
+
     if (!selectedText) {
       showToast('info', 'Silakan blok teks terlebih dahulu untuk meminta bantuan AI.');
       return;
@@ -353,7 +297,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     let prompt = '';
     switch (actionType) {
       case 'improve':
-        prompt = `Sempurnakan dan tingkatkan kualitas penulisan teks berikut agar lebih elegan, padat, dan jelas. Format tulisan agar menyatu alami dengan paragraf editor. Keluarkan HANYA teks hasil yang telah disempurnakan tanpa pembuka/penutup:\n\n"${selectedText}"`;
+        prompt = `Sempurnakan dan tingkatkan kualitas penulisan teks berikut agar lebih elegan, padat, dan jelas. Format tulisan agar menyatu alami dengan paragraf editor (gunakan markdown bold/list jika relevan). Keluarkan HANYA teks hasil yang telah disempurnakan tanpa pembuka/penutup:\n\n"${selectedText}"`;
         break;
       case 'tone':
         prompt = `Tulis ulang teks berikut dengan nada bicara (tone) "${detail}". Pastikan pesan tetap utuh dan gaya penulisan rapi. Keluarkan HANYA teks hasil akhir:\n\n"${selectedText}"`;
@@ -424,27 +368,34 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
 
       setIsAiLoading(false);
 
-      // Run Typewriter effect in editor!
-      runTypewriterAnimation(from, to, cleanResult, formattedHtml, (appliedStart, appliedEnd) => {
-        // Set Notion Review state for Apply, Insert below, Try again, Discard
-        setAiReviewState({
-          originalFrom: from,
-          originalTo: to,
-          originalText: selectedText,
-          generatedText: cleanResult,
-          generatedHtml: formattedHtml,
-          actionType,
-          detail,
-          appliedFrom: appliedStart,
-          appliedTo: appliedEnd,
-        });
+      // Apply the formatted content directly into editor selection range
+      editor
+        .chain()
+        .focus()
+        .insertContentAt({ from, to }, formattedHtml || cleanResult)
+        .run();
+
+      const appliedEnd = editor.state.selection.to || (from + cleanResult.length);
+
+      // Set Notion Review state for Apply, Insert below, Try again, Discard
+      setAiReviewState({
+        originalFrom: from,
+        originalTo: to,
+        originalText: selectedText,
+        generatedText: cleanResult,
+        generatedHtml: formattedHtml,
+        actionType,
+        detail,
+        appliedFrom: from,
+        appliedTo: appliedEnd,
       });
+
+      showToast('success', '✨ Hasil AI siap ditinjau!');
     } catch (err: any) {
       console.error('AI Assist error:', err);
       const errMsg = err?.message || 'Terjadi kesalahan saat menghubungi AI.';
       showToast('error', errMsg);
       setIsAiLoading(false);
-      setIsTypingEffect(false);
     }
   };
 
@@ -607,23 +558,8 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         </div>
       )}
 
-      {/* 2. TYPEWRITER RUNNING INDICATOR PILL */}
-      {isTypingEffect && activePosition && (
-        <div
-          className="fixed z-50 -translate-x-1/2 flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-950/95 text-purple-100 border border-purple-700 shadow-2xl backdrop-blur-md text-xs font-sans animate-in fade-in"
-          style={{
-            top: `${Math.max(12, activePosition.top - 10)}px`,
-            left: `${activePosition.left}px`,
-          }}
-        >
-          <Zap size={14} className="text-amber-300 animate-pulse" />
-          <span className="font-semibold">AI sedang mengetik...</span>
-          <span className="inline-block w-1.5 h-3 bg-purple-400 animate-pulse ml-0.5" />
-        </div>
-      )}
-
-      {/* 3. MAIN SELECTION BUBBLE MENU (When not reviewing) */}
-      {!aiReviewState && !isTypingEffect && coords && (
+      {/* 2. MAIN SELECTION BUBBLE MENU (When not reviewing) */}
+      {!aiReviewState && coords && (
         <div
           ref={menuRef}
           className="fixed z-50 -translate-x-1/2 flex items-center bg-white dark:bg-[#1f2228] text-stone-800 dark:text-zinc-100 rounded-xl shadow-2xl border border-stone-200 dark:border-zinc-700/80 p-1 text-xs select-none transition-all duration-75 animate-in fade-in zoom-in-95"
@@ -854,7 +790,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
                     editor.chain().focus().setParagraph().run();
                     setShowBlockMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                 >
                   <FileText size={14} />
                   <span>Text</span>
@@ -865,7 +801,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
                     editor.chain().focus().toggleHeading({ level: 1 }).run();
                     setShowBlockMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                 >
                   <Heading1 size={14} />
                   <span>Heading 1</span>
@@ -876,7 +812,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
                     editor.chain().focus().toggleHeading({ level: 2 }).run();
                     setShowBlockMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                 >
                   <Heading2 size={14} />
                   <span>Heading 2</span>
@@ -887,7 +823,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
                     editor.chain().focus().toggleHeading({ level: 3 }).run();
                     setShowBlockMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                 >
                   <Heading3 size={14} />
                   <span>Heading 3</span>
@@ -898,7 +834,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
                     editor.chain().focus().toggleBulletList().run();
                     setShowBlockMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                 >
                   <List size={14} />
                   <span>Bullet List</span>
@@ -909,7 +845,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
                     editor.chain().focus().toggleOrderedList().run();
                     setShowBlockMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                 >
                   <ListOrdered size={14} />
                   <span>Numbered List</span>
@@ -920,7 +856,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
                     editor.chain().focus().toggleTaskList().run();
                     setShowBlockMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                 >
                   <ListTodo size={14} />
                   <span>To-do List</span>
@@ -931,7 +867,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
                     editor.chain().focus().toggleBlockquote().run();
                     setShowBlockMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                 >
                   <Quote size={14} />
                   <span>Quote</span>
@@ -942,7 +878,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
                     editor.chain().focus().toggleCodeBlock().run();
                     setShowBlockMenu(false);
                   }}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                 >
                   <Code2 size={14} />
                   <span>Code Block</span>
@@ -1080,7 +1016,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         </div>
       )}
 
-      {/* 4. LINK MODAL */}
+      {/* 3. LINK MODAL */}
       {showLinkModal && (
         <div className="fixed z-50 left-1/2 -translate-x-1/2 top-1/3 w-72 bg-white dark:bg-[#1f2228] p-2.5 rounded-xl border border-stone-200 dark:border-zinc-700 shadow-2xl animate-in fade-in">
           <div className="flex items-center justify-between mb-1.5">
@@ -1115,7 +1051,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         </div>
       )}
 
-      {/* 5. AI THINKING STATE POPUP */}
+      {/* 4. AI THINKING / PROCESSING STATE POPUP */}
       {isAiLoading && activePosition && (
         <div
           className="fixed z-50 -translate-x-1/2 min-w-[260px] bg-white dark:bg-[#1b1e24] border border-purple-300 dark:border-purple-900/60 rounded-xl shadow-2xl p-2.5 animate-in fade-in flex items-center gap-2.5"
@@ -1141,7 +1077,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         </div>
       )}
 
-      {/* 6. TOAST NOTIFICATION */}
+      {/* 5. TOAST NOTIFICATION */}
       {toast && (
         <div
           className={`fixed bottom-6 right-6 z-[9999] flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl border text-xs font-sans animate-in fade-in slide-in-from-bottom-2 ${
