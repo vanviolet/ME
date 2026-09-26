@@ -29,6 +29,8 @@ import {
   CornerDownLeft,
   X,
   Loader2,
+  AlertCircle,
+  BrainCircuit,
 } from 'lucide-react';
 
 interface NotionFloatingMenuProps {
@@ -90,27 +92,31 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiThinkingText, setAiThinkingText] = useState('AI sedang menganalisis & menyempurnakan tulisan...');
   const [customAiPrompt, setCustomAiPrompt] = useState('');
   const [showCustomPromptInput, setShowCustomPromptInput] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showToast = (type: 'success' | 'error' | 'info', message: string) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ type, message });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
 
   // Position update when text is selected in TipTap
   useEffect(() => {
     if (!editor) return;
 
     const updateMenuPosition = () => {
-      if (!editor || editor.isDestroyed) {
-        setCoords(null);
-        return;
-      }
-
       const { from, to, empty } = editor.state.selection;
       if (empty || from === to) {
         setCoords(null);
         setShowAiMenu(false);
-        setShowToneSubmenu(false);
-        setShowTranslateSubmenu(false);
         setShowBlockMenu(false);
         setShowColorMenu(false);
         return;
@@ -123,32 +129,14 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         return;
       }
 
-      // 1. First priority: Check native browser selection bounding box
-      const domSelection = window.getSelection();
-      if (domSelection && domSelection.rangeCount > 0 && !domSelection.isCollapsed) {
-        try {
-          const range = domSelection.getRangeAt(0);
-          const rect = range.getBoundingClientRect();
-          if (rect && (rect.width > 0 || rect.height > 0)) {
-            // Position above selection if there's room, otherwise position right below
-            const top = rect.top < 65 ? rect.bottom + 8 : Math.max(10, rect.top - 46);
-            const left = Math.max(180, Math.min(window.innerWidth - 190, rect.left + rect.width / 2));
-            setCoords({ top, left });
-            return;
-          }
-        } catch {
-          // fallback to ProseMirror coordsAtPos
-        }
-      }
-
-      // 2. ProseMirror coordsAtPos fallback
       try {
         const { view } = editor;
         const start = view.coordsAtPos(from);
         const end = view.coordsAtPos(to);
 
-        const top = start.top < 65 ? end.bottom + 8 : Math.max(10, start.top - 46);
-        const left = Math.max(180, Math.min(window.innerWidth - 190, (start.left + end.right) / 2));
+        // Center menu horizontally above selection
+        const left = Math.max(16, Math.min(window.innerWidth - 380, (start.left + end.right) / 2));
+        const top = Math.max(10, start.top - 48);
 
         setCoords({ top, left });
       } catch {
@@ -156,38 +144,18 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
       }
     };
 
-    // Subscriptions to selection and transaction updates
     editor.on('selectionUpdate', updateMenuPosition);
-    editor.on('transaction', updateMenuPosition);
-
-    const handleMouseUp = () => {
-      setTimeout(updateMenuPosition, 15);
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setCoords(null);
-        setShowAiMenu(false);
-        setShowBlockMenu(false);
-        setShowColorMenu(false);
-      } else {
-        setTimeout(updateMenuPosition, 15);
-      }
-    };
-
-    // Keep menu pinned during scroll or viewport resize
-    window.addEventListener('scroll', updateMenuPosition, true);
-    window.addEventListener('resize', updateMenuPosition);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('keyup', handleKeyUp);
+    editor.on('blur', () => {
+      // Small timeout to allow clicking menu items
+      setTimeout(() => {
+        if (!menuRef.current?.matches(':hover')) {
+          setCoords(null);
+        }
+      }, 200);
+    });
 
     return () => {
       editor.off('selectionUpdate', updateMenuPosition);
-      editor.off('transaction', updateMenuPosition);
-      window.removeEventListener('scroll', updateMenuPosition, true);
-      window.removeEventListener('resize', updateMenuPosition);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('keyup', handleKeyUp);
     };
   }, [editor]);
 
@@ -229,6 +197,14 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     if (!selectedText) return;
 
     setIsAiLoading(true);
+    let thinkingMsg = 'AI sedang berpikir & menyempurnakan tulisan...';
+    if (actionType === 'grammar') thinkingMsg = 'Memeriksa & memperbaiki tata bahasa...';
+    else if (actionType === 'tone') thinkingMsg = `Menyesuaikan gaya bahasa ke "${detail}"...`;
+    else if (actionType === 'translate') thinkingMsg = `Menerjemahkan teks ke ${detail}...`;
+    else if (actionType === 'summarize') thinkingMsg = 'Merangkum teks penting...';
+    else if (actionType === 'extend') thinkingMsg = 'Mengembangkan & memperkaya konten...';
+    setAiThinkingText(thinkingMsg);
+
     setShowAiMenu(false);
     setShowToneSubmenu(false);
     setShowTranslateSubmenu(false);
@@ -277,27 +253,34 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
       const response = await fetch('/api/ai/assist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, task: 'general' }),
+        body: JSON.stringify({
+          text: selectedText,
+          prompt,
+          task: 'general',
+          action: actionType,
+        }),
       });
 
-      if (!response.ok) throw new Error('AI assist request failed');
       const data = await response.json();
-      const resultText = data.result?.trim() || selectedText;
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Gagal memproses bantuan AI dari server.');
+      }
+
+      const resultText = (typeof data.result === 'string' ? data.result : data.text || '').trim();
+      if (!resultText) {
+        throw new Error('Hasil AI kosong.');
+      }
 
       // Clean wrapping quotes if returned
       const cleanResult = resultText.replace(/^"|"$/g, '').trim();
 
       // Replace selection with improved text in editor
       editor.chain().focus().insertContentAt({ from, to }, cleanResult).run();
-    } catch {
-      // Fallback: simple client-side transformation
-      let fallbackText = selectedText;
-      if (actionType === 'grammar') {
-        fallbackText = selectedText.charAt(0).toUpperCase() + selectedText.slice(1);
-      } else if (actionType === 'emojify') {
-        fallbackText = `✨ ${selectedText} 🚀`;
-      }
-      editor.chain().focus().insertContentAt({ from, to }, fallbackText).run();
+      showToast('success', '✨ Teks berhasil disempurnakan!');
+    } catch (err: any) {
+      console.error('AI Assist error:', err);
+      const errMsg = err?.message || 'Terjadi kesalahan saat menghubungi AI.';
+      showToast('error', errMsg);
     } finally {
       setIsAiLoading(false);
     }
@@ -316,13 +299,6 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   return (
     <div
       ref={menuRef}
-      onMouseDown={(e) => {
-        // Prevent blur of editor selection when clicking menu items, except inside inputs
-        const targetTag = (e.target as HTMLElement).tagName.toLowerCase();
-        if (targetTag !== 'input' && targetTag !== 'textarea') {
-          e.preventDefault();
-        }
-      }}
       className="fixed z-50 -translate-x-1/2 flex items-center bg-white dark:bg-[#1f2228] text-stone-800 dark:text-zinc-100 rounded-xl shadow-2xl border border-stone-200 dark:border-zinc-700/80 p-1 text-xs select-none transition-all duration-75 animate-in fade-in zoom-in-95"
       style={{
         top: `${coords.top}px`,
@@ -533,7 +509,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         )}
       </div>
 
-      <div className="w-px h-4 bg-stone-200 dark:bg-zinc-700 mx-1" />
+      <div className="w-px h-4 bg-stone-200 dark:border-zinc-700 mx-1" />
 
       {/* 2. BLOCK TYPE SELECTOR (e.g. Blockquote v, Heading 1, etc.) */}
       <div className="relative">
@@ -655,7 +631,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         )}
       </div>
 
-      <div className="w-px h-4 bg-stone-200 dark:bg-zinc-700 mx-1" />
+      <div className="w-px h-4 bg-stone-200 dark:border-zinc-700 mx-1" />
 
       {/* 3. INLINE FORMATTING BUTTONS (Bold, Italic, Underline, Strike, Code, Link, Color) */}
       <div className="flex items-center gap-0.5">
@@ -818,6 +794,53 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
               OK
             </button>
           </div>
+        </div>
+      )}
+
+      {/* AI Thinking State Indicator Popup */}
+      {isAiLoading && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 min-w-[260px] bg-white dark:bg-[#1b1e24] border border-purple-300 dark:border-purple-900/60 rounded-xl shadow-2xl p-2.5 z-50 animate-in fade-in flex items-center gap-2.5">
+          <div className="relative flex items-center justify-center w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-950/60 shrink-0">
+            <BrainCircuit size={15} className="text-purple-600 dark:text-purple-400 animate-pulse" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300">
+                AI Sedang Berpikir...
+              </span>
+              <Loader2 size={11} className="animate-spin text-purple-600" />
+            </div>
+            <p className="text-[10px] text-stone-500 dark:text-zinc-400 truncate">
+              {aiThinkingText}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification Popup */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-[9999] flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl border text-xs font-sans animate-in fade-in slide-in-from-bottom-2 ${
+            toast.type === 'error'
+              ? 'bg-rose-950/95 border-rose-800/80 text-rose-100 backdrop-blur-md'
+              : toast.type === 'success'
+              ? 'bg-emerald-950/95 border-emerald-800/80 text-emerald-100 backdrop-blur-md'
+              : 'bg-zinc-900/95 border-zinc-800 text-zinc-100 backdrop-blur-md'
+          }`}
+        >
+          {toast.type === 'error' ? (
+            <AlertCircle size={16} className="text-rose-400 shrink-0" />
+          ) : (
+            <Check size={16} className="text-emerald-400 shrink-0" />
+          )}
+          <span className="font-medium">{toast.message}</span>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="ml-2 text-zinc-400 hover:text-white p-0.5 rounded cursor-pointer"
+          >
+            <X size={13} />
+          </button>
         </div>
       )}
     </div>

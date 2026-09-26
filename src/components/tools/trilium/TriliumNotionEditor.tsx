@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Underline } from '@tiptap/extension-underline';
 import { Highlight } from '@tiptap/extension-highlight';
@@ -19,20 +19,12 @@ import { common, createLowlight } from 'lowlight';
 import { NotionFloatingMenu } from '../../notion-editor/NotionFloatingMenu';
 import { NotionBlockGutter } from '../../notion-editor/NotionBlockGutter';
 import { NotionSlashMenu } from '../../notion-editor/NotionSlashMenu';
-import { handleCodeBlockContainerClick, isRunnableLanguage, executeJavaScriptCode } from '../../../utils/codeRunner';
+import { TriliumCodeBlockView } from './TriliumCodeBlockView';
 import {
   Sparkles,
   Code2,
   Table as TableIcon,
-  Plus,
-  Play,
-  Copy,
-  Check,
   ChevronDown,
-  Terminal,
-  X,
-  RotateCcw,
-  Wand2,
 } from 'lucide-react';
 import { RICH_CODE_LANGUAGES } from '../NotesNotebookPage';
 
@@ -56,16 +48,11 @@ export const TriliumNotionEditor: React.FC<TriliumNotionEditorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const isInternalUpdate = useRef(false);
 
-  // Quick Table & Code popovers
+  // Quick Table & Code popovers in convenience bar
   const [isTableDropdownOpen, setIsTableDropdownOpen] = useState(false);
   const [isCodeDropdownOpen, setIsCodeDropdownOpen] = useState(false);
   const tableBtnRef = useRef<HTMLDivElement>(null);
   const codeBtnRef = useRef<HTMLDivElement>(null);
-
-  // Sandboxed Code Execution Drawer in Trilium Notes
-  const [showConsoleDrawer, setShowConsoleDrawer] = useState(false);
-  const [consoleLogs, setConsoleLogs] = useState<{ type: 'log' | 'warn' | 'error' | 'info'; text: string; time: string }[]>([]);
-  const [isRunningCode, setIsRunningCode] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -103,7 +90,12 @@ export const TriliumNotionEditor: React.FC<TriliumNotionEditorProps> = ({
           class: 'text-rose-600 dark:text-rose-400 underline font-medium cursor-pointer',
         },
       }),
-      CodeBlockLowlight.configure({
+      // Custom Interactive Code Block with Run button on EVERY block
+      CodeBlockLowlight.extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(TriliumCodeBlockView);
+        },
+      }).configure({
         lowlight: lowlightInstance,
         defaultLanguage: 'typescript',
       }),
@@ -165,47 +157,6 @@ export const TriliumNotionEditor: React.FC<TriliumNotionEditorProps> = ({
     setIsCodeDropdownOpen(false);
   };
 
-  // Run first code block in document or selected code block
-  const handleRunActiveCode = () => {
-    if (!editor) return;
-    setIsRunningCode(true);
-    setShowConsoleDrawer(true);
-
-    try {
-      // Find code from pre/code elements in current document
-      const preEls = containerRef.current?.querySelectorAll('pre code');
-      let targetCode = '';
-      if (preEls && preEls.length > 0) {
-        targetCode = preEls[0].textContent || '';
-      }
-
-      if (!targetCode.trim()) {
-        setConsoleLogs([
-          {
-            type: 'warn',
-            text: 'Tidak ada blok kode JavaScript/TypeScript yang ditemukan di catatan ini.',
-            time: new Date().toLocaleTimeString(),
-          },
-        ]);
-        setIsRunningCode(false);
-        return;
-      }
-
-      const resultLogs = executeJavaScriptCode(targetCode);
-      setConsoleLogs(resultLogs);
-    } catch (err: any) {
-      setConsoleLogs([
-        {
-          type: 'error',
-          text: err?.message || String(err),
-          time: new Date().toLocaleTimeString(),
-        },
-      ]);
-    } finally {
-      setIsRunningCode(false);
-    }
-  };
-
   const isInsideTable = editor?.isActive('table');
   const isInsideCode = editor?.isActive('codeBlock');
 
@@ -213,7 +164,6 @@ export const TriliumNotionEditor: React.FC<TriliumNotionEditorProps> = ({
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#15171b]">
       {/* NOTION EDITOR TOP CONVENIENCE BAR */}
       <div className="px-4 py-2 bg-stone-50/90 dark:bg-[#181a1f] border-b border-stone-200 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-2 text-xs shrink-0 select-none">
-        
         {/* Left: Notion badge & Quick Blocks */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 dark:bg-purple-950/40 border border-purple-500/20 text-purple-700 dark:text-purple-300 font-semibold text-[11px]">
@@ -233,7 +183,7 @@ export const TriliumNotionEditor: React.FC<TriliumNotionEditorProps> = ({
                   ? 'bg-rose-600 text-white border-rose-600'
                   : 'bg-white dark:bg-zinc-800 text-stone-700 dark:text-zinc-200 border-stone-200 dark:border-zinc-700 hover:border-rose-400'
               }`}
-              title="Sisipkan Blok Kode dengan Syntax Highlighting"
+              title="Sisipkan Blok Kode (dilengkapi tombol Run interaktif di setiap blok)"
             >
               <Code2 size={13} className={isInsideCode ? 'text-white' : 'text-rose-600 dark:text-rose-400'} />
               <span>Blok Kode</span>
@@ -344,18 +294,6 @@ export const TriliumNotionEditor: React.FC<TriliumNotionEditorProps> = ({
               </button>
             </div>
           )}
-
-          {/* Run Code Block Button */}
-          <button
-            type="button"
-            onClick={handleRunActiveCode}
-            disabled={isRunningCode}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs cursor-pointer transition-colors shadow-2xs"
-            title="Jalankan Kode JS/TS dalam Catatan"
-          >
-            <Play size={12} fill="currentColor" />
-            <span>Jalankan Kode</span>
-          </button>
         </div>
 
         {/* Right: Quick shortcuts tips */}
@@ -365,25 +303,17 @@ export const TriliumNotionEditor: React.FC<TriliumNotionEditorProps> = ({
           </span>
           <span className="hidden lg:inline text-stone-300 dark:text-zinc-600">•</span>
           <span className="hidden lg:inline">
-            Blok teks untuk menu <strong className="text-purple-600 dark:text-purple-400">✨ Improve</strong>
+            Blok teks untuk menu <strong className="text-purple-600 dark:text-purple-400">✨ Improve (AI)</strong>
           </span>
-          {consoleLogs.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowConsoleDrawer(!showConsoleDrawer)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded bg-stone-200/80 dark:bg-zinc-800 text-stone-700 dark:text-zinc-300 hover:text-stone-900 cursor-pointer"
-            >
-              <Terminal size={11} />
-              <span>Output ({consoleLogs.length})</span>
-            </button>
-          )}
+          <span className="hidden sm:inline text-emerald-600 dark:text-emerald-400 font-medium">
+            • Tombol Run ada di setiap blok kode
+          </span>
         </div>
       </div>
 
       {/* MAIN NOTION EDITOR CANVAS WITH BUBBLE MENU, GUTTER & SLASH MENU */}
       <div
         ref={containerRef}
-        onClick={handleCodeBlockContainerClick}
         className="relative flex-1 p-4 sm:p-8 bg-white dark:bg-[#15171b] overflow-y-auto select-text notion-like-canvas"
         style={{ minHeight }}
       >
@@ -399,66 +329,6 @@ export const TriliumNotionEditor: React.FC<TriliumNotionEditorProps> = ({
         {/* 4. MAIN PROSEMIRROR EDITABLE CANVAS */}
         <EditorContent editor={editor} />
       </div>
-
-      {/* 5. CODE OUTPUT CONSOLE DRAWER */}
-      {showConsoleDrawer && (
-        <div className="border-t border-stone-200 dark:border-zinc-800 bg-[#1e1e1e] text-zinc-100 text-xs shrink-0 max-h-56 flex flex-col z-30 animate-fadeIn">
-          <div className="px-4 py-2 bg-[#252526] border-b border-[#333333] flex items-center justify-between">
-            <div className="flex items-center gap-2 font-mono text-[11px] font-bold text-zinc-300">
-              <Terminal size={13} className="text-emerald-400" />
-              <span>Trilium Code Execution Console</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-700 text-zinc-300 font-sans">
-                {consoleLogs.length} pesan
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setConsoleLogs([])}
-                className="text-zinc-400 hover:text-zinc-200 p-1 rounded cursor-pointer"
-                title="Bersihkan konsol"
-              >
-                <RotateCcw size={12} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowConsoleDrawer(false)}
-                className="text-zinc-400 hover:text-zinc-200 p-1 rounded cursor-pointer"
-                title="Tutup konsol"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          </div>
-
-          <div className="p-3 overflow-y-auto font-mono text-xs space-y-1.5">
-            {consoleLogs.map((log, idx) => (
-              <div
-                key={idx}
-                className={`flex items-start gap-2 leading-relaxed ${
-                  log.type === 'error'
-                    ? 'text-rose-400'
-                    : log.type === 'warn'
-                    ? 'text-amber-300'
-                    : log.type === 'info'
-                    ? 'text-sky-300'
-                    : 'text-zinc-200'
-                }`}
-              >
-                <span className="text-zinc-500 text-[10px] select-none shrink-0">
-                  [{log.time}]
-                </span>
-                <span className="font-semibold uppercase text-[10px] select-none shrink-0 opacity-70">
-                  {log.type}:
-                </span>
-                <pre className="font-mono whitespace-pre-wrap break-all flex-1 m-0 p-0 bg-transparent border-none">
-                  {log.text}
-                </pre>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

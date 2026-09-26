@@ -883,10 +883,11 @@ Keluaran HARUS berupa JSON dengan properti:
   // AI Assistant endpoint (General queries, Q&A assistance, proofreading, summaries)
   app.post("/api/ai/assist", async (req, res) => {
     try {
-      const { prompt, task = "general", context = "", model = "gemini-3.8-flash" } = req.body;
+      const { prompt: rawPrompt, text: rawText, action, task = "general", context = "", model = "gemini-3.8-flash" } = req.body || {};
+      const prompt = rawPrompt || rawText;
 
       if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
-        res.status(400).json({ error: "Prompt is required." });
+        res.status(400).json({ error: "Teks atau prompt diperlukan untuk asisten AI." });
         return;
       }
 

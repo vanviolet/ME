@@ -116,10 +116,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { action, text, context = '', model = 'gemini-3.8-flash' } = req.body || {};
+    const { action, text: rawText, prompt: rawPrompt, context = '', model = 'gemini-3.8-flash' } = req.body || {};
+    const text = rawText || rawPrompt;
 
-    if (!text || typeof text !== 'string') {
-      res.status(400).json({ error: 'Text is required for AI assistance.' });
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      res.status(400).json({ error: 'Teks atau prompt diperlukan untuk asisten AI.' });
       return;
     }
 
