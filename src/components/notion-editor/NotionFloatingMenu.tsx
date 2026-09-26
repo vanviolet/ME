@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Editor } from '@tiptap/react';
+import { marked } from 'marked';
 import {
   Sparkles,
   ChevronDown,
@@ -31,10 +32,27 @@ import {
   Loader2,
   AlertCircle,
   BrainCircuit,
+  RotateCcw,
+  ArrowDownToLine,
+  CheckCheck,
+  Zap,
+  Trash2,
 } from 'lucide-react';
 
 interface NotionFloatingMenuProps {
   editor: Editor | null;
+}
+
+interface AiReviewState {
+  originalFrom: number;
+  originalTo: number;
+  originalText: string;
+  generatedText: string;
+  generatedHtml: string;
+  actionType: string;
+  detail?: string;
+  appliedFrom: number;
+  appliedTo: number;
 }
 
 const TONE_OPTIONS = [
@@ -82,8 +100,26 @@ const COLOR_HIGHLIGHTS = [
   { label: 'Purple / Violet', color: '#7c3aed', bg: 'rgba(139, 92, 246, 0.15)' },
 ];
 
+// Helper to format AI response into clean HTML matching editor structures
+const formatAiResponse = (raw: string): string => {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  // Check if content has markdown elements (headings, lists, quotes, bold, code, table, breaks)
+  const hasMarkdown = /(^#{1,6}\s|^\s*[-*+]\s|^\s*\d+\.\s|^\s*>\s|```|[*_`~]|\||\n)/m.test(trimmed);
+  if (hasMarkdown) {
+    try {
+      const parsed = marked.parse(trimmed, { async: false, gfm: true, breaks: true }) as string;
+      return parsed.trim();
+    } catch {
+      return trimmed;
+    }
+  }
+  return trimmed;
+};
+
 export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }) => {
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const [reviewCoords, setReviewCoords] = useState<{ top: number; left: number } | null>(null);
   const [showAiMenu, setShowAiMenu] = useState(false);
   const [showToneSubmenu, setShowToneSubmenu] = useState(false);
   const [showTranslateSubmenu, setShowTranslateSubmenu] = useState(false);
@@ -91,14 +127,20 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   const [showColorMenu, setShowColorMenu] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+  
+  // AI States
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isTypingEffect, setIsTypingEffect] = useState(false);
   const [aiThinkingText, setAiThinkingText] = useState('AI sedang menganalisis & menyempurnakan tulisan...');
   const [customAiPrompt, setCustomAiPrompt] = useState('');
   const [showCustomPromptInput, setShowCustomPromptInput] = useState(false);
+  const [aiReviewState, setAiReviewState] = useState<AiReviewState | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   const menuRef = useRef<HTMLDivElement>(null);
+  const reviewBarRef = useRef<HTMLDivElement>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -113,6 +155,9 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     if (!editor) return;
 
     const updateMenuPosition = () => {
+      // If currently in review state or typing, keep reviewCoords
+      if (aiReviewState || isTypingEffect) return;
+
       const { from, to, empty } = editor.state.selection;
       if (empty || from === to) {
         setCoords(null);
@@ -146,18 +191,20 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
 
     editor.on('selectionUpdate', updateMenuPosition);
     editor.on('blur', () => {
-      // Small timeout to allow clicking menu items
       setTimeout(() => {
-        if (!menuRef.current?.matches(':hover')) {
-          setCoords(null);
+        if (!menuRef.current?.matches(':hover') && !reviewBarRef.current?.matches(':hover')) {
+          if (!aiReviewState && !isTypingEffect) {
+            setCoords(null);
+          }
         }
-      }, 200);
+      }, 250);
     });
 
     return () => {
       editor.off('selectionUpdate', updateMenuPosition);
+      if (typingTimerRef.current) clearInterval(typingTimerRef.current);
     };
-  }, [editor]);
+  }, [editor, aiReviewState, isTypingEffect]);
 
   // Click outside listener for submenus
   useEffect(() => {
@@ -175,10 +222,9 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     return () => document.removeEventListener('mousedown', handleDocumentClick);
   }, []);
 
-  if (!editor || !coords) return null;
-
   // Determine current block type
   const getCurrentBlockName = () => {
+    if (!editor) return 'Text';
     if (editor.isActive('heading', { level: 1 })) return 'Heading 1';
     if (editor.isActive('heading', { level: 2 })) return 'Heading 2';
     if (editor.isActive('heading', { level: 3 })) return 'Heading 3';
@@ -190,19 +236,78 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     return 'Text';
   };
 
+  // Run Typewriter streaming animation into editor
+  const runTypewriterAnimation = (
+    from: number,
+    to: number,
+    targetText: string,
+    formattedHtml: string,
+    onComplete: (appliedTo: number) => void
+  ) => {
+    if (!editor) {
+      onComplete(to);
+      return;
+    }
+
+    setIsTypingEffect(true);
+
+    // Split text into words/tokens for smooth typing effect
+    const tokens = targetText.split(/(\s+)/);
+    let index = 0;
+    let accumulated = '';
+
+    // Step size: ~25-30 frames total
+    const tokenStep = Math.max(1, Math.ceil(tokens.length / 28));
+
+    if (typingTimerRef.current) clearInterval(typingTimerRef.current);
+
+    typingTimerRef.current = setInterval(() => {
+      if (index >= tokens.length || !editor) {
+        if (typingTimerRef.current) clearInterval(typingTimerRef.current);
+        
+        // Final render with full rich formatting (headings, lists, bold, tables, code)
+        const currentEnd = from + accumulated.length;
+        editor.chain().focus().insertContentAt({ from, to: currentEnd }, formattedHtml).run();
+        setIsTypingEffect(false);
+        
+        const finalEnd = editor.state.selection.to || (from + targetText.length);
+        onComplete(finalEnd);
+        return;
+      }
+
+      const nextChunk = tokens.slice(index, index + tokenStep).join('');
+      index += tokenStep;
+      accumulated += nextChunk;
+
+      const currentEnd = from + (accumulated.length - nextChunk.length);
+      editor.chain().focus().insertContentAt({ from, to: currentEnd }, accumulated).run();
+    }, 30);
+  };
+
   // Execute AI action on selected text
   const executeAiAction = async (actionType: string, detail?: string) => {
+    if (!editor) return;
     const { from, to } = editor.state.selection;
     const selectedText = editor.state.doc.textBetween(from, to, ' ').trim();
     if (!selectedText) return;
 
+    // Save initial coordinates for the review bar
+    if (coords) {
+      setReviewCoords(coords);
+    }
+
     setIsAiLoading(true);
+    setAiReviewState(null);
+
     let thinkingMsg = 'AI sedang berpikir & menyempurnakan tulisan...';
     if (actionType === 'grammar') thinkingMsg = 'Memeriksa & memperbaiki tata bahasa...';
     else if (actionType === 'tone') thinkingMsg = `Menyesuaikan gaya bahasa ke "${detail}"...`;
     else if (actionType === 'translate') thinkingMsg = `Menerjemahkan teks ke ${detail}...`;
     else if (actionType === 'summarize') thinkingMsg = 'Merangkum teks penting...';
     else if (actionType === 'extend') thinkingMsg = 'Mengembangkan & memperkaya konten...';
+    else if (actionType === 'reduce') thinkingMsg = 'Meringkas teks...';
+    else if (actionType === 'simplify') thinkingMsg = 'Menyederhanakan bahasa...';
+    else if (actionType === 'emojify') thinkingMsg = 'Menambahkan emoji ekspresif...';
     setAiThinkingText(thinkingMsg);
 
     setShowAiMenu(false);
@@ -213,16 +318,16 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     let prompt = '';
     switch (actionType) {
       case 'improve':
-        prompt = `Sempurnakan dan tingkatkan kualitas penulisan teks berikut agar lebih elegan, padat, dan jelas. Keluarkan HANYA teks hasil yang telah disempurnakan tanpa pembuka/penutup:\n\n"${selectedText}"`;
+        prompt = `Sempurnakan dan tingkatkan kualitas penulisan teks berikut agar lebih elegan, padat, dan jelas. Format output sesuai kebutuhan konten (gunakan markdown formatting jika relevan seperti bold, list, atau headings). Keluarkan HANYA teks hasil yang telah disempurnakan tanpa pembuka/penutup:\n\n"${selectedText}"`;
         break;
       case 'tone':
-        prompt = `Tulis ulang teks berikut dengan nada bicara (tone) "${detail}". Pastikan inti pesan tetap utuh. Keluarkan HANYA teks hasil akhir:\n\n"${selectedText}"`;
+        prompt = `Tulis ulang teks berikut dengan nada bicara (tone) "${detail}". Pastikan inti pesan tetap utuh dan format tulisan rapi. Keluarkan HANYA teks hasil akhir:\n\n"${selectedText}"`;
         break;
       case 'grammar':
-        prompt = `Perbaiki segala kesalahan ejaan (spelling), tata bahasa (grammar), tanda baca, dan typo pada teks berikut. Keluarkan HANYA teks hasil yang sudah diperbaiki:\n\n"${selectedText}"`;
+        prompt = `Perbaiki segala kesalahan ejaan (spelling), tata bahasa (grammar), tanda baca, dan typo pada teks berikut tanpa merusak format. Keluarkan HANYA teks hasil yang sudah diperbaiki:\n\n"${selectedText}"`;
         break;
       case 'extend':
-        prompt = `Kembangkan dan elaborasikan teks berikut menjadi penjelasan yang lebih lengkap, jelas, dan kaya konteks. Keluarkan HANYA teks hasil pengembangannya:\n\n"${selectedText}"`;
+        prompt = `Kembangkan dan elaborasikan teks berikut menjadi penjelasan yang lebih lengkap, jelas, dan kaya konteks dengan poin-poin atau paragraf terstruktur. Keluarkan HANYA teks hasil pengembangannya:\n\n"${selectedText}"`;
         break;
       case 'reduce':
         prompt = `Ringkas teks berikut menjadi kalimat yang lebih ringkas, padat, dan esensial tanpa membuang makna utama. Keluarkan HANYA teks hasil ringkasannya:\n\n"${selectedText}"`;
@@ -237,13 +342,13 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         prompt = `Lengkapi kalimat atau paragraf berikut secara alami, logis, dan koheren. Keluarkan teks yang sudah lengkap:\n\n"${selectedText}"`;
         break;
       case 'summarize':
-        prompt = `Buat ringkasan ringkas dari teks berikut dalam 1-2 kalimat padat. Keluarkan HANYA ringkasannya:\n\n"${selectedText}"`;
+        prompt = `Buat ringkasan ringkas dari teks berikut dalam format poin terstruktur atau paragraf padat. Keluarkan HANYA ringkasannya:\n\n"${selectedText}"`;
         break;
       case 'translate':
-        prompt = `Terjemahkan teks berikut ke dalam bahasa ${detail} dengan akurat, fasih, dan alami. Keluarkan HANYA teks terjemahannya:\n\n"${selectedText}"`;
+        prompt = `Terjemahkan teks berikut ke dalam bahasa ${detail} dengan akurat, fasih, dan alami. Pertahankan format struktur teks. Keluarkan HANYA teks terjemahannya:\n\n"${selectedText}"`;
         break;
       case 'custom':
-        prompt = `Instruksi: "${detail}". Terapkan instruksi ini pada teks berikut: "${selectedText}". Keluarkan HANYA teks hasil akhir:`;
+        prompt = `Instruksi: "${detail}". Terapkan instruksi ini pada teks berikut: "${selectedText}". Format hasil tulisan dengan rapi. Keluarkan HANYA teks hasil akhir:`;
         break;
       default:
         prompt = `Perbaiki dan tingkatkan teks berikut:\n\n"${selectedText}"`;
@@ -266,27 +371,98 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         throw new Error(data.error || 'Gagal memproses bantuan AI dari server.');
       }
 
-      const resultText = (typeof data.result === 'string' ? data.result : data.text || '').trim();
-      if (!resultText) {
+      const rawResultText = (typeof data.result === 'string' ? data.result : data.text || '').trim();
+      if (!rawResultText) {
         throw new Error('Hasil AI kosong.');
       }
 
-      // Clean wrapping quotes if returned
-      const cleanResult = resultText.replace(/^"|"$/g, '').trim();
+      // Clean wrapping outer quotes if LLM enclosed the whole output
+      const cleanResult = rawResultText.replace(/^"|"$/g, '').trim();
+      const formattedHtml = formatAiResponse(cleanResult);
 
-      // Replace selection with improved text in editor
-      editor.chain().focus().insertContentAt({ from, to }, cleanResult).run();
-      showToast('success', '✨ Teks berhasil disempurnakan!');
+      setIsAiLoading(false);
+
+      // Run Typewriter effect in editor!
+      runTypewriterAnimation(from, to, cleanResult, formattedHtml, (finalAppliedTo) => {
+        // Set Notion Review state for Apply, Insert below, Try again, Discard
+        setAiReviewState({
+          originalFrom: from,
+          originalTo: to,
+          originalText: selectedText,
+          generatedText: cleanResult,
+          generatedHtml: formattedHtml,
+          actionType,
+          detail,
+          appliedFrom: from,
+          appliedTo: finalAppliedTo,
+        });
+      });
     } catch (err: any) {
       console.error('AI Assist error:', err);
       const errMsg = err?.message || 'Terjadi kesalahan saat menghubungi AI.';
       showToast('error', errMsg);
-    } finally {
       setIsAiLoading(false);
+      setIsTypingEffect(false);
     }
   };
 
+  // NOTION REVIEW BAR HANDLERS
+  // 1. Done / Replace Selection (Apply)
+  const handleApplyReplace = () => {
+    setAiReviewState(null);
+    setReviewCoords(null);
+    showToast('success', '✨ Perubahan AI berhasil diterapkan!');
+  };
+
+  // 2. Insert Below original text
+  const handleInsertBelow = () => {
+    if (!editor || !aiReviewState) return;
+    const { originalFrom, originalText, generatedHtml, appliedTo } = aiReviewState;
+
+    // Restore original text first
+    editor.chain().focus().insertContentAt({ from: originalFrom, to: appliedTo }, originalText).run();
+
+    // Insert generated text in a new paragraph right below
+    const insertPos = originalFrom + originalText.length;
+    editor.chain().focus().insertContentAt(insertPos, `\n${generatedHtml}`).run();
+
+    setAiReviewState(null);
+    setReviewCoords(null);
+    showToast('success', '✨ Teks disisipkan di bawah teks asli!');
+  };
+
+  // 3. Try Again
+  const handleTryAgain = () => {
+    if (!editor || !aiReviewState) return;
+    const { originalFrom, originalTo, originalText, actionType, detail } = aiReviewState;
+
+    // Restore original text
+    editor.chain().focus().insertContentAt({ from: originalFrom, to: aiReviewState.appliedTo }, originalText).run();
+    // Reselect
+    editor.chain().focus().setTextSelection({ from: originalFrom, to: originalTo }).run();
+    setAiReviewState(null);
+
+    // Re-run
+    executeAiAction(actionType, detail);
+  };
+
+  // 4. Discard / Revert
+  const handleDiscard = () => {
+    if (!editor || !aiReviewState) return;
+    const { originalFrom, originalTo, originalText, appliedTo } = aiReviewState;
+
+    // Revert modified range back to original text
+    editor.chain().focus().insertContentAt({ from: originalFrom, to: appliedTo }, originalText).run();
+    // Reselect
+    editor.chain().focus().setTextSelection({ from: originalFrom, to: originalTo }).run();
+
+    setAiReviewState(null);
+    setReviewCoords(null);
+    showToast('info', 'Perubahan AI dibatalkan.');
+  };
+
   const handleApplyLink = () => {
+    if (!editor) return;
     if (!linkUrl) {
       editor.chain().focus().unsetLink().run();
     } else {
@@ -296,475 +472,559 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     setLinkUrl('');
   };
 
+  // Render check
+  if (!editor) return null;
+  const activePosition = reviewCoords || coords;
+  if (!activePosition && !toast) return null;
+
   return (
-    <div
-      ref={menuRef}
-      className="fixed z-50 -translate-x-1/2 flex items-center bg-white dark:bg-[#1f2228] text-stone-800 dark:text-zinc-100 rounded-xl shadow-2xl border border-stone-200 dark:border-zinc-700/80 p-1 text-xs select-none transition-all duration-75 animate-in fade-in zoom-in-95"
-      style={{
-        top: `${coords.top}px`,
-        left: `${coords.left}px`,
-      }}
-    >
-      {/* 1. ✨ IMPROVE AI BUTTON */}
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => {
-            setShowAiMenu(!showAiMenu);
-            setShowToneSubmenu(false);
-            setShowTranslateSubmenu(false);
-            setShowBlockMenu(false);
-            setShowColorMenu(false);
+    <>
+      {/* 1. NOTION AI REVIEW BAR (Replace, Insert Below, Try Again, Discard) */}
+      {aiReviewState && activePosition && (
+        <div
+          ref={reviewBarRef}
+          className="fixed z-50 -translate-x-1/2 flex flex-col items-center bg-white/95 dark:bg-[#1a1d24]/95 backdrop-blur-md text-stone-800 dark:text-zinc-100 rounded-2xl shadow-2xl border border-purple-300 dark:border-purple-800/80 p-2 text-xs select-none transition-all duration-150 animate-in fade-in slide-in-from-top-2"
+          style={{
+            top: `${Math.max(12, activePosition.top - 12)}px`,
+            left: `${activePosition.left}px`,
           }}
-          disabled={isAiLoading}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-semibold cursor-pointer transition-colors shadow-xs"
         >
-          {isAiLoading ? (
-            <Loader2 size={13} className="animate-spin text-purple-600" />
-          ) : (
-            <Sparkles size={13} className="text-purple-600 dark:text-purple-400 fill-purple-500/20" />
-          )}
-          <span>{isAiLoading ? 'Memproses...' : 'Improve'}</span>
-        </button>
-
-        {/* AI Dropdown Menu */}
-        {showAiMenu && (
-          <div className="absolute left-0 mt-1.5 w-60 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1.5 z-50 text-xs font-sans animate-in fade-in">
-            {/* Tone sub-button */}
-            <div
-              onMouseEnter={() => {
-                setShowToneSubmenu(true);
-                setShowTranslateSubmenu(false);
-              }}
-              className="relative flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer group"
-            >
-              <div className="flex items-center gap-2">
-                <Wand2 size={14} className="text-purple-500" />
-                <span>Adjust tone</span>
-              </div>
-              <ChevronRight size={13} className="text-stone-400 group-hover:text-stone-700 dark:group-hover:text-zinc-200" />
-
-              {/* Adjust Tone Submenu */}
-              {showToneSubmenu && (
-                <div
-                  onMouseLeave={() => setShowToneSubmenu(false)}
-                  className="absolute left-full top-0 ml-1 w-52 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1.5 max-h-72 overflow-y-auto space-y-0.5 z-50"
-                >
-                  <div className="px-2 py-1 text-[10px] font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">
-                    Pilih Gaya Nada
-                  </div>
-                  {TONE_OPTIONS.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => executeAiAction('tone', t.id)}
-                      className="w-full text-left px-2 py-1.5 rounded-md hover:bg-purple-50 dark:hover:bg-purple-950/40 flex items-center justify-between cursor-pointer"
-                    >
-                      <span className="font-medium text-stone-800 dark:text-zinc-200">{t.label}</span>
-                      <span className="text-[10px] text-stone-400 truncate max-w-[80px]">{t.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+          {/* Header Info */}
+          <div className="flex items-center justify-between w-full px-2 pb-1.5 mb-1.5 border-b border-stone-200 dark:border-zinc-800 text-[11px]">
+            <div className="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-300">
+              <Sparkles size={13} className="text-purple-600 dark:text-purple-400" />
+              <span>Hasil AI Siap Ditinjau</span>
             </div>
+            <span className="text-[10px] text-stone-400 dark:text-zinc-500 font-mono">
+              Notion AI Review
+            </span>
+          </div>
 
+          {/* Action Buttons Row */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Replace / Apply */}
             <button
               type="button"
-              onClick={() => executeAiAction('grammar')}
-              className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+              onClick={handleApplyReplace}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs cursor-pointer transition-all shadow-xs active:scale-95"
+              title="Terapkan teks hasil AI (ganti seleksi)"
             >
-              <Check size={14} className="text-emerald-500" />
-              <span>Fix spelling & grammar</span>
+              <CheckCheck size={14} />
+              <span>Replace selection</span>
             </button>
 
+            {/* Insert Below */}
             <button
               type="button"
-              onClick={() => executeAiAction('extend')}
-              className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+              onClick={handleInsertBelow}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-200 font-medium text-xs cursor-pointer transition-colors"
+              title="Sisipkan di bawah teks asli"
             >
-              <Maximize2 size={14} className="text-blue-500" />
-              <span>Extend text</span>
+              <ArrowDownToLine size={13} className="text-purple-500" />
+              <span>Insert below</span>
             </button>
 
+            {/* Try Again */}
             <button
               type="button"
-              onClick={() => executeAiAction('reduce')}
-              className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+              onClick={handleTryAgain}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-stone-700 dark:text-zinc-200 font-medium text-xs cursor-pointer transition-colors"
+              title="Coba hasilkan ulang (generate ulang)"
             >
-              <Minimize2 size={14} className="text-amber-500" />
-              <span>Reduce text</span>
+              <RotateCcw size={13} className="text-amber-500" />
+              <span>Try again</span>
             </button>
 
+            {/* Discard */}
             <button
               type="button"
-              onClick={() => executeAiAction('simplify')}
-              className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+              onClick={handleDiscard}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 text-stone-500 hover:text-rose-600 dark:text-zinc-400 dark:hover:text-rose-400 text-xs cursor-pointer transition-colors"
+              title="Batalkan perubahan dan kembalikan teks asli"
             >
-              <FileText size={14} className="text-cyan-500" />
-              <span>Simplify text</span>
+              <Trash2 size={13} />
+              <span>Discard</span>
             </button>
+          </div>
+        </div>
+      )}
 
+      {/* 2. TYPEWRITER RUNNING INDICATOR PILL */}
+      {isTypingEffect && activePosition && (
+        <div
+          className="fixed z-50 -translate-x-1/2 flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-950/95 text-purple-100 border border-purple-700 shadow-2xl backdrop-blur-md text-xs font-sans animate-in fade-in"
+          style={{
+            top: `${Math.max(12, activePosition.top - 10)}px`,
+            left: `${activePosition.left}px`,
+          }}
+        >
+          <Zap size={14} className="text-amber-300 animate-pulse" />
+          <span className="font-semibold">AI sedang mengetik...</span>
+          <span className="inline-block w-1.5 h-3 bg-purple-400 animate-pulse ml-0.5" />
+        </div>
+      )}
+
+      {/* 3. MAIN SELECTION BUBBLE MENU (When not reviewing) */}
+      {!aiReviewState && !isTypingEffect && coords && (
+        <div
+          ref={menuRef}
+          className="fixed z-50 -translate-x-1/2 flex items-center bg-white dark:bg-[#1f2228] text-stone-800 dark:text-zinc-100 rounded-xl shadow-2xl border border-stone-200 dark:border-zinc-700/80 p-1 text-xs select-none transition-all duration-75 animate-in fade-in zoom-in-95"
+          style={{
+            top: `${coords.top}px`,
+            left: `${coords.left}px`,
+          }}
+        >
+          {/* 1. ✨ IMPROVE AI BUTTON */}
+          <div className="relative">
             <button
               type="button"
-              onClick={() => executeAiAction('emojify')}
-              className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+              onClick={() => {
+                setShowAiMenu(!showAiMenu);
+                setShowToneSubmenu(false);
+                setShowTranslateSubmenu(false);
+                setShowBlockMenu(false);
+                setShowColorMenu(false);
+              }}
+              disabled={isAiLoading}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-semibold cursor-pointer transition-colors shadow-xs"
             >
-              <Smile size={14} className="text-amber-400" />
-              <span>Emojify</span>
+              {isAiLoading ? (
+                <Loader2 size={13} className="animate-spin text-purple-600" />
+              ) : (
+                <Sparkles size={13} className="text-purple-600 dark:text-purple-400 fill-purple-500/20" />
+              )}
+              <span>{isAiLoading ? 'Memproses...' : 'Improve'}</span>
             </button>
 
-            <div className="my-1 border-t border-stone-200 dark:border-zinc-800" />
-
-            {/* Custom Ask AI prompt */}
-            <button
-              type="button"
-              onClick={() => setShowCustomPromptInput(!showCustomPromptInput)}
-              className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-medium cursor-pointer"
-            >
-              <Sparkles size={14} className="text-purple-500" />
-              <span>Ask AI...</span>
-            </button>
-
-            {showCustomPromptInput && (
-              <div className="p-2 bg-stone-50 dark:bg-zinc-900 rounded-lg my-1 space-y-1.5">
-                <input
-                  type="text"
-                  value={customAiPrompt}
-                  onChange={(e) => setCustomAiPrompt(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && customAiPrompt.trim()) {
-                      executeAiAction('custom', customAiPrompt);
-                    }
+            {/* AI Dropdown Menu */}
+            {showAiMenu && (
+              <div className="absolute left-0 mt-1.5 w-60 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1.5 z-50 text-xs font-sans animate-in fade-in">
+                {/* Tone sub-button */}
+                <div
+                  onMouseEnter={() => {
+                    setShowToneSubmenu(true);
+                    setShowTranslateSubmenu(false);
                   }}
-                  placeholder="Tulis instruksi khusus..."
-                  className="w-full px-2 py-1 text-xs rounded border border-stone-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-stone-800 dark:text-zinc-200 focus:outline-purple-500"
-                />
+                  className="relative flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2">
+                    <Wand2 size={14} className="text-purple-500" />
+                    <span>Adjust tone</span>
+                  </div>
+                  <ChevronRight size={13} className="text-stone-400 group-hover:text-stone-700 dark:group-hover:text-zinc-200" />
+
+                  {/* Adjust Tone Submenu */}
+                  {showToneSubmenu && (
+                    <div
+                      onMouseLeave={() => setShowToneSubmenu(false)}
+                      className="absolute left-full top-0 ml-1 w-52 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1.5 max-h-72 overflow-y-auto space-y-0.5 z-50"
+                    >
+                      <div className="px-2 py-1 text-[10px] font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">
+                        Pilih Gaya Nada
+                      </div>
+                      {TONE_OPTIONS.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => executeAiAction('tone', t.id)}
+                          className="w-full text-left px-2 py-1.5 rounded-md hover:bg-purple-50 dark:hover:bg-purple-950/40 flex items-center justify-between cursor-pointer"
+                        >
+                          <span className="font-medium text-stone-800 dark:text-zinc-200">{t.label}</span>
+                          <span className="text-[10px] text-stone-400 truncate max-w-[80px]">{t.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => executeAiAction('grammar')}
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+                >
+                  <Check size={14} className="text-emerald-500" />
+                  <span>Fix spelling & grammar</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => executeAiAction('improve')}
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+                >
+                  <Sparkles size={14} className="text-purple-500" />
+                  <span>Improve writing</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => executeAiAction('extend')}
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+                >
+                  <Maximize2 size={14} className="text-sky-500" />
+                  <span>Make longer</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => executeAiAction('reduce')}
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+                >
+                  <Minimize2 size={14} className="text-amber-500" />
+                  <span>Make shorter</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => executeAiAction('simplify')}
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+                >
+                  <FileText size={14} className="text-blue-500" />
+                  <span>Simplify language</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => executeAiAction('emojify')}
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+                >
+                  <Smile size={14} className="text-yellow-500" />
+                  <span>Emojify</span>
+                </button>
+
+                {/* Translate Submenu */}
+                <div
+                  onMouseEnter={() => {
+                    setShowTranslateSubmenu(true);
+                    setShowToneSubmenu(false);
+                  }}
+                  className="relative flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2">
+                    <Languages size={14} className="text-indigo-500" />
+                    <span>Translate</span>
+                  </div>
+                  <ChevronRight size={13} className="text-stone-400 group-hover:text-stone-700 dark:group-hover:text-zinc-200" />
+
+                  {showTranslateSubmenu && (
+                    <div
+                      onMouseLeave={() => setShowTranslateSubmenu(false)}
+                      className="absolute left-full top-0 ml-1 w-52 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1.5 max-h-60 overflow-y-auto space-y-0.5 z-50"
+                    >
+                      <div className="px-2 py-1 text-[10px] font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">
+                        Pilih Bahasa
+                      </div>
+                      {TRANSLATE_OPTIONS.map((lang) => (
+                        <button
+                          key={lang.id}
+                          type="button"
+                          onClick={() => executeAiAction('translate', lang.label)}
+                          className="w-full text-left px-2 py-1.5 rounded-md hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-800 dark:text-zinc-200 cursor-pointer"
+                        >
+                          {lang.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Custom AI Prompt Trigger */}
+                <div className="pt-1 mt-1 border-t border-stone-100 dark:border-zinc-800">
+                  {!showCustomPromptInput ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomPromptInput(true)}
+                      className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-600 dark:text-purple-400 font-medium cursor-pointer"
+                    >
+                      <Sparkles size={14} />
+                      <span>Custom AI command...</span>
+                    </button>
+                  ) : (
+                    <div className="p-1 space-y-1.5">
+                      <input
+                        type="text"
+                        value={customAiPrompt}
+                        onChange={(e) => setCustomAiPrompt(e.target.value)}
+                        placeholder="Ketik instruksi AI..."
+                        autoFocus
+                        className="w-full px-2 py-1 text-xs rounded-md border border-purple-300 dark:border-purple-800 bg-white dark:bg-zinc-800 text-stone-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && customAiPrompt.trim()) {
+                            executeAiAction('custom', customAiPrompt);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (customAiPrompt.trim()) {
+                            executeAiAction('custom', customAiPrompt);
+                          }
+                        }}
+                        className="w-full py-1 rounded bg-purple-600 hover:bg-purple-700 text-white font-semibold text-[11px] cursor-pointer"
+                      >
+                        Jalankan AI
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="h-4 w-px bg-stone-200 dark:bg-zinc-700 mx-1" />
+
+          {/* 2. BLOCK TYPE SELECTOR */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowBlockMenu(!showBlockMenu);
+                setShowAiMenu(false);
+                setShowColorMenu(false);
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 font-medium text-stone-700 dark:text-zinc-200 cursor-pointer"
+            >
+              <span>{getCurrentBlockName()}</span>
+              <ChevronDown size={12} />
+            </button>
+
+            {showBlockMenu && (
+              <div className="absolute left-0 mt-1.5 w-44 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1 z-50 space-y-0.5 animate-in fade-in">
                 <button
                   type="button"
                   onClick={() => {
-                    if (customAiPrompt.trim()) executeAiAction('custom', customAiPrompt);
+                    editor.chain().focus().setParagraph().run();
+                    setShowBlockMenu(false);
                   }}
-                  className="w-full py-1 rounded bg-purple-600 hover:bg-purple-700 text-white font-medium text-[11px] cursor-pointer"
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                 >
-                  Kirim ke AI
+                  <FileText size={14} />
+                  <span>Text</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().toggleHeading({ level: 1 }).run();
+                    setShowBlockMenu(false);
+                  }}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                >
+                  <Heading1 size={14} />
+                  <span>Heading 1</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().toggleHeading({ level: 2 }).run();
+                    setShowBlockMenu(false);
+                  }}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                >
+                  <Heading2 size={14} />
+                  <span>Heading 2</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().toggleHeading({ level: 3 }).run();
+                    setShowBlockMenu(false);
+                  }}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                >
+                  <Heading3 size={14} />
+                  <span>Heading 3</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().toggleBulletList().run();
+                    setShowBlockMenu(false);
+                  }}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                >
+                  <List size={14} />
+                  <span>Bullet List</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().toggleOrderedList().run();
+                    setShowBlockMenu(false);
+                  }}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                >
+                  <ListOrdered size={14} />
+                  <span>Numbered List</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().toggleTaskList().run();
+                    setShowBlockMenu(false);
+                  }}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                >
+                  <ListTodo size={14} />
+                  <span>To-do List</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().toggleBlockquote().run();
+                    setShowBlockMenu(false);
+                  }}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                >
+                  <Quote size={14} />
+                  <span>Quote</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    editor.chain().focus().toggleCodeBlock().run();
+                    setShowBlockMenu(false);
+                  }}
+                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
+                >
+                  <Code2 size={14} />
+                  <span>Code Block</span>
                 </button>
               </div>
             )}
+          </div>
 
+          <div className="h-4 w-px bg-stone-200 dark:bg-zinc-700 mx-1" />
+
+          {/* 3. FORMATTING BUTTONS */}
+          <div className="flex items-center gap-0.5">
             <button
               type="button"
-              onClick={() => executeAiAction('complete')}
-              className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer ${
+                editor.isActive('bold') ? 'bg-stone-200 dark:bg-zinc-700 font-bold text-rose-600' : ''
+              }`}
+              title="Bold (Ctrl+B)"
             >
-              <CornerDownLeft size={14} className="text-stone-500" />
-              <span>Complete sentence</span>
+              <Bold size={13} />
             </button>
 
             <button
               type="button"
-              onClick={() => executeAiAction('summarize')}
-              className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer"
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer ${
+                editor.isActive('italic') ? 'bg-stone-200 dark:bg-zinc-700 italic text-rose-600' : ''
+              }`}
+              title="Italic (Ctrl+I)"
             >
-              <FileText size={14} className="text-emerald-500" />
-              <span>Summarize</span>
+              <Italic size={13} />
             </button>
 
-            {/* Translate sub-button */}
-            <div
-              onMouseEnter={() => {
-                setShowTranslateSubmenu(true);
-                setShowToneSubmenu(false);
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer ${
+                editor.isActive('underline') ? 'bg-stone-200 dark:bg-zinc-700 underline text-rose-600' : ''
+              }`}
+              title="Underline (Ctrl+U)"
+            >
+              <UnderlineIcon size={13} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer ${
+                editor.isActive('strike') ? 'bg-stone-200 dark:bg-zinc-700 line-through text-rose-600' : ''
+              }`}
+              title="Strikethrough"
+            >
+              <Strikethrough size={13} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleCode().run()}
+              className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 font-mono cursor-pointer ${
+                editor.isActive('code') ? 'bg-stone-200 dark:bg-zinc-700 text-rose-600' : ''
+              }`}
+              title="Inline Code"
+            >
+              <Code size={13} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const previousUrl = editor.getAttributes('link').href;
+                setLinkUrl(previousUrl || '');
+                setShowLinkModal(true);
               }}
-              className="relative flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 text-stone-700 dark:text-zinc-200 cursor-pointer group"
+              className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer ${
+                editor.isActive('link') ? 'bg-stone-200 dark:bg-zinc-700 text-rose-600' : ''
+              }`}
+              title="Link"
             >
-              <div className="flex items-center gap-2">
-                <Languages size={14} className="text-indigo-500" />
-                <span>Translate</span>
-              </div>
-              <ChevronRight size={13} className="text-stone-400 group-hover:text-stone-700 dark:group-hover:text-zinc-200" />
+              <LinkIcon size={13} />
+            </button>
+          </div>
 
-              {/* Translate Submenu */}
-              {showTranslateSubmenu && (
-                <div
-                  onMouseLeave={() => setShowTranslateSubmenu(false)}
-                  className="absolute left-full top-0 ml-1 w-48 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1.5 max-h-60 overflow-y-auto space-y-0.5 z-50"
-                >
-                  <div className="px-2 py-1 text-[10px] font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">
-                    Terjemahkan ke
-                  </div>
-                  {TRANSLATE_OPTIONS.map((lang) => (
+          <div className="h-4 w-px bg-stone-200 dark:bg-zinc-700 mx-1" />
+
+          {/* 4. COLOR HIGHLIGHT BUTTON */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowColorMenu(!showColorMenu);
+                setShowAiMenu(false);
+                setShowBlockMenu(false);
+              }}
+              className="p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer flex items-center gap-0.5"
+              title="Warna Sorotan"
+            >
+              <Palette size={13} />
+              <ChevronDown size={10} />
+            </button>
+
+            {showColorMenu && (
+              <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1.5 z-50 space-y-1 animate-in fade-in">
+                <div className="text-[10px] font-bold text-stone-400 dark:text-zinc-500 uppercase px-1">
+                  Warna Sorotan
+                </div>
+                <div className="grid grid-cols-1 gap-0.5">
+                  {COLOR_HIGHLIGHTS.map((c) => (
                     <button
-                      key={lang.id}
+                      key={c.label}
                       type="button"
-                      onClick={() => executeAiAction('translate', lang.id)}
-                      className="w-full text-left px-2 py-1.5 rounded-md hover:bg-purple-50 dark:hover:bg-purple-950/40 font-medium text-stone-800 dark:text-zinc-200 cursor-pointer"
+                      onClick={() => {
+                        if (!c.bg) {
+                          editor.chain().focus().unsetHighlight().run();
+                        } else {
+                          editor.chain().focus().setHighlight({ color: c.bg }).run();
+                        }
+                        setShowColorMenu(false);
+                      }}
+                      className="flex items-center justify-between px-2 py-1 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
                     >
-                      {lang.label}
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="w-3.5 h-3.5 rounded border border-stone-300 dark:border-zinc-600"
+                          style={{ backgroundColor: c.bg || '#ffffff' }}
+                        />
+                        <span>{c.label}</span>
+                      </span>
                     </button>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="w-px h-4 bg-stone-200 dark:border-zinc-700 mx-1" />
-
-      {/* 2. BLOCK TYPE SELECTOR (e.g. Blockquote v, Heading 1, etc.) */}
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => {
-            setShowBlockMenu(!showBlockMenu);
-            setShowAiMenu(false);
-            setShowColorMenu(false);
-          }}
-          className="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 text-stone-700 dark:text-zinc-200 font-medium cursor-pointer"
-        >
-          <span>{getCurrentBlockName()}</span>
-          <ChevronDown size={11} className="text-stone-400" />
-        </button>
-
-        {showBlockMenu && (
-          <div className="absolute left-0 mt-1.5 w-44 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1 z-50 space-y-0.5 text-xs animate-in fade-in">
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().setParagraph().run();
-                setShowBlockMenu(false);
-              }}
-              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-stone-800 dark:text-zinc-200 cursor-pointer"
-            >
-              <FileText size={13} className="text-stone-500" />
-              <span>Text (Paragraph)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().toggleHeading({ level: 1 }).run();
-                setShowBlockMenu(false);
-              }}
-              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-stone-800 dark:text-zinc-200 cursor-pointer font-bold"
-            >
-              <Heading1 size={13} />
-              <span>Heading 1</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().toggleHeading({ level: 2 }).run();
-                setShowBlockMenu(false);
-              }}
-              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-stone-800 dark:text-zinc-200 cursor-pointer font-semibold"
-            >
-              <Heading2 size={13} />
-              <span>Heading 2</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().toggleHeading({ level: 3 }).run();
-                setShowBlockMenu(false);
-              }}
-              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-stone-800 dark:text-zinc-200 cursor-pointer"
-            >
-              <Heading3 size={13} />
-              <span>Heading 3</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().toggleBulletList().run();
-                setShowBlockMenu(false);
-              }}
-              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-stone-800 dark:text-zinc-200 cursor-pointer"
-            >
-              <List size={13} />
-              <span>Bullet List</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().toggleOrderedList().run();
-                setShowBlockMenu(false);
-              }}
-              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-stone-800 dark:text-zinc-200 cursor-pointer"
-            >
-              <ListOrdered size={13} />
-              <span>Numbered List</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().toggleTaskList().run();
-                setShowBlockMenu(false);
-              }}
-              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-stone-800 dark:text-zinc-200 cursor-pointer"
-            >
-              <ListTodo size={13} />
-              <span>Task List</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().toggleBlockquote().run();
-                setShowBlockMenu(false);
-              }}
-              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-stone-800 dark:text-zinc-200 cursor-pointer"
-            >
-              <Quote size={13} />
-              <span>Blockquote</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                editor.chain().focus().toggleCodeBlock().run();
-                setShowBlockMenu(false);
-              }}
-              className="w-full text-left px-2 py-1.5 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center gap-2 text-stone-800 dark:text-zinc-200 cursor-pointer font-mono"
-            >
-              <Code2 size={13} />
-              <span>Code Block</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="w-px h-4 bg-stone-200 dark:border-zinc-700 mx-1" />
-
-      {/* 3. INLINE FORMATTING BUTTONS (Bold, Italic, Underline, Strike, Code, Link, Color) */}
-      <div className="flex items-center gap-0.5">
-        {/* Bold */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-            editor.isActive('bold') ? 'bg-stone-200 dark:bg-zinc-700 font-bold text-rose-600 dark:text-rose-400' : ''
-          }`}
-          title="Tebal (Ctrl+B)"
-        >
-          <Bold size={13} />
-        </button>
-
-        {/* Italic */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-            editor.isActive('italic') ? 'bg-stone-200 dark:bg-zinc-700 font-bold text-rose-600 dark:text-rose-400' : ''
-          }`}
-          title="Miring (Ctrl+I)"
-        >
-          <Italic size={13} />
-        </button>
-
-        {/* Underline */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-            editor.isActive('underline') ? 'bg-stone-200 dark:bg-zinc-700 font-bold text-rose-600 dark:text-rose-400' : ''
-          }`}
-          title="Garis Bawah (Ctrl+U)"
-        >
-          <UnderlineIcon size={13} />
-        </button>
-
-        {/* Strikethrough */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-            editor.isActive('strike') ? 'bg-stone-200 dark:bg-zinc-700 font-bold text-rose-600 dark:text-rose-400' : ''
-          }`}
-          title="Coretan"
-        >
-          <Strikethrough size={13} />
-        </button>
-
-        {/* Inline Code */}
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-            editor.isActive('code') ? 'bg-stone-200 dark:bg-zinc-700 font-bold text-rose-600 dark:text-rose-400' : ''
-          }`}
-          title="Kode Baris (Ctrl+E)"
-        >
-          <Code size={13} />
-        </button>
-
-        {/* Link */}
-        <button
-          type="button"
-          onClick={() => {
-            const currentHref = editor.getAttributes('link').href || '';
-            setLinkUrl(currentHref);
-            setShowLinkModal(!showLinkModal);
-          }}
-          className={`p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-            editor.isActive('link') ? 'bg-stone-200 dark:bg-zinc-700 text-rose-600 dark:text-rose-400' : ''
-          }`}
-          title="Tautan Web"
-        >
-          <LinkIcon size={13} />
-        </button>
-
-        {/* Color / Highlight */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              setShowColorMenu(!showColorMenu);
-              setShowAiMenu(false);
-              setShowBlockMenu(false);
-            }}
-            className="flex items-center gap-0.5 p-1.5 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors"
-            title="Warna Teks & Sorotan"
-          >
-            <span className="font-serif font-bold text-xs underline decoration-2 decoration-rose-500">A</span>
-            <ChevronDown size={10} className="text-stone-400" />
-          </button>
-
-          {showColorMenu && (
-            <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1.5 z-50 space-y-1 animate-in fade-in">
-              <div className="text-[10px] font-bold text-stone-400 dark:text-zinc-500 uppercase px-1">
-                Warna Sorotan
               </div>
-              <div className="grid grid-cols-1 gap-0.5">
-                {COLOR_HIGHLIGHTS.map((c) => (
-                  <button
-                    key={c.label}
-                    type="button"
-                    onClick={() => {
-                      if (!c.bg) {
-                        editor.chain().focus().unsetHighlight().run();
-                      } else {
-                        editor.chain().focus().setHighlight({ color: c.bg }).run();
-                      }
-                      setShowColorMenu(false);
-                    }}
-                    className="flex items-center justify-between px-2 py-1 rounded hover:bg-stone-100 dark:hover:bg-zinc-800 text-xs cursor-pointer"
-                  >
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="w-3.5 h-3.5 rounded border border-stone-300 dark:border-zinc-600"
-                        style={{ backgroundColor: c.bg || '#ffffff' }}
-                      />
-                      <span>{c.label}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Link Input Modal */}
+      {/* 4. LINK MODAL */}
       {showLinkModal && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 bg-white dark:bg-[#1f2228] p-2.5 rounded-xl border border-stone-200 dark:border-zinc-700 shadow-2xl z-50 animate-in fade-in">
+        <div className="fixed z-50 left-1/2 -translate-x-1/2 top-1/3 w-72 bg-white dark:bg-[#1f2228] p-2.5 rounded-xl border border-stone-200 dark:border-zinc-700 shadow-2xl animate-in fade-in">
           <div className="flex items-center justify-between mb-1.5">
             <span className="font-semibold text-xs text-stone-700 dark:text-zinc-200">Sisipkan Tautan:</span>
             <button
@@ -797,9 +1057,15 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         </div>
       )}
 
-      {/* AI Thinking State Indicator Popup */}
-      {isAiLoading && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 min-w-[260px] bg-white dark:bg-[#1b1e24] border border-purple-300 dark:border-purple-900/60 rounded-xl shadow-2xl p-2.5 z-50 animate-in fade-in flex items-center gap-2.5">
+      {/* 5. AI THINKING STATE POPUP */}
+      {isAiLoading && activePosition && (
+        <div
+          className="fixed z-50 -translate-x-1/2 min-w-[260px] bg-white dark:bg-[#1b1e24] border border-purple-300 dark:border-purple-900/60 rounded-xl shadow-2xl p-2.5 animate-in fade-in flex items-center gap-2.5"
+          style={{
+            top: `${Math.max(10, activePosition.top - 12)}px`,
+            left: `${activePosition.left}px`,
+          }}
+        >
           <div className="relative flex items-center justify-center w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-950/60 shrink-0">
             <BrainCircuit size={15} className="text-purple-600 dark:text-purple-400 animate-pulse" />
           </div>
@@ -817,7 +1083,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         </div>
       )}
 
-      {/* Toast Notification Popup */}
+      {/* 6. TOAST NOTIFICATION */}
       {toast && (
         <div
           className={`fixed bottom-6 right-6 z-[9999] flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl border text-xs font-sans animate-in fade-in slide-in-from-bottom-2 ${
@@ -843,6 +1109,6 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
           </button>
         </div>
       )}
-    </div>
+    </>
   );
 };
