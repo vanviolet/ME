@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Editor } from '@tiptap/react';
+import { marked } from 'marked';
 import {
   Sparkles,
   ChevronDown,
@@ -47,6 +48,7 @@ interface AiReviewState {
   originalTo: number;
   originalText: string;
   generatedText: string;
+  generatedHtml: string;
   actionType: string;
   detail?: string;
   appliedFrom: number;
@@ -98,7 +100,7 @@ const COLOR_HIGHLIGHTS = [
   { label: 'Purple / Violet', color: '#7c3aed', bg: 'rgba(139, 92, 246, 0.15)' },
 ];
 
-// Helper to clean raw LLM output into clean markdown/text
+// Helper to clean raw LLM output into clean text
 const cleanAiOutput = (raw: string): string => {
   if (!raw) return '';
   let cleaned = raw.trim();
@@ -113,6 +115,23 @@ const cleanAiOutput = (raw: string): string => {
   cleaned = cleaned.replace(/^["'«“]|["'»”]$/g, '').trim();
 
   return cleaned;
+};
+
+// Helper to format AI response into rich HTML for TipTap
+const formatAiResponse = (raw: string): string => {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  // Check if content has markdown elements (headings, lists, quotes, bold, code, table, linebreaks)
+  const hasMarkdown = /(^#{1,6}\s|^\s*[-*+]\s|^\s*\d+\.\s|^\s*>\s|```|[*_`~]|\||\n)/m.test(trimmed);
+  if (hasMarkdown) {
+    try {
+      const parsed = marked.parse(trimmed, { async: false, gfm: true, breaks: true }) as string;
+      return parsed.trim();
+    } catch {
+      return trimmed;
+    }
+  }
+  return trimmed;
 };
 
 export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }) => {
@@ -234,55 +253,67 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     return 'Text';
   };
 
-  // Run Typewriter streaming animation into editor
+  // Safe and Smooth Typewriter Animation
   const runTypewriterAnimation = (
     from: number,
     to: number,
     targetText: string,
+    formattedHtml: string,
     onComplete: (appliedFrom: number, appliedTo: number) => void
   ) => {
     if (!editor) return;
 
     setIsTypingEffect(true);
 
-    // 1. Delete initial selection once
-    editor.chain().focus().setTextSelection({ from, to }).deleteSelection().run();
-    const startPos = editor.state.selection.from;
-
-    // 2. Tokenize by words with spaces
-    const words = targetText.match(/\S+\s*/g) || [targetText];
-    let currentIndex = 0;
-    const batchSize = Math.max(1, Math.ceil(words.length / 22));
+    const totalLength = targetText.length;
+    // Calculate 15 to 25 slices for realistic progressive typing
+    const totalSteps = Math.min(25, Math.max(6, Math.floor(totalLength / 8)));
+    let currentStep = 0;
+    let currentSpan = (to - from);
 
     if (typingTimerRef.current) clearInterval(typingTimerRef.current);
 
     typingTimerRef.current = setInterval(() => {
-      if (currentIndex >= words.length || !editor) {
+      currentStep++;
+
+      if (currentStep >= totalSteps || !editor) {
         if (typingTimerRef.current) clearInterval(typingTimerRef.current);
 
-        const currentEndPos = editor.state.selection.to;
-
-        // Finalize with clean Markdown parsing so headings, lists, bold, tables format cleanly
-        editor
-          .chain()
-          .focus()
-          .setTextSelection({ from: startPos, to: currentEndPos })
-          .deleteSelection()
-          .insertContent(targetText)
-          .run();
+        try {
+          const currentEnd = from + currentSpan;
+          // Apply final rich formatted HTML
+          editor
+            .chain()
+            .focus()
+            .insertContentAt({ from, to: currentEnd }, formattedHtml || targetText)
+            .run();
+        } catch (e) {
+          console.warn('Final rich insert fallback:', e);
+          editor?.commands.insertContent(targetText);
+        }
 
         setIsTypingEffect(false);
-        const finalTo = editor.state.selection.to;
-        onComplete(startPos, finalTo);
+        const finalEnd = editor?.state.selection.to || (from + targetText.length);
+        onComplete(from, finalEnd);
         return;
       }
 
-      const chunk = words.slice(currentIndex, currentIndex + batchSize).join('');
-      currentIndex += batchSize;
+      const ratio = currentStep / totalSteps;
+      const charCount = Math.floor(totalLength * ratio);
+      const partial = targetText.slice(0, charCount);
 
-      // Type chunk forward at active cursor
-      editor.chain().focus().insertContent(chunk).run();
-    }, 32);
+      try {
+        const currentEnd = from + currentSpan;
+        editor
+          .chain()
+          .focus()
+          .insertContentAt({ from, to: currentEnd }, partial)
+          .run();
+        currentSpan = partial.length;
+      } catch (err) {
+        console.warn('Typewriter frame skip:', err);
+      }
+    }, 38);
   };
 
   // Execute AI action on selected text
@@ -290,7 +321,10 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     if (!editor) return;
     const { from, to } = editor.state.selection;
     const selectedText = editor.state.doc.textBetween(from, to, ' ').trim();
-    if (!selectedText) return;
+    if (!selectedText) {
+      showToast('info', 'Silakan blok teks terlebih dahulu untuk meminta bantuan AI.');
+      return;
+    }
 
     // Save initial coordinates for the review bar
     if (coords) {
@@ -372,22 +406,33 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         throw new Error(data.error || 'Gagal memproses bantuan AI dari server.');
       }
 
-      const rawResultText = (typeof data.result === 'string' ? data.result : data.text || '').trim();
+      let rawResultText = '';
+      if (typeof data.result === 'string' && data.result.trim()) {
+        rawResultText = data.result.trim();
+      } else if (typeof data.text === 'string' && data.text.trim()) {
+        rawResultText = data.text.trim();
+      } else if (typeof data.data?.result === 'string' && data.data.result.trim()) {
+        rawResultText = data.data.result.trim();
+      }
+
       if (!rawResultText) {
-        throw new Error('Hasil AI kosong.');
+        throw new Error('Hasil AI kosong atau tidak valid.');
       }
 
       const cleanResult = cleanAiOutput(rawResultText);
+      const formattedHtml = formatAiResponse(cleanResult);
+
       setIsAiLoading(false);
 
       // Run Typewriter effect in editor!
-      runTypewriterAnimation(from, to, cleanResult, (appliedStart, appliedEnd) => {
+      runTypewriterAnimation(from, to, cleanResult, formattedHtml, (appliedStart, appliedEnd) => {
         // Set Notion Review state for Apply, Insert below, Try again, Discard
         setAiReviewState({
-          originalFrom: appliedStart,
-          originalTo: appliedStart + selectedText.length,
+          originalFrom: from,
+          originalTo: to,
           originalText: selectedText,
           generatedText: cleanResult,
+          generatedHtml: formattedHtml,
           actionType,
           detail,
           appliedFrom: appliedStart,
@@ -414,19 +459,18 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   // 2. Insert Below original text
   const handleInsertBelow = () => {
     if (!editor || !aiReviewState) return;
-    const { originalFrom, originalText, generatedText, appliedFrom, appliedTo } = aiReviewState;
+    const { originalFrom, originalText, generatedHtml, appliedFrom, appliedTo } = aiReviewState;
 
-    // Delete generated text and restore original text
+    // Restore original text first
     editor
       .chain()
       .focus()
-      .setTextSelection({ from: appliedFrom, to: appliedTo })
-      .deleteSelection()
-      .insertContent(originalText)
+      .insertContentAt({ from: appliedFrom, to: appliedTo }, originalText)
       .run();
 
     // Insert generated text in a new block right below
-    editor.chain().focus().insertContent(`\n\n${generatedText}`).run();
+    const insertPos = originalFrom + originalText.length;
+    editor.chain().focus().insertContentAt(insertPos, `\n\n${generatedHtml}`).run();
 
     setAiReviewState(null);
     setReviewCoords(null);
@@ -442,9 +486,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     editor
       .chain()
       .focus()
-      .setTextSelection({ from: appliedFrom, to: appliedTo })
-      .deleteSelection()
-      .insertContent(originalText)
+      .insertContentAt({ from: appliedFrom, to: appliedTo }, originalText)
       .run();
 
     // Reselect original text
@@ -465,9 +507,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     editor
       .chain()
       .focus()
-      .setTextSelection({ from: appliedFrom, to: appliedTo })
-      .deleteSelection()
-      .insertContent(originalText)
+      .insertContentAt({ from: appliedFrom, to: appliedTo }, originalText)
       .run();
 
     // Reselect original text
