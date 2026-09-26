@@ -32,10 +32,14 @@ export const NotionBlockGutter: React.FC<NotionBlockGutterProps> = ({
   const [activeElement, setActiveElement] = useState<HTMLElement | null>(null);
   const [showBlockMenu, setShowBlockMenu] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [dropIndicatorY, setDropIndicatorY] = useState<number | null>(null);
-  const draggedElementRef = useRef<HTMLElement | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [dropIndicator, setDropIndicator] = useState<{ top: number; left: number; width: number } | null>(null);
 
+  const draggedElementRef = useRef<HTMLElement | null>(null);
+  const draggedPosRef = useRef<number | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const handleRef = useRef<HTMLDivElement>(null);
+
+  // Track active block on mouse move
   useEffect(() => {
     const container = editorContainerRef.current;
     if (!container || !editor) return;
@@ -46,28 +50,40 @@ export const NotionBlockGutter: React.FC<NotionBlockGutterProps> = ({
       const prosemirror = container.querySelector('.ProseMirror');
       if (!prosemirror) return;
 
-      // Find top-level block element under mouse
-      const target = e.target as HTMLElement;
-      if (!prosemirror.contains(target)) {
-        // Only clear if mouse is not over handle
-        if (!e.clientX || Math.abs(e.clientX - (handlePos?.left || 0)) > 60) {
-          // keep handle active briefly
-        }
+      // Check if mouse is hovering over the gutter handle itself
+      if (handleRef.current && handleRef.current.contains(e.target as Node)) {
+        return; // Keep existing active handle
+      }
+
+      // Check if mouse is in the left margin area of the container
+      const containerRect = container.getBoundingClientRect();
+      const isLeftGutterArea =
+        e.clientX >= containerRect.left &&
+        e.clientX <= containerRect.left + 55 &&
+        e.clientY >= containerRect.top &&
+        e.clientY <= containerRect.bottom;
+
+      if (isLeftGutterArea && activeElement) {
+        // User is moving towards the handle in the left gutter, keep it alive
         return;
       }
 
-      // Find direct child of .ProseMirror
-      let block = target;
-      while (block.parentElement && block.parentElement !== prosemirror) {
+      const target = e.target as HTMLElement;
+      if (!prosemirror.contains(target)) {
+        return;
+      }
+
+      // Find direct child block of .ProseMirror
+      let block: HTMLElement | null = target;
+      while (block && block.parentElement && block.parentElement !== prosemirror) {
         block = block.parentElement;
       }
 
       if (block && block.parentElement === prosemirror) {
-        const containerRect = container.getBoundingClientRect();
         const blockRect = block.getBoundingClientRect();
-
         const top = blockRect.top - containerRect.top + container.scrollTop + 2;
-        const left = Math.max(8, blockRect.left - containerRect.left - 38);
+        // Position handle in left gutter
+        const left = Math.max(6, blockRect.left - containerRect.left - 42);
 
         setHandlePos({ top, left });
         setActiveElement(block);
@@ -78,7 +94,116 @@ export const NotionBlockGutter: React.FC<NotionBlockGutterProps> = ({
     return () => {
       container.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [editor, editorContainerRef, isDragging, handlePos]);
+  }, [editor, editorContainerRef, isDragging, activeElement]);
+
+  // Drag and Drop reordering handlers attached to container
+  useEffect(() => {
+    const container = editorContainerRef.current;
+    if (!container || !editor) return;
+
+    const handleDragOver = (e: DragEvent) => {
+      if (!draggedElementRef.current) return;
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = 'move';
+
+      const prosemirror = container.querySelector('.ProseMirror');
+      if (!prosemirror) return;
+
+      const target = e.target as HTMLElement;
+      let targetBlock: HTMLElement | null = target;
+      while (targetBlock && targetBlock.parentElement && targetBlock.parentElement !== prosemirror) {
+        targetBlock = targetBlock.parentElement;
+      }
+
+      if (targetBlock && targetBlock.parentElement === prosemirror && targetBlock !== draggedElementRef.current) {
+        const containerRect = container.getBoundingClientRect();
+        const targetRect = targetBlock.getBoundingClientRect();
+        const isBottomHalf = e.clientY > targetRect.top + targetRect.height / 2;
+
+        const indicatorY = isBottomHalf
+          ? targetRect.bottom - containerRect.top + container.scrollTop
+          : targetRect.top - containerRect.top + container.scrollTop;
+
+        setDropIndicator({
+          top: indicatorY,
+          left: targetRect.left - containerRect.left,
+          width: targetRect.width,
+        });
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      if (!draggedElementRef.current || !editor) return;
+      e.preventDefault();
+
+      const prosemirror = container.querySelector('.ProseMirror');
+      if (!prosemirror) return;
+
+      const target = e.target as HTMLElement;
+      let targetBlock: HTMLElement | null = target;
+      while (targetBlock && targetBlock.parentElement && targetBlock.parentElement !== prosemirror) {
+        targetBlock = targetBlock.parentElement;
+      }
+
+      if (targetBlock && targetBlock.parentElement === prosemirror && targetBlock !== draggedElementRef.current) {
+        try {
+          const sourcePos = editor.view.posAtDOM(draggedElementRef.current, 0);
+          const targetPos = editor.view.posAtDOM(targetBlock, 0);
+
+          const sourceNode = editor.state.doc.nodeAt(sourcePos);
+          const targetNode = editor.state.doc.nodeAt(targetPos);
+
+          if (sourceNode && targetNode) {
+            const containerRect = container.getBoundingClientRect();
+            const targetRect = targetBlock.getBoundingClientRect();
+            const isBottomHalf = e.clientY > targetRect.top + targetRect.height / 2;
+
+            const insertPos = isBottomHalf ? targetPos + targetNode.nodeSize : targetPos;
+            const sourceJson = sourceNode.toJSON();
+
+            if (sourcePos < insertPos) {
+              editor
+                .chain()
+                .focus()
+                .insertContentAt(insertPos, sourceJson)
+                .deleteRange({ from: sourcePos, to: sourcePos + sourceNode.nodeSize })
+                .run();
+            } else {
+              editor
+                .chain()
+                .focus()
+                .deleteRange({ from: sourcePos, to: sourcePos + sourceNode.nodeSize })
+                .insertContentAt(insertPos, sourceJson)
+                .run();
+            }
+          }
+        } catch (err) {
+          console.warn('Block drop reorder error:', err);
+        }
+      }
+
+      setIsDragging(false);
+      setDropIndicator(null);
+      draggedElementRef.current = null;
+      draggedPosRef.current = null;
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      if (e.relatedTarget && !container.contains(e.relatedTarget as Node)) {
+        setDropIndicator(null);
+      }
+    };
+
+    container.addEventListener('dragover', handleDragOver);
+    container.addEventListener('drop', handleDrop);
+    container.addEventListener('dragleave', handleDragLeave);
+
+    return () => {
+      container.removeEventListener('dragover', handleDragOver);
+      container.removeEventListener('drop', handleDrop);
+      container.removeEventListener('dragleave', handleDragLeave);
+    };
+  }, [editor, editorContainerRef]);
 
   // Click outside to close menu
   useEffect(() => {
@@ -205,24 +330,43 @@ export const NotionBlockGutter: React.FC<NotionBlockGutterProps> = ({
     setShowBlockMenu(false);
   };
 
-  // Native HTML5 Drag and Drop handlers for smooth reordering
+  // Native HTML5 Drag Start
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
     draggedElementRef.current = activeElement;
+    try {
+      draggedPosRef.current = editor.view.posAtDOM(activeElement, 0);
+    } catch {
+      draggedPosRef.current = null;
+    }
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', activeElement.innerText || '');
   };
 
   const handleDragEnd = () => {
     setIsDragging(false);
-    setDropIndicatorY(null);
+    setDropIndicator(null);
     draggedElementRef.current = null;
+    draggedPosRef.current = null;
   };
 
   return (
     <>
+      {/* Drop Indicator Line between blocks during drag */}
+      {isDragging && dropIndicator && (
+        <div
+          className="absolute z-50 h-1 bg-gradient-to-r from-purple-500 via-rose-500 to-indigo-500 rounded-full shadow-md pointer-events-none transition-all duration-75 animate-pulse"
+          style={{
+            top: `${dropIndicator.top - 2}px`,
+            left: `${dropIndicator.left}px`,
+            width: `${dropIndicator.width}px`,
+          }}
+        />
+      )}
+
       {/* Notion Gutter Handle on Left Margin */}
       <div
+        ref={handleRef}
         className="absolute z-30 flex items-center gap-0.5 select-none transition-opacity duration-150 animate-in fade-in"
         style={{
           top: `${handlePos.top}px`,
@@ -233,7 +377,7 @@ export const NotionBlockGutter: React.FC<NotionBlockGutterProps> = ({
         <button
           type="button"
           onClick={handleInsertBelow}
-          className="w-5 h-5 rounded hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 flex items-center justify-center cursor-pointer transition-colors"
+          className="w-5 h-5 rounded hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
           title="Klik untuk tambah baris baru di bawah (+)"
         >
           <Plus size={13} />
@@ -248,10 +392,10 @@ export const NotionBlockGutter: React.FC<NotionBlockGutterProps> = ({
             e.stopPropagation();
             setShowBlockMenu(!showBlockMenu);
           }}
-          className="w-5 h-5 rounded hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 flex items-center justify-center cursor-grab active:cursor-grabbing transition-colors"
+          className="w-5 h-5 rounded hover:bg-stone-200 dark:hover:bg-zinc-800 text-stone-400 hover:text-stone-700 dark:hover:text-zinc-200 flex items-center justify-center cursor-grab active:cursor-grabbing transition-colors shadow-2xs group"
           title="Tahan untuk drag & drop susunan blok, atau klik untuk menu aksi blok"
         >
-          <GripVertical size={14} />
+          <GripVertical size={14} className="group-hover:text-rose-500 transition-colors" />
         </div>
       </div>
 
@@ -259,6 +403,7 @@ export const NotionBlockGutter: React.FC<NotionBlockGutterProps> = ({
       {showBlockMenu && (
         <div
           ref={menuRef}
+          onMouseDown={(e) => e.stopPropagation()}
           className="absolute z-40 bg-white dark:bg-[#1a1d23] border border-stone-200 dark:border-zinc-800 rounded-xl shadow-2xl p-1.5 w-56 text-xs text-stone-800 dark:text-zinc-100 font-sans space-y-0.5 animate-in fade-in"
           style={{
             top: `${handlePos.top + 24}px`,
@@ -301,22 +446,23 @@ export const NotionBlockGutter: React.FC<NotionBlockGutterProps> = ({
             <button
               type="button"
               onClick={() => handleMoveBlock('up')}
-              className="flex-1 px-2 py-1 rounded bg-stone-100 hover:bg-stone-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 flex items-center justify-center gap-1 text-[11px] text-stone-600 dark:text-zinc-300 cursor-pointer"
+              className="flex-1 py-1 px-2 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center justify-center gap-1 text-stone-700 dark:text-zinc-300 cursor-pointer"
             >
-              <ArrowUp size={11} />
-              <span>Geser Atas</span>
+              <ArrowUp size={12} />
+              <span>Ke Atas</span>
             </button>
             <button
               type="button"
               onClick={() => handleMoveBlock('down')}
-              className="flex-1 px-2 py-1 rounded bg-stone-100 hover:bg-stone-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 flex items-center justify-center gap-1 text-[11px] text-stone-600 dark:text-zinc-300 cursor-pointer"
+              className="flex-1 py-1 px-2 rounded-md hover:bg-stone-100 dark:hover:bg-zinc-800 flex items-center justify-center gap-1 text-stone-700 dark:text-zinc-300 cursor-pointer"
             >
-              <ArrowDown size={11} />
-              <span>Geser Bawah</span>
+              <ArrowDown size={12} />
+              <span>Ke Bawah</span>
             </button>
           </div>
 
           <div className="my-1 border-t border-stone-100 dark:border-zinc-800" />
+
           <div className="px-2 py-0.5 text-[10px] font-bold text-stone-400 dark:text-zinc-500 uppercase tracking-wider">
             Ubah Menjadi...
           </div>

@@ -100,10 +100,17 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
     if (!editor) return;
 
     const updateMenuPosition = () => {
+      if (!editor || editor.isDestroyed) {
+        setCoords(null);
+        return;
+      }
+
       const { from, to, empty } = editor.state.selection;
       if (empty || from === to) {
         setCoords(null);
         setShowAiMenu(false);
+        setShowToneSubmenu(false);
+        setShowTranslateSubmenu(false);
         setShowBlockMenu(false);
         setShowColorMenu(false);
         return;
@@ -116,14 +123,32 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         return;
       }
 
+      // 1. First priority: Check native browser selection bounding box
+      const domSelection = window.getSelection();
+      if (domSelection && domSelection.rangeCount > 0 && !domSelection.isCollapsed) {
+        try {
+          const range = domSelection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          if (rect && (rect.width > 0 || rect.height > 0)) {
+            // Position above selection if there's room, otherwise position right below
+            const top = rect.top < 65 ? rect.bottom + 8 : Math.max(10, rect.top - 46);
+            const left = Math.max(180, Math.min(window.innerWidth - 190, rect.left + rect.width / 2));
+            setCoords({ top, left });
+            return;
+          }
+        } catch {
+          // fallback to ProseMirror coordsAtPos
+        }
+      }
+
+      // 2. ProseMirror coordsAtPos fallback
       try {
         const { view } = editor;
         const start = view.coordsAtPos(from);
         const end = view.coordsAtPos(to);
 
-        // Center menu horizontally above selection
-        const left = Math.max(16, Math.min(window.innerWidth - 380, (start.left + end.right) / 2));
-        const top = Math.max(10, start.top - 48);
+        const top = start.top < 65 ? end.bottom + 8 : Math.max(10, start.top - 46);
+        const left = Math.max(180, Math.min(window.innerWidth - 190, (start.left + end.right) / 2));
 
         setCoords({ top, left });
       } catch {
@@ -131,18 +156,38 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
       }
     };
 
+    // Subscriptions to selection and transaction updates
     editor.on('selectionUpdate', updateMenuPosition);
-    editor.on('blur', () => {
-      // Small timeout to allow clicking menu items
-      setTimeout(() => {
-        if (!menuRef.current?.matches(':hover')) {
-          setCoords(null);
-        }
-      }, 200);
-    });
+    editor.on('transaction', updateMenuPosition);
+
+    const handleMouseUp = () => {
+      setTimeout(updateMenuPosition, 15);
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setCoords(null);
+        setShowAiMenu(false);
+        setShowBlockMenu(false);
+        setShowColorMenu(false);
+      } else {
+        setTimeout(updateMenuPosition, 15);
+      }
+    };
+
+    // Keep menu pinned during scroll or viewport resize
+    window.addEventListener('scroll', updateMenuPosition, true);
+    window.addEventListener('resize', updateMenuPosition);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('keyup', handleKeyUp);
 
     return () => {
       editor.off('selectionUpdate', updateMenuPosition);
+      editor.off('transaction', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+      window.removeEventListener('resize', updateMenuPosition);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('keyup', handleKeyUp);
     };
   }, [editor]);
 
@@ -271,6 +316,13 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
   return (
     <div
       ref={menuRef}
+      onMouseDown={(e) => {
+        // Prevent blur of editor selection when clicking menu items, except inside inputs
+        const targetTag = (e.target as HTMLElement).tagName.toLowerCase();
+        if (targetTag !== 'input' && targetTag !== 'textarea') {
+          e.preventDefault();
+        }
+      }}
       className="fixed z-50 -translate-x-1/2 flex items-center bg-white dark:bg-[#1f2228] text-stone-800 dark:text-zinc-100 rounded-xl shadow-2xl border border-stone-200 dark:border-zinc-700/80 p-1 text-xs select-none transition-all duration-75 animate-in fade-in zoom-in-95"
       style={{
         top: `${coords.top}px`,
@@ -481,7 +533,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         )}
       </div>
 
-      <div className="w-px h-4 bg-stone-200 dark:border-zinc-700 mx-1" />
+      <div className="w-px h-4 bg-stone-200 dark:bg-zinc-700 mx-1" />
 
       {/* 2. BLOCK TYPE SELECTOR (e.g. Blockquote v, Heading 1, etc.) */}
       <div className="relative">
@@ -603,7 +655,7 @@ export const NotionFloatingMenu: React.FC<NotionFloatingMenuProps> = ({ editor }
         )}
       </div>
 
-      <div className="w-px h-4 bg-stone-200 dark:border-zinc-700 mx-1" />
+      <div className="w-px h-4 bg-stone-200 dark:bg-zinc-700 mx-1" />
 
       {/* 3. INLINE FORMATTING BUTTONS (Bold, Italic, Underline, Strike, Code, Link, Color) */}
       <div className="flex items-center gap-0.5">

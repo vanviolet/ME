@@ -4,6 +4,7 @@ import { Seo } from '../Seo';
 import { Link } from 'react-router-dom';
 import { ShadcnSelect } from '../ui/select';
 import { TriliumCodeEditor } from './trilium/TriliumCodeEditor';
+import { TriliumNotionEditor } from './trilium/TriliumNotionEditor';
 import { DesktopOnlyNotice } from './common/DesktopOnlyNotice';
 import {
   Folder,
@@ -1303,377 +1304,10 @@ export const NotesNotebookPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* WYSIWYG FORMATTING TOOLBAR */}
-              {activeNote.type !== 'code' && editor && (
-                <div className="px-4 py-2 bg-stone-50/80 dark:bg-[#181a1f] border-b border-stone-200 dark:border-zinc-800 flex flex-wrap items-center gap-1 text-stone-700 dark:text-zinc-300 text-xs shrink-0 select-none">
-                  
-                  {/* Headings */}
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('heading', { level: 1 }) ? 'bg-rose-600 text-white font-bold' : ''
-                    }`}
-                    title="Heading 1"
-                  >
-                    <Heading1 size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('heading', { level: 2 }) ? 'bg-rose-600 text-white font-bold' : ''
-                    }`}
-                    title="Heading 2"
-                  >
-                    <Heading2 size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('heading', { level: 3 }) ? 'bg-rose-600 text-white font-bold' : ''
-                    }`}
-                    title="Heading 3"
-                  >
-                    <Heading3 size={15} />
-                  </button>
-
-                  <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
-
-                  {/* Bold, Italic, Underline, Strikethrough, Highlight */}
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleBold().run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('bold') ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Tebal (Ctrl+B)"
-                  >
-                    <Bold size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleItalic().run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('italic') ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Miring (Ctrl+I)"
-                  >
-                    <Italic size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleUnderline().run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('underline') ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Garis Bawah (Ctrl+U)"
-                  >
-                    <UnderlineIcon size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleStrike().run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('strike') ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Coretan (Strikethrough)"
-                  >
-                    <Strikethrough size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleHighlight().run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('highlight') ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Stabilo Sorot (Highlight)"
-                  >
-                    <Highlighter size={15} />
-                  </button>
-
-                  <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
-
-                  {/* Alignment */}
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().setTextAlign('left').run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive({ textAlign: 'left' }) ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Rata Kiri"
-                  >
-                    <AlignLeft size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().setTextAlign('center').run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive({ textAlign: 'center' }) ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Rata Tengah"
-                  >
-                    <AlignCenter size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().setTextAlign('right').run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive({ textAlign: 'right' }) ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Rata Kanan"
-                  >
-                    <AlignRight size={15} />
-                  </button>
-
-                  <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
-
-                  {/* Lists & Tasks */}
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleBulletList().run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('bulletList') ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Daftar Poin (Bullet List)"
-                  >
-                    <List size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('orderedList') ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Daftar Nomor (Ordered List)"
-                  >
-                    <ListOrdered size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleTaskList().run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('taskList') ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Checklist Tugas Interaktif"
-                  >
-                    <CheckSquare size={15} />
-                  </button>
-
-                  <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
-
-                  {/* Quote & Horizontal Rule */}
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                    className={`p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors ${
-                      editor.isActive('blockquote') ? 'bg-rose-600 text-white' : ''
-                    }`}
-                    title="Kutipan (Blockquote)"
-                  >
-                    <Quote size={15} />
-                  </button>
-
-                  {/* Code Block with Language Selector */}
-                  <div className="relative" ref={codeMenuRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsCodeMenuOpen(!isCodeMenuOpen)}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
-                        editor.isActive('codeBlock')
-                          ? 'bg-rose-600 text-white border-rose-600'
-                          : 'hover:bg-stone-200 dark:hover:bg-zinc-800 border-stone-200 dark:border-zinc-700'
-                      }`}
-                      title="Sisipkan Blok Kode Berbahasa (Syntax Highlighting)"
-                    >
-                      <Code size={14} className={editor.isActive('codeBlock') ? 'text-white' : 'text-rose-600 dark:text-rose-400'} />
-                      <span>Kode</span>
-                      <ChevronDown size={11} />
-                    </button>
-
-                    {isCodeMenuOpen && (
-                      <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-[#1a1c21] rounded-xl shadow-xl border border-stone-200 dark:border-zinc-800 p-2 z-40 space-y-1">
-                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                          Pilih Bahasa Kode
-                        </div>
-                        <div className="max-h-56 overflow-y-auto space-y-0.5">
-                          {RICH_CODE_LANGUAGES.map((lang) => (
-                            <button
-                              key={lang.id}
-                              type="button"
-                              onClick={() => {
-                                editor.chain().focus().toggleCodeBlock({ language: lang.id }).run();
-                                setIsCodeMenuOpen(false);
-                              }}
-                              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 hover:text-rose-600 cursor-pointer transition-colors"
-                            >
-                              <span className="font-medium">{lang.name}</span>
-                              <span className="text-[10px] font-mono text-stone-400 dark:text-zinc-500">
-                                {lang.ext}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().setHorizontalRule().run()}
-                    className="p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 cursor-pointer transition-colors"
-                    title="Garis Pemisah (Horizontal Rule)"
-                  >
-                    <Minus size={15} />
-                  </button>
-
-                  <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1" />
-
-                  {/* TABLE DROPDOWN MENU */}
-                  <div className="relative" ref={tableMenuRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsTableMenuOpen(!isTableMenuOpen)}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
-                        isInsideTable
-                          ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 border-rose-300 dark:border-rose-800'
-                          : 'hover:bg-stone-200 dark:hover:bg-zinc-800 border-stone-200 dark:border-zinc-700'
-                      }`}
-                      title="Sisipkan atau Kelola Tabel"
-                    >
-                      <TableIcon size={14} className="text-rose-600 dark:text-rose-400" />
-                      <span>Tabel</span>
-                      <ChevronDown size={11} />
-                    </button>
-
-                    {isTableMenuOpen && (
-                      <div className="absolute top-full left-0 mt-1 w-52 bg-white dark:bg-[#1a1c21] rounded-xl shadow-xl border border-stone-200 dark:border-zinc-800 p-2 z-40 space-y-1">
-                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                          Sisipkan Tabel Baru
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleInsertTable(2, 2)}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 hover:text-rose-600 cursor-pointer"
-                        >
-                          <span>Tabel Mini (2 × 2)</span>
-                          <Grid size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleInsertTable(3, 3)}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 hover:text-rose-600 cursor-pointer"
-                        >
-                          <span>Tabel Standar (3 × 3)</span>
-                          <Grid size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleInsertTable(4, 3)}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 hover:text-rose-600 cursor-pointer"
-                        >
-                          <span>Tabel Komparasi (4 × 3)</span>
-                          <Grid size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleInsertTable(5, 4)}
-                          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs hover:bg-rose-50 dark:hover:bg-rose-950/30 text-stone-700 dark:text-zinc-300 hover:text-rose-600 cursor-pointer"
-                        >
-                          <span>Tabel Data Besar (5 × 4)</span>
-                          <Grid size={13} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Contextual Table Controls when inside table */}
-                  {isInsideTable && (
-                    <div className="flex items-center gap-1 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-lg px-2 py-0.5 ml-1 text-[11px] animate-fadeIn">
-                      <span className="font-bold text-rose-700 dark:text-rose-400 mr-1">Tabel:</span>
-                      <button
-                        type="button"
-                        onClick={() => editor.chain().focus().addRowAfter().run()}
-                        className="px-1.5 py-0.5 rounded hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 cursor-pointer font-medium"
-                        title="Tambah Baris di Bawah"
-                      >
-                        + Baris
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => editor.chain().focus().addColumnAfter().run()}
-                        className="px-1.5 py-0.5 rounded hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 cursor-pointer font-medium"
-                        title="Tambah Kolom di Kanan"
-                      >
-                        + Kolom
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => editor.chain().focus().deleteRow().run()}
-                        className="px-1.5 py-0.5 rounded hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 cursor-pointer font-medium"
-                        title="Hapus Baris Ini"
-                      >
-                        - Baris
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => editor.chain().focus().deleteColumn().run()}
-                        className="px-1.5 py-0.5 rounded hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 cursor-pointer font-medium"
-                        title="Hapus Kolom Ini"
-                      >
-                        - Kolom
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => editor.chain().focus().deleteTable().run()}
-                        className="px-1.5 py-0.5 rounded hover:bg-rose-200 dark:hover:bg-rose-800/60 text-rose-800 dark:text-rose-200 cursor-pointer font-bold"
-                        title="Hapus Tabel Seluruhnya"
-                      >
-                        Hapus Tabel
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="w-px h-4 bg-stone-300 dark:bg-zinc-700 mx-1 ml-auto" />
-
-                  {/* Undo & Redo */}
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().undo().run()}
-                    disabled={!editor.can().undo()}
-                    className="p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
-                    title="Urungkan (Ctrl+Z)"
-                  >
-                    <Undo size={15} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => editor.chain().focus().redo().run()}
-                    disabled={!editor.can().redo()}
-                    className="p-1.5 rounded-lg hover:bg-stone-200 dark:hover:bg-zinc-800 disabled:opacity-30 cursor-pointer transition-colors"
-                    title="Ulangi (Ctrl+Y)"
-                  >
-                    <Redo size={15} />
-                  </button>
-                </div>
-              )}
-
               {/* EDITOR MAIN AREA */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 flex flex-col overflow-hidden min-h-0">
                 {activeNote.type === 'code' ? (
-                  <div className="p-4 sm:p-6 min-h-full flex flex-col">
+                  <div className="p-4 sm:p-6 flex-1 overflow-y-auto min-h-full flex flex-col">
                     <TriliumCodeEditor
                       content={activeNote.content || ''}
                       language={activeNote.codeLanguage || 'typescript'}
@@ -1692,10 +1326,12 @@ export const NotesNotebookPage: React.FC = () => {
                     />
                   </div>
                 ) : activeNote.type === 'folder' ? (
-                  <div className="p-6 space-y-6">
-                    <div className="prose dark:prose-invert max-w-none">
-                      <EditorContent editor={editor} />
-                    </div>
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                    <TriliumNotionEditor
+                      content={activeNote.content || ''}
+                      noteTitle={activeNote.title}
+                      onChange={(newHtml) => updateNote(activeNote.id, { content: newHtml })}
+                    />
 
                     {/* Sub-notes list inside Folder view */}
                     <div className="space-y-3 pt-4 border-t border-stone-200 dark:border-zinc-800">
@@ -1748,9 +1384,11 @@ export const NotesNotebookPage: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 sm:p-6 min-h-[500px]">
-                    <EditorContent editor={editor} className="min-h-[450px]" />
-                  </div>
+                  <TriliumNotionEditor
+                    content={activeNote.content || ''}
+                    noteTitle={activeNote.title}
+                    onChange={(newHtml) => updateNote(activeNote.id, { content: newHtml })}
+                  />
                 )}
               </div>
             </div>

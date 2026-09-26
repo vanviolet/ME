@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Underline } from '@tiptap/extension-underline';
@@ -35,12 +35,12 @@ interface NotionEditorProps {
 export const NotionEditor: React.FC<NotionEditorProps> = ({
   value,
   onChange,
-  placeholder = 'Tulis konten, blok teks untuk AI Improve, atau ketik "/" untuk menu...',
+  placeholder = 'Tulis konten, blok teks untuk menu AI Improve, atau ketik "/" untuk perintah...',
   minHeight = '380px',
   vanpediaTerms = [],
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const isInternalUpdate = useRef(false);
+  const lastEmittedValue = useRef<string>(value);
 
   const editor = useEditor({
     extensions: [
@@ -92,33 +92,32 @@ export const NotionEditor: React.FC<NotionEditorProps> = ({
         transformCopiedText: true,
       }),
     ],
-    content: value,
+    content: value || '<p></p>',
     editorProps: {
       attributes: {
         class:
-          'prose dark:prose-invert max-w-none focus:outline-none min-h-[300px] text-stone-800 dark:text-zinc-100 font-reading-sans text-base leading-relaxed',
+          'prose dark:prose-invert max-w-none focus:outline-none min-h-[320px] text-stone-800 dark:text-zinc-100 font-sans text-base leading-relaxed',
       },
     },
     onUpdate: ({ editor }) => {
-      isInternalUpdate.current = true;
       try {
         const md = (editor.storage as any).markdown?.getMarkdown?.() || editor.getHTML();
+        lastEmittedValue.current = md;
         onChange(md);
       } catch {
-        onChange(editor.getHTML());
+        const html = editor.getHTML();
+        lastEmittedValue.current = html;
+        onChange(html);
       }
-      setTimeout(() => {
-        isInternalUpdate.current = false;
-      }, 0);
     },
   });
 
-  // Keep editor content in sync when value changes externally (e.g. from template/draft load)
+  // Only sync editor content when value changed from external source (not during typing)
   useEffect(() => {
-    if (!editor || isInternalUpdate.current) return;
-    const currentMd = (editor.storage as any).markdown?.getMarkdown?.();
-    if (value !== currentMd && value !== editor.getHTML()) {
-      editor.commands.setContent(value);
+    if (!editor) return;
+    if (value !== lastEmittedValue.current) {
+      lastEmittedValue.current = value;
+      editor.commands.setContent(value || '<p></p>');
     }
   }, [value, editor]);
 
@@ -131,7 +130,7 @@ export const NotionEditor: React.FC<NotionEditorProps> = ({
     <div
       ref={containerRef}
       onClick={handleContainerClick}
-      className="relative flex-1 p-6 sm:p-10 bg-white dark:bg-[#15171b] overflow-y-auto min-h-0 select-text notion-like-canvas"
+      className="relative flex-1 pl-12 sm:pl-16 pr-6 sm:pr-10 py-6 bg-white dark:bg-[#15171b] overflow-y-auto min-h-0 select-text notion-like-canvas"
       style={{ minHeight }}
     >
       {/* 1. NOTION SELECTION BUBBLE MENU (✨ Improve, AI Dropdown, Block type, Format) */}
